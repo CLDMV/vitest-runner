@@ -63,6 +63,7 @@ import { colourPct } from "./utils/ansi.mjs";
  * @property {PerFileHeapOverride[]} [perFileHeapOverrides=[]] - Per-file minimum heap overrides.
  * @property {string[]} [conditions=[]] - Additional `--conditions` Node flags forwarded to children.
  * @property {string} [nodeEnv='development'] - Value for `NODE_ENV` in child processes.
+ * @property {object[] | null} [_testResultsOverride=null] - @internal Inject pre-built results to bypass discovery and spawn (for testing final-report render paths).
  */
 
 /**

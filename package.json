@@ -5,8 +5,10 @@
 	"type": "module",
 	"main": "index.cjs",
 	"module": "index.mjs",
+	"types": "./types/index.d.mts",
 	"exports": {
 		".": {
+			"types": "./types/index.d.mts",
 			"import": "./index.mjs",
 			"require": "./index.cjs"
 		}
@@ -17,14 +19,17 @@
 	"files": [
 		"index.mjs",
 		"index.cjs",
+		"types/",
 		"src/",
 		"bin/"
 	],
 	"scripts": {
 		"lint": "eslint src/ bin/ index.mjs",
-		"test": "vitest run",
-		"test:watch": "vitest",
-		"test:coverage": "vitest run --coverage"
+		"test": "vitest run --config .configs/vitest.config.mjs",
+		"test:watch": "vitest --config .configs/vitest.config.mjs",
+		"test:coverage": "vitest run --coverage --config .configs/vitest.config.mjs",
+		"types:build": "tsc -p .configs/tsconfig.json",
+		"types:check": "tsc -p .configs/tsconfig.json --noEmit"
 	},
 	"keywords": [
 		"vitest",
@@ -33,7 +38,9 @@
 		"oom"
 	],
 	"devDependencies": {
+		"@types/node": "^25.3.0",
 		"@vitest/coverage-v8": "^4.0.18",
+		"typescript": "^5.9.3",
 		"vitest": "^4.0.18"
 	},
 	"dependencies": {

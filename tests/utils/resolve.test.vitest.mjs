@@ -18,13 +18,15 @@ describe("resolveVitestConfig", () => {
 	});
 
 	it("resolves an explicit relative path against cwd", async () => {
-		const result = await resolveVitestConfig(PKG_ROOT, "vitest.config.mjs");
-		expect(result).toBe(path.join(PKG_ROOT, "vitest.config.mjs"));
+		const result = await resolveVitestConfig(PKG_ROOT, ".configs/vitest.config.mjs");
+		expect(result).toBe(path.join(PKG_ROOT, ".configs/vitest.config.mjs"));
 	});
 
-	it("auto-detects vitest.config.mjs in the package root", async () => {
-		const result = await resolveVitestConfig(PKG_ROOT, undefined);
-		expect(result).toBe(path.join(PKG_ROOT, "vitest.config.mjs"));
+	it("auto-detects vitest.config.mjs in the fixtures directory", async () => {
+		// tests/fixtures/ has its own vitest.config.mjs — use it to exercise auto-detection
+		const fixturesDir = path.join(PKG_ROOT, "tests", "fixtures");
+		const result = await resolveVitestConfig(fixturesDir, undefined);
+		expect(result).toBe(path.join(fixturesDir, "vitest.config.mjs"));
 	});
 
 	it("returns undefined when no config file is found", async () => {
