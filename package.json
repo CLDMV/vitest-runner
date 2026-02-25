@@ -1,0 +1,42 @@
+{
+	"name": "vitest-runner",
+	"version": "1.0.0",
+	"description": "Sequential Vitest runner to avoid OOM issues with large test suites",
+	"type": "module",
+	"main": "index.cjs",
+	"module": "index.mjs",
+	"exports": {
+		".": {
+			"import": "./index.mjs",
+			"require": "./index.cjs"
+		}
+	},
+	"bin": {
+		"vitest-runner": "./bin/vitest-runner.mjs"
+	},
+	"files": [
+		"index.mjs",
+		"index.cjs",
+		"src/",
+		"bin/"
+	],
+	"scripts": {
+		"lint": "eslint src/ bin/ index.mjs"
+	},
+	"keywords": [
+		"vitest",
+		"test-runner",
+		"sequential",
+		"oom"
+	],
+	"dependencies": {
+		"chalk": "^5.4.1"
+	},
+	"peerDependencies": {
+		"vitest": ">=1.0.0"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"license": "MIT"
+}
