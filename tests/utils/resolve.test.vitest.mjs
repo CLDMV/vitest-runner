@@ -46,7 +46,7 @@ describe("resolveBin", () => {
 	});
 
 	it("throws when the package exists but has no bin field", () => {
-		// `ms` is a library with no CLI binary — exercises the !rel throw path
-		expect(() => resolveBin(PKG_ROOT, "ms")).toThrow(/No bin/);
+		// `@vitest/coverage-v8` is a library with no CLI binary — exercises the !rel throw path
+		expect(() => resolveBin(PKG_ROOT, "@vitest/coverage-v8")).toThrow(/No bin/);
 	});
 });
