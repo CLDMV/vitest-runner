@@ -164,10 +164,9 @@ describe("run() — perFileHeapOverrides", () => {
 		const code = await run({
 			...QUIET_BASE,
 			testDir: path.join(FIXTURES, "passing"),
-			perFileHeapOverrides: [{ pattern: "a.test", heapMb: 512 }],
+			perFileHeapOverrides: [{ pattern: "a.test", heapMb: 512 }]
 			// maxOldSpaceMb intentionally omitted
 		});
 		expect(code).toBe(0);
 	});
 });
-

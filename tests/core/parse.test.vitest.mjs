@@ -99,7 +99,7 @@ describe("parseVitestOutput", () => {
 			" FAIL tests/a.test.vitest.mjs",
 			"  AssertionError: first",
 			" FAIL tests/b.test.vitest.mjs",
-			"  AssertionError: second",
+			"  AssertionError: second"
 		].join("\n");
 		const output = block + "\n Test Files  2 failed (2)\n      Tests  2 failed (2)";
 		const result = parseVitestOutput(output);
@@ -110,9 +110,7 @@ describe("parseVitestOutput", () => {
 
 	it("handles error block with no preceding newline (lineStart === -1 branch)", () => {
 		// "FAIL tests/" immediately after "Failed Tests" with no intervening newline
-		const output =
-			"Failed TestsFAIL tests/no-newline.test.vitest.mjs AssertionError: x" +
-			" Test Files  1 failed (1)";
+		const output = "Failed TestsFAIL tests/no-newline.test.vitest.mjs AssertionError: x" + " Test Files  1 failed (1)";
 		const result = parseVitestOutput(output);
 		expect(result.errors.length).toBeGreaterThanOrEqual(1);
 		expect(result.errors[0]).toContain("tests/no-newline");

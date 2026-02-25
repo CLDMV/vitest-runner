@@ -91,4 +91,10 @@ describe("buildNodeOptions", () => {
 		const result = buildNodeOptions({ base: "  " });
 		expect(result).toBe("");
 	});
+
+	it("uses empty-string fallback when NODE_OPTIONS is absent and base is not provided (line 22 ?? branch)", () => {
+		// NODE_OPTIONS is deleted by beforeEach; calling without base triggers the ?? "" path
+		const result = buildNodeOptions({});
+		expect(result).toBe("");
+	});
 });

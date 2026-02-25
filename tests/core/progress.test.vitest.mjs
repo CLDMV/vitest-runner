@@ -168,4 +168,20 @@ describe("createCoverageProgressTracker", () => {
 		// At least 2 writes: the initial render + at least one interval render
 		expect(stdoutWrites.length).toBeGreaterThan(1);
 	});
+
+	it("spinner interval takes early-return when all files are already complete (line 99 true branch)", async () => {
+		// Complete all files before the interval fires → interval sees completed>=total && active===0
+		enableTTY();
+		captureOutput();
+		const tracker = createCoverageProgressTracker(2);
+		tracker.onStart();
+		tracker.onComplete(false);
+		tracker.onStart();
+		tracker.onComplete(false);
+		// All 2 files done; now wait for the 120ms interval to tick (it should early-return)
+		await new Promise((r) => setTimeout(r, 200));
+		tracker.finish();
+		// Should not throw and writes should still have happened from the onComplete renders
+		expect(stdoutWrites.length).toBeGreaterThan(0);
+	});
 });

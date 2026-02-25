@@ -22,40 +22,31 @@ const FIXTURE_CONFIG = path.join(FIXTURES, "vitest.config.mjs");
 describe("runSingleFile", () => {
 	it("runs a passing fixture and returns code 0", async () => {
 		const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
-		const result = await runSingleFile(
-			"tests/fixtures/passing/a.test.vitest.mjs",
-			{
-				cwd: PKG_ROOT,
-				vitestBin,
-				vitestConfig: FIXTURE_CONFIG,
-			},
-		);
+		const result = await runSingleFile("tests/fixtures/passing/a.test.vitest.mjs", {
+			cwd: PKG_ROOT,
+			vitestBin,
+			vitestConfig: FIXTURE_CONFIG
+		});
 		expect(result.code).toBe(0);
 		expect(result.testFilesPass).toBeGreaterThanOrEqual(1);
 	});
 
 	it("runs a failing fixture and returns code 1", async () => {
 		const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
-		const result = await runSingleFile(
-			"tests/fixtures/failing/broken.test.vitest.mjs",
-			{
-				cwd: PKG_ROOT,
-				vitestBin,
-				vitestConfig: FIXTURE_CONFIG,
-			},
-		);
+		const result = await runSingleFile("tests/fixtures/failing/broken.test.vitest.mjs", {
+			cwd: PKG_ROOT,
+			vitestBin,
+			vitestConfig: FIXTURE_CONFIG
+		});
 		expect(result.code).toBe(1);
 	});
 
 	it("resolves with code 1 on child process error (invalid binary)", async () => {
 		// Triggers the child.on("error") handler path
-		const result = await runSingleFile(
-			"tests/fixtures/passing/a.test.vitest.mjs",
-			{
-				cwd: PKG_ROOT,
-				vitestBin: "/nonexistent/path/to/vitest",
-			},
-		);
+		const result = await runSingleFile("tests/fixtures/passing/a.test.vitest.mjs", {
+			cwd: PKG_ROOT,
+			vitestBin: "/nonexistent/path/to/vitest"
+		});
 		expect(result.code).toBe(1);
 	});
 });
@@ -69,7 +60,7 @@ describe("runVitestDirect", () => {
 			cwd: PKG_ROOT,
 			vitestBin,
 			vitestConfig: FIXTURE_CONFIG,
-			vitestArgs: ["tests/fixtures/passing/a.test.vitest.mjs"],
+			vitestArgs: ["tests/fixtures/passing/a.test.vitest.mjs"]
 		});
 		expect(code).toBe(0);
 	});
@@ -80,7 +71,7 @@ describe("runVitestDirect", () => {
 			cwd: PKG_ROOT,
 			vitestBin,
 			vitestConfig: FIXTURE_CONFIG,
-			vitestArgs: ["tests/fixtures/failing/broken.test.vitest.mjs"],
+			vitestArgs: ["tests/fixtures/failing/broken.test.vitest.mjs"]
 		});
 		expect(code).toBe(1);
 	});

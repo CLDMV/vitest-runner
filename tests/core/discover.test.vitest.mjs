@@ -156,7 +156,7 @@ describe("discoverVitestFiles — testPatterns", () => {
 		// Exercises the path.resolve(cwd, testDir) branch when testDir is relative
 		const files = await discoverVitestFiles({
 			cwd: PKG_ROOT,
-			testDir: "tests/fixtures/passing",
+			testDir: "tests/fixtures/passing"
 		});
 		expect(files.length).toBeGreaterThanOrEqual(2);
 	});

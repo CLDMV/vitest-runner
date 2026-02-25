@@ -106,14 +106,72 @@ describe("computeSummaryFromFinal", () => {
 		const data = {
 			"/src/barebones.mjs": {
 				// s, f, b, statementMap all absent
-				statementMap: { 0: { start: { line: null }, end: {} } }, // line == null → continue
-			},
+				statementMap: { 0: { start: { line: null }, end: {} } } // line == null → continue
+			}
 		};
 		const summary = computeSummaryFromFinal(data);
 		expect(summary["/src/barebones.mjs"].statements.pct).toBe(100);
 		expect(summary["/src/barebones.mjs"].functions.pct).toBe(100);
 		expect(summary["/src/barebones.mjs"].branches.pct).toBe(100);
 		expect(summary["/src/barebones.mjs"].lines.pct).toBe(100);
+	});
+
+	it("handles statementMap entry with null loc (line 114 optional-chain null branch)", () => {
+		// loc is null → loc?.start?.line short-circuits to undefined, line == null → continue
+		const data = {
+			"/src/nullloc.mjs": {
+				s: { 0: 1 },
+				f: {},
+				b: {},
+				statementMap: { 0: null }
+			}
+		};
+		const summary = computeSummaryFromFinal(data);
+		expect(summary["/src/nullloc.mjs"].lines.pct).toBe(100);
+	});
+
+	it("handles statementMap entry where loc.start is null (line 114 second ?. branch)", () => {
+		// loc is non-null but loc.start is null → loc?.start?.line short-circuits at .start
+		const data = {
+			"/src/nullstart.mjs": {
+				s: { 0: 1 },
+				f: {},
+				b: {},
+				statementMap: { 0: { start: null } }
+			}
+		};
+		const summary = computeSummaryFromFinal(data);
+		expect(summary["/src/nullstart.mjs"].lines.pct).toBe(100);
+	});
+
+	it("handles a file entry with no statementMap field (line 114 ?? {} fallback branch)", () => {
+		// statementMap is absent → data.statementMap ?? {} uses the {} fallback → empty loop
+		const data = {
+			"/src/nostatmap.mjs": {
+				s: { 0: 1 },
+				f: { 0: 1 },
+				b: {}
+				// statementMap intentionally absent
+			}
+		};
+		const summary = computeSummaryFromFinal(data);
+		// No statementMap entries → lines.total = 0 → vacuous 100%
+		expect(summary["/src/nostatmap.mjs"].lines.pct).toBe(100);
+	});
+
+	it("handles statementMap with valid line but absent s field (line 118 data.s ?? {} branch)", () => {
+		// s is absent → data.s ?? {} activates the {} fallback; line is valid so we reach line 118
+		const data = {
+			"/src/nos.mjs": {
+				// s intentionally absent
+				f: {},
+				b: {},
+				statementMap: { 0: { start: { line: 1 }, end: { line: 1 } } }
+			}
+		};
+		const summary = computeSummaryFromFinal(data);
+		// statementMap has 1 line entry; no s data → coveredLines=0, totalLines=1 → 0%
+		expect(summary["/src/nos.mjs"].lines.pct).toBe(0);
 	});
 });
 
@@ -251,6 +309,18 @@ describe("printCoverageSummary", () => {
 		expect(logs.join("")).toContain("no coverage JSON found");
 	});
 
+	it("resolves a relative reportsDirectory against cwd (line 160 false branch)", async () => {
+		// Write coverage-summary.json inside tmpDir, then point at it via a relative path
+		const relDir = path.relative(PKG_ROOT, tmpDir);
+		const summary = {
+			total: { lines: { pct: 100 }, statements: { pct: 100 }, functions: { pct: 100 }, branches: { pct: 100 } }
+		};
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(summary));
+
+		const { logs } = await captureConsole(() => printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${relDir}`], 0));
+		expect(logs.join("")).toContain("Coverage");
+	});
+
 	it("shows 'and N more files' line when files exceed worstCount", async () => {
 		const files = Array.from({ length: 15 }, (_, i) => [
 			`/src/file${i}.mjs`,
@@ -275,20 +345,14 @@ describe("printCoverageSummary", () => {
 		// Exercises the `?.pct ?? 0` fallback paths in both fileRows.map and the totals line
 		const summary = {
 			total: {}, // no lines/statements/functions/branches properties
-			"/src/uncoveredFile.mjs": {}, // same — no pct fields
+			"/src/uncoveredFile.mjs": {} // same — no pct fields
 		};
-		await fs.writeFile(
-			path.join(tmpDir, "coverage-summary.json"),
-			JSON.stringify(summary),
-		);
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(summary));
 
-		const { logs } = await captureConsole(() =>
-			printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10),
-		);
+		const { logs } = await captureConsole(() => printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10));
 		const all = logs.join("\n");
 		// Coverage line should render with 0% for all metrics
 		expect(all).toContain("Coverage");
 		expect(all).toContain("0");
 	});
 });
-
