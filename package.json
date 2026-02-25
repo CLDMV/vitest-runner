@@ -21,7 +21,10 @@
 		"bin/"
 	],
 	"scripts": {
-		"lint": "eslint src/ bin/ index.mjs"
+		"lint": "eslint src/ bin/ index.mjs",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage"
 	},
 	"keywords": [
 		"vitest",
@@ -29,6 +32,10 @@
 		"sequential",
 		"oom"
 	],
+	"devDependencies": {
+		"@vitest/coverage-v8": "^3.0.0",
+		"vitest": "^3.0.0"
+	},
 	"dependencies": {
 		"chalk": "^5.4.1"
 	},

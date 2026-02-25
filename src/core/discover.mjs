@@ -153,6 +153,7 @@ export async function discoverVitestFiles(opts) {
 		} else {
 			// Partial-path matching against all files in testDir
 			const allFiles = await discoverFilesInDir(resolvedTestDir, cwd, testFilePattern);
+			const matched = allFiles.filter((f) => f.replace(/\\/g, "/").includes(pattern.replace(/\\/g, "/")));
 
 			if (matched.length > 0) {
 				files.push(...matched);

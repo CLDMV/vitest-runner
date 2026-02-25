@@ -51,6 +51,9 @@ export function parseArguments(args) {
 	let showErrorDetails = true;
 	let coverageQuiet = false;
 	let logFile;
+	let workers;
+	let help = false;
+	let testFilePattern;
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
 
@@ -62,6 +65,10 @@ export function parseArguments(args) {
 			showErrorDetails = false;
 		} else if (arg === "--coverage-quiet") {
 			coverageQuiet = true;
+		} else if (arg === "--log-file") {
+			logFile = args[++i];
+		} else if (arg.startsWith("--log-file=")) {
+			logFile = arg.slice("--log-file=".length);
 		} else if (arg === "--workers") {
 			workers = parseInt(args[++i], 10);
 		} else if (arg.startsWith("--workers=")) {
@@ -91,6 +98,7 @@ export function parseArguments(args) {
 		testListFile,
 		showErrorDetails,
 		coverageQuiet,
+		logFile,
 		help,
 		workers,
 		soloPatterns,

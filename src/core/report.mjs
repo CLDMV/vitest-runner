@@ -61,8 +61,14 @@ export function printMergeOutput(exitCode, output) {
 				}
 			}
 
-			const coverageBlock = rawLines.slice(markerLineIndex, endLineIndex).join("\n").trimEnd();
-			if (coverageBlock) console.log(`\n${coverageBlock}\n`);
+			const coverageBody = rawLines
+				.slice(markerLineIndex + 1, endLineIndex)
+				.join("\n")
+				.trimEnd();
+			if (coverageBody) {
+				const fullBlock = rawLines.slice(markerLineIndex, endLineIndex).join("\n").trimEnd();
+				console.log(`\n${fullBlock}\n`);
+			}
 		}
 	} else {
 		const trimmed = output.trimEnd();
