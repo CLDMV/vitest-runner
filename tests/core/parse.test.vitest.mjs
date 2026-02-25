@@ -147,4 +147,13 @@ describe("deduplicateErrors", () => {
 		expect(failLines[0]).toContain("configA");
 		expect(failLines[0]).toContain("configB");
 	});
+
+	it("passes through a Config: line unchanged when regex does not match (line 135 false branch)", () => {
+		// The regex needs ([^'>]+) (≥1 char) AND (.+)$ (≥1 char) after "Config:\s+".
+		// With only a single char after "Config: ", ([^'>]+) consumes it and (.+)$ fails;
+		// backtracking gives ([^'>]+) zero chars which violates its + — overall match is null.
+		const line = "FAIL tests/foo.test.vitest.mjs Config: X";
+		const result = deduplicateErrors([line]);
+		expect(result).toContain("Config: X");
+	});
 });

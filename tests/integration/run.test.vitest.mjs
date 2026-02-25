@@ -146,6 +146,46 @@ describe("run() — coverage mode (--coverage)", () => {
 		});
 		expect(code).toBe(0);
 	});
+
+	it("adds --coverage automatically when coverageQuiet is true but --coverage is absent (line 132)", async () => {
+		// coverageQuiet: true without an explicit --coverage → runner unshifts '--coverage'
+		const coverageDir = path.join(CWD, "tmp", "test-coverage-quiet-implied");
+		const code = await run({
+			cwd: CWD,
+			testDir: path.join(FIXTURES, "passing"),
+			coverageQuiet: true,
+			vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
+			// No explicit --coverage — runner should insert it via line 132
+			vitestArgs: ["--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
+		});
+		expect(code).toBe(0);
+	});
+
+	it("returns 1 when no test files are found in coverage mode (lines 150-153)", async () => {
+		// hasCoverage=true, but testFilePattern matches nothing → no files → early return 1
+		const code = await run({
+			cwd: CWD,
+			testDir: path.join(FIXTURES, "passing"),
+			coverageQuiet: true,
+			vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
+			vitestArgs: ["--coverage", "--coverage.provider=v8"],
+			testFilePattern: /\.never-matches-xyz$/
+		});
+		expect(code).toBe(1);
+	});
+
+	it("logs FAILED for a failing file in non-quiet coverage mode (line 217)", async () => {
+		// coverageQuiet: false + failing fixture → runner logs '❌ FAILED' per file (line 217)
+		const coverageDir = path.join(CWD, "tmp", "test-coverage-failing-nonquiet");
+		const code = await run({
+			cwd: CWD,
+			testDir: path.join(FIXTURES, "failing"),
+			coverageQuiet: false,
+			vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
+			vitestArgs: ["--coverage", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
+		});
+		expect(code).toBe(1);
+	});
 });
 
 describe("run() — perFileHeapOverrides", () => {
