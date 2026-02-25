@@ -148,15 +148,15 @@ describe("run() — coverage mode (--coverage)", () => {
 	});
 
 	it("adds --coverage automatically when coverageQuiet is true but --coverage is absent (line 132)", async () => {
-		// coverageQuiet: true without an explicit --coverage → runner unshifts '--coverage'
-		const coverageDir = path.join(CWD, "tmp", "test-coverage-quiet-implied");
+		// coverageQuiet:true with NO --coverage/--coverage.* in vitestArgs at all
+		// → !vitestArgs.some(...) is true → runner unshifts '--coverage' (line 132)
+		// Coverage output goes to the default ./coverage dir (ignored by .gitignore)
 		const code = await run({
 			cwd: CWD,
 			testDir: path.join(FIXTURES, "passing"),
 			coverageQuiet: true,
 			vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
-			// No explicit --coverage — runner should insert it via line 132
-			vitestArgs: ["--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
+			vitestArgs: [] // deliberately no --coverage.* args — line 132 inserts --coverage
 		});
 		expect(code).toBe(0);
 	});
@@ -186,6 +186,34 @@ describe("run() — coverage mode (--coverage)", () => {
 		});
 		expect(code).toBe(1);
 	});
+
+	it("partitions soloFiles/parallelFiles in coverage mode with earlyRunPatterns (lines 160-161)", async () => {
+		// earlyRunPatterns in coverage mode → soloFiles+parallelFiles split on lines 160-161
+		const coverageDir = path.join(CWD, "tmp", "test-coverage-early-patterns");
+		const code = await run({
+			cwd: CWD,
+			testDir: path.join(FIXTURES, "passing"),
+			coverageQuiet: true,
+			vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
+			earlyRunPatterns: ["a.test"], // puts a.test in soloFiles, b.test in parallelFiles
+			vitestArgs: ["--coverage", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
+		});
+		expect(code).toBe(0);
+	});
+
+	it("logs heap limit in coverage mode when maxOldSpaceMb is set (line 166)", async () => {
+		// maxOldSpaceMb in coverage mode → line 166: console.log('🧠 Heap limit: ...')
+		const coverageDir = path.join(CWD, "tmp", "test-coverage-heap-limit");
+		const code = await run({
+			cwd: CWD,
+			testDir: path.join(FIXTURES, "passing"),
+			coverageQuiet: false,
+			vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
+			maxOldSpaceMb: 4096,
+			vitestArgs: ["--coverage", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
+		});
+		expect(code).toBe(0);
+	});
 });
 
 describe("run() — perFileHeapOverrides", () => {
@@ -206,6 +234,48 @@ describe("run() — perFileHeapOverrides", () => {
 			testDir: path.join(FIXTURES, "passing"),
 			perFileHeapOverrides: [{ pattern: "a.test", heapMb: 512 }]
 			// maxOldSpaceMb intentionally omitted
+		});
+		expect(code).toBe(0);
+	});
+});
+describe("run() — _testResultsOverride (final-report render paths)", () => {
+	/**
+	 * Build a synthetic SingleFileResult for injection via _testResultsOverride.
+	 * @param {Partial<{file:string,code:number,heapMb:number|null,testsPass:number,testsFail:number}>} opts
+	 * @returns {object}
+	 */
+	function makeResult({ file = "tests/fixtures/passing/a.test.vitest.mjs", code = 0, heapMb = null, testsPass = 2, testsFail = 0 } = {}) {
+		return {
+			file,
+			code,
+			duration: 1500,
+			testFilesPass: code === 0 ? 1 : 0,
+			testFilesFail: code !== 0 ? 1 : 0,
+			testsPass,
+			testsFail,
+			testsSkip: 0,
+			heapMb,
+			errors: [],
+			rawOutput: ""
+		};
+	}
+
+	it("renders 🧠 TOP MEMORY USERS when any result has heapMb set (runner.mjs:376-382)", async () => {
+		// heapMb !== null → withHeap has entries → TOP MEMORY USERS block executes
+		const code = await run({
+			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "passing"),
+			_testResultsOverride: [makeResult({ heapMb: 512 })]
+		});
+		expect(code).toBe(0);
+	});
+
+	it("renders max/avg heap in summary when heapMb is set (runner.mjs:473-475)", async () => {
+		// Same condition re-checked at the bottom summary; both paths run together
+		const code = await run({
+			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "passing"),
+			_testResultsOverride: [makeResult({ heapMb: 256 }), makeResult({ file: "tests/fixtures/passing/b.test.vitest.mjs", heapMb: 128 })]
 		});
 		expect(code).toBe(0);
 	});

@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runSingleFile, runVitestDirect } from "../../src/core/spawn.mjs";
+import { runSingleFile, runVitestDirect, runMergeReports } from "../../src/core/spawn.mjs";
 import { resolveBin } from "../../src/utils/resolve.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -42,12 +42,43 @@ describe("runSingleFile", () => {
 	});
 
 	it("resolves with code 1 on child process error (invalid binary)", async () => {
-		// Triggers the child.on("error") handler path
+		// The invalid vitestBin is passed as an arg to node, which starts successfully
+		// but exits with code 1 (node can't load the script) — goes through close, not error
 		const result = await runSingleFile("tests/fixtures/passing/a.test.vitest.mjs", {
 			cwd: PKG_ROOT,
 			vitestBin: "/nonexistent/path/to/vitest"
 		});
 		expect(result.code).toBe(1);
+	});
+
+	it("accumulates stderr without forwarding to process.stderr when streamOutput is false (spawn.mjs:103 branch)", async () => {
+		// The fixture uses console.error() which goes to the child's stderr.
+		// With streamOutput: false the child.stderr.on("data") handler fires (accumulating
+		// stderr into the output string) but does NOT call process.stderr.write —
+		// this exercises the FALSE arm of the `if (streamOutput)` branch at line 103.
+		const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
+		const result = await runSingleFile("tests/fixtures/stderr/stderr.test.vitest.mjs", {
+			cwd: PKG_ROOT,
+			vitestBin,
+			vitestConfig: FIXTURE_CONFIG,
+			streamOutput: false
+		});
+		expect(result.code).toBe(0);
+		// The stderr marker should be captured in rawOutput
+		expect(result.rawOutput).toMatch(/test-stderr-marker/);
+	});
+
+	it("resolves with code 1 via child.on('error') when cwd does not exist (spawn.mjs:127)", async () => {
+		// spawn() with a non-existent cwd emits ENOENT via the 'error' event — not 'close'
+		// This exercises the child.on("error") handler body at spawn.mjs:127
+		const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
+		const result = await runSingleFile("tests/fixtures/passing/a.test.vitest.mjs", {
+			cwd: "/nonexistent/directory/that/does/not/exist/abc123",
+			vitestBin
+		});
+		expect(result.code).toBe(1);
+		expect(result.testFilesFail).toBe(1);
+		expect(result.errors[0]).toMatch(/ENOENT|spawn/i);
 	});
 });
 
@@ -74,5 +105,65 @@ describe("runVitestDirect", () => {
 			vitestArgs: ["tests/fixtures/failing/broken.test.vitest.mjs"]
 		});
 		expect(code).toBe(1);
+	});
+
+	it("resolves with code 1 via child.on('error') when cwd does not exist (spawn.mjs:165)", async () => {
+		// Passing an invalid cwd to runVitestDirect triggers the OS-level ENOENT error
+		// which fires child.on('error'), exercising the () => resolve(1) handler at line 165.
+		const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
+		const code = await runVitestDirect({
+			cwd: "/nonexistent/path/abc123xyz",
+			vitestBin
+		});
+		expect(code).toBe(1);
+	});
+});
+
+// ─── runMergeReports ──────────────────────────────────────────────────────────
+
+describe("runMergeReports", () => {
+	it("resolves with exitCode 1 via child.on('error') when cwd does not exist (spawn.mjs:216)", async () => {
+		// Passing an invalid cwd triggers OS-level ENOENT, firing the error handler at line 216.
+		const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
+		const { exitCode } = await runMergeReports("/some/blobs/dir", {
+			cwd: "/nonexistent/path/abc123xyz",
+			vitestBin
+		});
+		expect(exitCode).toBe(1);
+	});
+
+	it("invokes the stderr data callback in quietOutput mode when vitest produces stderr (spawn.mjs:212)", async () => {
+		// With quietOutput:true stdio is piped. Pointing to a non-existent blobs dir causes
+		// vitest --mergeReports to fail and write an error to stderr, firing the
+		// child.stderr.on("data") callback at spawn.mjs:212.
+		const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
+		const { exitCode } = await runMergeReports("/nonexistent/blobs/123", {
+			cwd: PKG_ROOT,
+			vitestBin,
+			quietOutput: true
+		});
+		expect(exitCode).toBe(1);
+	});
+});
+
+// ─── buildEnv NODE_ENV fallback ───────────────────────────────────────────────
+
+describe("buildEnv NODE_ENV fallback", () => {
+	it("sets NODE_ENV from nodeEnv option when process.env.NODE_ENV is absent (spawn.mjs:27)", async () => {
+		// Temporarily remove NODE_ENV so buildEnv's `if (!env.NODE_ENV)` branch fires.
+		const saved = process.env.NODE_ENV;
+		delete process.env.NODE_ENV;
+		try {
+			const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
+			const result = await runSingleFile("tests/fixtures/passing/a.test.vitest.mjs", {
+				cwd: PKG_ROOT,
+				vitestBin,
+				vitestConfig: FIXTURE_CONFIG,
+				nodeEnv: "production"
+			});
+			expect(result.code).toBe(0);
+		} finally {
+			process.env.NODE_ENV = saved;
+		}
 	});
 });

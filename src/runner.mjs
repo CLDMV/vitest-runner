@@ -113,7 +113,9 @@ export async function run(opts) {
 		earlyRunPatterns = [],
 		perFileHeapOverrides = [],
 		conditions = [],
-		nodeEnv = "development"
+		nodeEnv = "development",
+		/** @internal Inject pre-built results to bypass discovery and spawn (for testing final-report render paths). */
+		_testResultsOverride = null
 	} = opts;
 
 	const maxOldSpaceMb = opts.maxOldSpaceMb ?? (process.env.VITEST_HEAP_MB ? parseInt(process.env.VITEST_HEAP_MB, 10) : undefined);
@@ -304,7 +306,7 @@ export async function run(opts) {
 	if (vitestArgs.length > 0) console.log(`🔧 Vitest args: ${vitestArgs.join(" ")}`);
 	console.log("");
 
-	const results = [];
+	const results = [...(_testResultsOverride ?? [])];
 
 	/**
 	 * Run one test file, log progress, and return the result.
@@ -333,29 +335,31 @@ export async function run(opts) {
 		return result;
 	};
 
-	// Phase 1: solo files
-	for (const filePath of soloFiles) {
-		const result = await runTestFile(filePath).catch((err) => {
-			console.error(`Error running ${filePath}:`, err);
-			return null;
-		});
-		if (result) results.push(result);
-	}
-
-	// Phase 2: parallel files with worker pool
-	let index = 0;
-	const activePromises = new Set();
-
-	while (index < parallelFiles.length || activePromises.size > 0) {
-		while (index < parallelFiles.length && activePromises.size < workers) {
-			const filePath = parallelFiles[index++];
-			const promise = runTestFile(filePath)
-				.then((result) => results.push(result))
-				.catch((err) => console.error(`Error running ${filePath}:`, err))
-				.finally(() => activePromises.delete(promise));
-			activePromises.add(promise);
+	if (!_testResultsOverride) {
+		// Phase 1: solo files
+		for (const filePath of soloFiles) {
+			const result = await runTestFile(filePath).catch((err) => {
+				console.error(`Error running ${filePath}:`, err);
+				return null;
+			});
+			if (result) results.push(result);
 		}
-		if (activePromises.size > 0) await Promise.race(activePromises);
+
+		// Phase 2: parallel files with worker pool
+		let index = 0;
+		const activePromises = new Set();
+
+		while (index < parallelFiles.length || activePromises.size > 0) {
+			while (index < parallelFiles.length && activePromises.size < workers) {
+				const filePath = parallelFiles[index++];
+				const promise = runTestFile(filePath)
+					.then((result) => results.push(result))
+					.catch((err) => console.error(`Error running ${filePath}:`, err))
+					.finally(() => activePromises.delete(promise));
+				activePromises.add(promise);
+			}
+			if (activePromises.size > 0) await Promise.race(activePromises);
+		}
 	}
 
 	// ─── FINAL REPORT ────────────────────────────────────────────────────────────
