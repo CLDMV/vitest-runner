@@ -9,6 +9,10 @@ Sequential Vitest runner that spawns each test file in its own child process to 
 - Usable as a **CLI binary** or as a **programmatic Node.js API**
 - Pure ESM with a CJS shim for `require()` compatibility
 
+[![npm version]][npm_version_url] [![npm downloads]][npm_downloads_url] <!-- [![GitHub release]][github_release_url] -->[![GitHub downloads]][github_downloads_url] [![Last commit]][last_commit_url] <!-- [![Release date]][release_date_url] -->[![npm last update]][npm_last_update_url] [![Coverage]][coverage_url]
+
+[![Contributors]][contributors_url] [![Sponsor shinrai]][sponsor_url]
+
 ---
 
 ## Requirements
@@ -313,3 +317,26 @@ All sub-module utilities are re-exported from the root entry point, so deep impo
 ## License
 
 MIT
+
+<!-- Badge definitions -->
+<!-- [github release]: https://img.shields.io/github/v/release/CLDMV/vitest-runner?style=for-the-badge&logo=github&logoColor=white&labelColor=181717 -->
+<!-- [github_release_url]: https://github.com/CLDMV/vitest-runner/releases -->
+<!-- [release date]: https://img.shields.io/github/release-date/CLDMV/vitest-runner?style=for-the-badge&logo=github&logoColor=white&labelColor=181717 -->
+<!-- [release_date_url]: https://github.com/CLDMV/vitest-runner/releases -->
+
+[npm version]: https://img.shields.io/npm/v/vitest-runner.svg?style=for-the-badge&logo=npm&logoColor=white&labelColor=CB3837
+[npm_version_url]: https://www.npmjs.com/package/vitest-runner
+[npm downloads]: https://img.shields.io/npm/dm/vitest-runner.svg?style=for-the-badge&logo=npm&logoColor=white&labelColor=CB3837
+[npm_downloads_url]: https://www.npmjs.com/package/vitest-runner
+[github downloads]: https://img.shields.io/github/downloads/CLDMV/vitest-runner/total?style=for-the-badge&logo=github&logoColor=white&labelColor=181717
+[github_downloads_url]: https://github.com/CLDMV/vitest-runner/releases
+[last commit]: https://img.shields.io/github/last-commit/CLDMV/vitest-runner?style=for-the-badge&logo=github&logoColor=white&labelColor=181717
+[last_commit_url]: https://github.com/CLDMV/vitest-runner/commits
+[npm last update]: https://img.shields.io/npm/last-update/vitest-runner?style=for-the-badge&logo=npm&logoColor=white&labelColor=CB3837
+[npm_last_update_url]: https://www.npmjs.com/package/vitest-runner
+[coverage]: https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FCLDMV%2Fvitest-runner%2Fbadges%2Fcoverage.json&style=for-the-badge&logo=vitest&logoColor=white
+[coverage_url]: https://github.com/CLDMV/vitest-runner/blob/badges/coverage.json
+[contributors]: https://img.shields.io/github/contributors/CLDMV/vitest-runner.svg?style=for-the-badge&logo=github&logoColor=white&labelColor=181717
+[contributors_url]: https://github.com/CLDMV/vitest-runner/graphs/contributors
+[sponsor shinrai]: https://img.shields.io/github/sponsors/shinrai?style=for-the-badge&logo=githubsponsors&logoColor=white&labelColor=EA4AAA&label=Sponsor
+[sponsor_url]: https://github.com/sponsors/shinrai
