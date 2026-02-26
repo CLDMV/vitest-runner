@@ -28,7 +28,7 @@
 		"test": "vitest run --config .configs/vitest.config.mjs",
 		"test:watch": "vitest --config .configs/vitest.config.mjs",
 		"test:coverage": "vitest run --coverage --config .configs/vitest.config.mjs",
-		"ci:coverage": "vitest run --coverage --reporter=dot --config .configs/vitest.config.mjs",
+		"ci:coverage": "vitest run --coverage --reporter=dot --maxWorkers=1 --config .configs/vitest.config.mjs",
 		"types:build": "tsc -p .configs/tsconfig.json",
 		"types:check": "tsc -p .configs/tsconfig.json --noEmit"
 	},
