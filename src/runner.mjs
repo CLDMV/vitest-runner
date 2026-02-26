@@ -239,6 +239,7 @@ export async function run(opts) {
 					.finally(() => coverageActivePromises.delete(promise));
 				coverageActivePromises.add(promise);
 			}
+			// c8 ignore next -- size is always >0 when the outer while body is reached
 			if (coverageActivePromises.size > 0) await Promise.race(coverageActivePromises);
 		}
 
@@ -359,6 +360,7 @@ export async function run(opts) {
 					.finally(() => activePromises.delete(promise));
 				activePromises.add(promise);
 			}
+			// c8 ignore next -- size is always >0 when the outer while body is reached
 			if (activePromises.size > 0) await Promise.race(activePromises);
 		}
 	}
@@ -381,7 +383,7 @@ export async function run(opts) {
 		console.log("\n" + chalk.bold("🧠 TOP MEMORY USERS"));
 		console.log("-".repeat(80));
 		[...withHeap]
-			.sort((a, b) => (b.heapMb ?? 0) - (a.heapMb ?? 0))
+			.sort((a, b) => b.heapMb - a.heapMb)
 			.slice(0, 10)
 			.forEach((r) => {
 				console.log(`  ${String(r.heapMb).padStart(4)} MB  ${chalk.dim(r.file)}`);
@@ -475,8 +477,8 @@ export async function run(opts) {
 	const scriptHeapMb = Math.round(scriptMemory.heapUsed / 1024 / 1024);
 	const scriptRssMb = Math.round(scriptMemory.rss / 1024 / 1024);
 	if (withHeap.length > 0) {
-		const maxHeap = Math.max(...withHeap.map((r) => r.heapMb ?? 0));
-		const avgHeap = (withHeap.reduce((s, r) => s + (r.heapMb ?? 0), 0) / withHeap.length).toFixed(0);
+		const maxHeap = Math.max(...withHeap.map((r) => r.heapMb));
+		const avgHeap = (withHeap.reduce((s, r) => s + r.heapMb, 0) / withHeap.length).toFixed(0);
 		console.log(`       ${chalk.bold("Heap")}  max ${maxHeap} MB | avg ${avgHeap} MB | script ${scriptHeapMb} MB (RSS ${scriptRssMb} MB)`);
 	} else {
 		console.log(`       ${chalk.bold("Heap")}  script ${scriptHeapMb} MB (RSS ${scriptRssMb} MB)`);

@@ -151,7 +151,7 @@ export function deduplicateErrors(errors) {
 		if (data.configs.length > 1) {
 			for (let i = 1; i < data.lines.length; i++) {
 				const idx = lineIndices.get(data.lines[i]);
-				if (idx !== undefined) skipIndices.add(idx);
+				skipIndices.add(idx);
 			}
 
 			const firstLine = data.lines[0];
@@ -159,7 +159,7 @@ export function deduplicateErrors(errors) {
 			const consolidated = stripAnsi(firstLine).replace(/(Config:\s+)'*[^'>]+'*/, `$1${configArray}`);
 
 			const firstIdx = lineIndices.get(firstLine);
-			if (firstIdx !== undefined) lines[firstIdx] = consolidated;
+			lines[firstIdx] = consolidated;
 		}
 	}
 

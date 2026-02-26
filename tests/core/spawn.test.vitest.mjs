@@ -167,3 +167,49 @@ describe("buildEnv NODE_ENV fallback", () => {
 		}
 	});
 });
+
+// ─── Signal-based (null exit code) branch coverage ───────────────────────────
+// These tests use a tiny stand-in script that kills itself with SIGTERM so the
+// child process close event fires with code=null, covering the `code ?? 1`
+// fallbacks in spawn.mjs (lines 113, 164, 215).
+
+/** Absolute path to the self-signalling stand-in binary. */
+const SIGNAL_SELF = path.join(PKG_ROOT, "tests/fixtures/signal-exit/signal-self.mjs");
+
+describe("runSingleFile — signal exit (null code)", () => {
+	it("resolves with code 1 when child exits via signal (spawn.mjs:113 code??1 + spawn.mjs:114 spawnDuration fallback)", async () => {
+		// The stand-in binary immediately sends SIGTERM to itself.
+		// • close fires with code=null  → code ?? 1  = 1  (spawn.mjs:113)
+		// • The child emits no Duration line → parsed.duration === 0
+		//   → duration falls back to spawnDuration              (spawn.mjs:114)
+		const result = await runSingleFile("tests/fixtures/signal-exit/signal-self.mjs", {
+			cwd: PKG_ROOT,
+			vitestBin: SIGNAL_SELF
+		});
+		expect(result.code).toBe(1);
+		expect(result.duration).toBeGreaterThan(0); // spawnDuration fallback was used
+	});
+});
+
+describe("runVitestDirect — signal exit (null code)", () => {
+	it("resolves with code 1 when child exits via signal (spawn.mjs:164 code??1)", async () => {
+		// Same stand-in binary kills itself → close with code=null → code ?? 1 = 1 (spawn.mjs:164)
+		const code = await runVitestDirect({
+			cwd: PKG_ROOT,
+			vitestBin: SIGNAL_SELF
+		});
+		expect(code).toBe(1);
+	});
+});
+
+describe("runMergeReports — signal exit (null code)", () => {
+	it("resolves with exitCode 1 when child exits via signal (spawn.mjs:215 code??1)", async () => {
+		// Same stand-in binary kills itself → close with code=null → code ?? 1 = 1 (spawn.mjs:215)
+		const { exitCode } = await runMergeReports("/some/blobs/dir", {
+			cwd: PKG_ROOT,
+			vitestBin: SIGNAL_SELF,
+			quietOutput: true // pipe stdio so we don't inherit terminal noise
+		});
+		expect(exitCode).toBe(1);
+	});
+});

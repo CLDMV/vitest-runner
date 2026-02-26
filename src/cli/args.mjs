@@ -89,7 +89,8 @@ export function parseArguments(args) {
 			if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
 				vitestPassthroughArgs.push(args[++i]);
 			}
-		} else if (!arg.startsWith("-")) {
+		} else {
+			// Any remaining token (cannot start with '-'; those are caught above)
 			testPatterns.push(arg);
 		}
 	}

@@ -156,4 +156,29 @@ describe("deduplicateErrors", () => {
 		const result = deduplicateErrors([line]);
 		expect(result).toContain("Config: X");
 	});
+
+	it("leaves a single-config FAIL line unchanged (parse.mjs:151 false — configs.length === 1)", () => {
+		// Only one FAIL line matching the Config: pattern → failLineMap entry has configs.length = 1
+		// → the `if (data.configs.length > 1)` branch is FALSE → no collapsing, no skipIndices update.
+		const line = "FAIL tests/foo.test.vitest.mjs Config: 'configA' › suite › test name";
+		const result = deduplicateErrors([line]);
+		expect(result).toContain("configA");
+		// Ensure no array-style consolidation happened
+		expect(result).not.toContain("['configA']");
+	});
+});
+
+describe("parseVitestOutput — errorBlock false branch (parse.mjs:102)", () => {
+	it("skips empty errorBlock when two FAIL markers share the same source line", () => {
+		// Two FAIL matches on the same line → lineStart === nextLineStart for the first match
+		// → actualStart === actualEnd → empty substring → errorBlock.trim() === ""
+		// → the `if (errorBlock)` guard is FALSE → result.errors stays empty.
+		const output =
+			"Failed Tests\n" +
+			" FAIL tests/a.test.vitest.mjs FAIL tests/b.test.vitest.mjs\n" +
+			" Test Files  2 failed (2)\n" +
+			"      Tests  2 failed (2)\n";
+		const result = parseVitestOutput(output);
+		expect(result.errors).toHaveLength(0);
+	});
 });

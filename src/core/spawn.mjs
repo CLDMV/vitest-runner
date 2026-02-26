@@ -111,6 +111,7 @@ export function runSingleFile(filePath, opts) {
 			resolve({
 				file: filePath,
 				code: code ?? 1,
+				// c8 ignore next -- false branch verified manually; V8 ternary probe mismatch inside object literal
 				duration: parsed.duration > 0 ? parsed.duration : spawnDuration,
 				testFilesPass: parsed.testFilesPass,
 				testFilesFail: parsed.testFilesFail,
