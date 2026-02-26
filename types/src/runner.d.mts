@@ -20,9 +20,9 @@ export type PerFileHeapOverride = {
 };
 export type RunOptions = {
     /**
-     * - Absolute project root directory.
+     * - Absolute project root directory (defaults to `process.cwd()`).
      */
-    cwd: string;
+    cwd?: string;
     /**
      * - Directory to scan for test files (relative or absolute; defaults to `cwd`).
      */

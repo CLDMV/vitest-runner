@@ -149,7 +149,6 @@ Runs the test suite and resolves with an exit code (`0` = all passed, `1` = any 
 import { run } from 'vitest-runner';
 
 const code = await run({
-  cwd: process.cwd(),
   testDir: 'src/tests',
 });
 
@@ -160,7 +159,7 @@ process.exit(code);
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `cwd` | `string` | **required** | Absolute project root directory |
+| `cwd` | `string` | `process.cwd()` | Absolute project root directory |
 | `testDir` | `string` | `cwd` | Directory (absolute or relative to `cwd`) to scan for `*.test.vitest.{js,mjs}` files |
 | `vitestConfig` | `string` | auto-detect | Explicit vitest config path; when omitted the runner walks standard config names (`vitest.config.ts`, `vite.config.ts`, etc.) relative to `cwd` |
 | `testPatterns` | `string[]` | `[]` | File / folder patterns to filter — empty means all files in `testDir` |
@@ -188,33 +187,29 @@ process.exit(code);
 #### Examples
 
 ```js
-// Run all tests under src/tests/
-await run({ cwd: process.cwd(), testDir: 'src/tests' });
+// Run all tests under src/tests/ (cwd defaults to process.cwd())
+await run({ testDir: 'src/tests' });
 
 // Run only the config and metadata suites
 await run({
-  cwd: process.cwd(),
   testDir: 'src/tests',
   testPatterns: ['src/tests/config', 'src/tests/metadata'],
 });
 
 // Coverage run (OOM-safe blob + merge mode)
 await run({
-  cwd: process.cwd(),
   testDir: 'src/tests',
   vitestArgs: ['--coverage'],
 });
 
 // Quiet coverage with live progress bar
 await run({
-  cwd: process.cwd(),
   testDir: 'src/tests',
   coverageQuiet: true,
 });
 
 // Give heap-heavy files a larger ceiling while keeping the global limit lower
 await run({
-  cwd: process.cwd(),
   testDir: 'src/tests',
   maxOldSpaceMb: 2048,
   earlyRunPatterns: ['listener-cleanup/'],

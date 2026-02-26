@@ -11,15 +11,14 @@
  * are forwarded to child processes unchanged.
  *
  * @example
- * // Run every test file found under src/tests/
+ * // Run every test file found under src/tests/ (cwd defaults to process.cwd())
  * import { run } from 'vitest-runner';
- * const code = await run({ cwd: process.cwd(), testDir: 'src/tests' });
+ * const code = await run({ testDir: 'src/tests' });
  * process.exit(code);
  *
  * @example
  * // Run a subset with custom heap limit
  * const code = await run({
- *   cwd: process.cwd(),
  *   testDir: 'src/tests',
  *   testPatterns: ['src/tests/config'],
  *   maxOldSpaceMb: 4096,
@@ -47,7 +46,7 @@ import { colourPct } from "./utils/ansi.mjs";
 
 /**
  * @typedef {Object} RunOptions
- * @property {string} cwd - Absolute project root directory.
+ * @property {string} [cwd=process.cwd()] - Absolute project root directory (defaults to `process.cwd()`).
  * @property {string} [testDir] - Directory to scan for test files (relative or absolute; defaults to `cwd`).
  * @property {string} [vitestConfig] - Explicit vitest config path; auto-detected from `cwd` when omitted.
  * @property {string[]} [testPatterns=[]] - File / folder patterns to filter (empty = all files in `testDir`).
@@ -101,7 +100,7 @@ function getHeapForFile(filePath, globalMaxMb, overrides) {
  */
 export async function run(opts) {
 	const {
-		cwd,
+		cwd = process.cwd(),
 		testDir,
 		testPatterns = [],
 		testListFile,
