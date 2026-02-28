@@ -320,15 +320,15 @@ MIT
 <!-- [release_date_url]: https://github.com/CLDMV/vitest-runner/releases -->
 
 [npm version]: https://img.shields.io/npm/v/vitest-runner.svg?style=for-the-badge&logo=npm&logoColor=white&labelColor=CB3837
-[npm_version_url]: https://www.npmjs.com/package/vitest-runner
+[npm_version_url]: https://www.npmjs.com/package/@cldmv/vitest-runner
 [npm downloads]: https://img.shields.io/npm/dm/vitest-runner.svg?style=for-the-badge&logo=npm&logoColor=white&labelColor=CB3837
-[npm_downloads_url]: https://www.npmjs.com/package/vitest-runner
+[npm_downloads_url]: https://www.npmjs.com/package/@cldmv/vitest-runner
 [github downloads]: https://img.shields.io/github/downloads/CLDMV/vitest-runner/total?style=for-the-badge&logo=github&logoColor=white&labelColor=181717
 [github_downloads_url]: https://github.com/CLDMV/vitest-runner/releases
 [last commit]: https://img.shields.io/github/last-commit/CLDMV/vitest-runner?style=for-the-badge&logo=github&logoColor=white&labelColor=181717
 [last_commit_url]: https://github.com/CLDMV/vitest-runner/commits
 [npm last update]: https://img.shields.io/npm/last-update/vitest-runner?style=for-the-badge&logo=npm&logoColor=white&labelColor=CB3837
-[npm_last_update_url]: https://www.npmjs.com/package/vitest-runner
+[npm_last_update_url]: https://www.npmjs.com/package/@cldmv/vitest-runner
 [coverage]: https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FCLDMV%2Fvitest-runner%2Fbadges%2Fcoverage.json&style=for-the-badge&logo=vitest&logoColor=white
 [coverage_url]: https://github.com/CLDMV/vitest-runner/blob/badges/coverage.json
 [contributors]: https://img.shields.io/github/contributors/CLDMV/vitest-runner.svg?style=for-the-badge&logo=github&logoColor=white&labelColor=181717
