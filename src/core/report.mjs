@@ -189,13 +189,16 @@ export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 
 			.filter((r) => Math.min(r.lines, r.stmts, r.fns, r.branches) < 100)
 			.sort((a, b) => Math.min(a.lines, a.stmts, a.fns, a.branches) - Math.min(b.lines, b.stmts, b.fns, b.branches));
 
-		console.log("\n" + chalk.bold("📉 WORST COVERAGE FILES (lines)"));
+		console.log("\n" + chalk.bold("📉 WORST COVERAGE FILES (lowest metric)"));
 		console.log("-".repeat(80));
 
 		const rowsToShow = fileRows.slice(0, worstCount);
 		rowsToShow.forEach(({ file, lines, stmts, fns, branches }) => {
-			const extras = chalk.dim(`stmts ${stmts.toFixed(0)}% | fns ${fns.toFixed(0)}% | branches ${branches.toFixed(0)}%`);
-			console.log(`  ${colourPct(chalk, lines)}%  ${chalk.dim(file)}  ${extras}`);
+			const worst = Math.min(lines, stmts, fns, branches);
+			const extras = chalk.dim(
+				`lines ${lines.toFixed(0)}% | stmts ${stmts.toFixed(0)}% | fns ${fns.toFixed(0)}% | branches ${branches.toFixed(0)}%`
+			);
+			console.log(`  ${colourPct(chalk, worst)}%  ${chalk.dim(file)}  ${extras}`);
 		});
 
 		if (fileRows.length > worstCount) {
