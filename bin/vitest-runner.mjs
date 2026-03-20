@@ -3,7 +3,7 @@
  * @fileoverview CLI entry point for the vitest-runner binary.
  * @module vitest-runner/bin/vitest-runner
  *
- * Mirrors its own output to a log file when --coverage-quiet is set, then
+ * Mirrors its own output to a log file when --coverage-quiet or --log-file is set, then
  * delegates all logic to `src/runner.mjs` via the programmatic `run()` API.
  */
 
@@ -23,7 +23,7 @@ if (args.help) {
 
 // Mirror all output (excluding progress bar lines) to a log file
 // when running in --coverage-quiet mode (or when --log-file is set).
-if (args.coverageQuiet || args.logFile) {
+if ((args.coverageQuiet || args.logFile) && !args.json) {
 	const cwd = process.cwd();
 	const resolvedLogFile = args.logFile
 		? path.isAbsolute(args.logFile)
@@ -62,25 +62,34 @@ if (args.coverageQuiet || args.logFile) {
 const cwd = process.cwd();
 
 const vitestArgs = [...args.vitestPassthroughArgs];
-if ((args.coverageQuiet || args.logFile) && !vitestArgs.some((a) => a === "--coverage" || a.startsWith("--coverage."))) {
+if (args.coverageQuiet && !vitestArgs.some((a) => a === "--coverage" || a.startsWith("--coverage."))) {
 	vitestArgs.unshift("--coverage");
 }
 
-run({
-	cwd,
-	testPatterns: args.testPatterns,
-	testListFile: args.testListFile,
-	testFilePattern: args.testFilePattern,
-	vitestArgs,
-	showErrorDetails: args.showErrorDetails,
-	coverageQuiet: args.coverageQuiet,
-	...(args.workers !== undefined && { workers: args.workers }),
-	...(args.soloPatterns.length > 0 && { earlyRunPatterns: args.soloPatterns })
-})
-	.then((code) => {
-		process.exit(code);
-	})
-	.catch((err) => {
-		console.error("Fatal error:", err);
-		process.exit(1);
+try {
+	const runResult = await run({
+		cwd,
+		testPatterns: args.testPatterns,
+		testListFile: args.testListFile,
+		testFilePattern: args.testFilePattern,
+		vitestArgs,
+		showErrorDetails: args.showErrorDetails,
+		coverageQuiet: args.coverageQuiet,
+		suppressFileOutput: args.suppressFileOutput,
+		suppressPassingFiles: args.suppressPassingFiles,
+		topSummary: args.topSummary,
+		json: args.json,
+		...(args.workers !== undefined && { workers: args.workers }),
+		...(args.soloPatterns.length > 0 && { earlyRunPatterns: args.soloPatterns })
 	});
+
+	if (args.json) {
+		process.stdout.write(`${JSON.stringify(runResult, null, 2)}\n`);
+		process.exit(typeof runResult === "object" && runResult !== null && "exitCode" in runResult ? runResult.exitCode : 1);
+	}
+
+	process.exit(typeof runResult === "number" ? runResult : 1);
+} catch (err) {
+	console.error("Fatal error:", err);
+	process.exit(1);
+}

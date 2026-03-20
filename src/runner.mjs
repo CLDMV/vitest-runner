@@ -55,6 +55,10 @@ import { colourPct } from "./utils/ansi.mjs";
  * @property {string[]} [vitestArgs=[]] - Extra CLI args forwarded verbatim to every vitest invocation.
  * @property {boolean} [showErrorDetails=true] - Print inline error blocks under each failed file.
  * @property {boolean} [coverageQuiet=false] - Suppress per-file output; show only progress bar + summaries.
+ * @property {boolean} [suppressFileOutput=false] - Suppress per-file runner output blocks in all modes.
+ * @property {boolean} [suppressPassingFiles=false] - Hide passed-file rows in the final summary.
+ * @property {boolean} [topSummary=true] - Show top memory and duration summary sections.
+ * @property {boolean} [json=false] - Return a JSON run report instead of printing text output.
  * @property {number} [workers=4] - Maximum number of parallel worker slots.
  * @property {number} [worstCoverageCount=10] - Rows in the worst-coverage table (0 = disable).
  * @property {number} [maxOldSpaceMb] - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
@@ -96,7 +100,7 @@ function getHeapForFile(filePath, globalMaxMb, overrides) {
  * pool for the non-solo phase) and return an exit code.
  *
  * @param {RunOptions} opts
- * @returns {Promise<number>} `0` on full pass, `1` on any failure.
+ * @returns {Promise<number|object>} `0`/`1` by default; JSON report object when `opts.json` is true.
  */
 export async function run(opts) {
 	const {
@@ -108,6 +112,10 @@ export async function run(opts) {
 		vitestArgs: rawVitestArgs = [],
 		showErrorDetails = true,
 		coverageQuiet = false,
+		suppressFileOutput = false,
+		suppressPassingFiles = false,
+		topSummary = true,
+		json = false,
 		workers = parseInt(process.env.VITEST_WORKERS ?? "4", 10),
 		worstCoverageCount = 10,
 		earlyRunPatterns = [],
@@ -119,6 +127,7 @@ export async function run(opts) {
 	} = opts;
 
 	const maxOldSpaceMb = opts.maxOldSpaceMb ?? (process.env.VITEST_HEAP_MB ? parseInt(process.env.VITEST_HEAP_MB, 10) : undefined);
+	const emitTextOutput = !json;
 
 	// Resolve vitest binary and config
 	const vitestBin = resolveBin(cwd, "vitest", "vitest");
@@ -149,9 +158,28 @@ export async function run(opts) {
 		const allTestFiles = await discoverVitestFiles({ cwd, testDir, testPatterns, testListFile, testFilePattern, earlyRunPatterns });
 
 		if (allTestFiles.length === 0) {
-			console.log(
-				testPatterns.length > 0 ? `❌ No Vitest test files found matching: ${testPatterns.join(", ")}` : "❌ No Vitest test files found"
-			);
+			const noTestsMessage =
+				testPatterns.length > 0 ? `❌ No Vitest test files found matching: ${testPatterns.join(", ")}` : "❌ No Vitest test files found";
+			if (emitTextOutput) console.log(noTestsMessage);
+			if (json) {
+				return {
+					exitCode: 1,
+					mode: "coverage",
+					message: noTestsMessage,
+					options: {
+						cwd,
+						testDir,
+						testPatterns,
+						testListFile,
+						workers,
+						coverageQuiet,
+						suppressFileOutput,
+						suppressPassingFiles,
+						topSummary,
+						vitestArgs
+					}
+				};
+			}
 			return 1;
 		}
 
@@ -161,15 +189,17 @@ export async function run(opts) {
 
 		const soloFiles = allTestFiles.filter((f) => earlyRunPatterns.some((p) => f.replace(/\\/g, "/").includes(p)));
 		const parallelFiles = allTestFiles.filter((f) => !earlyRunPatterns.some((p) => f.replace(/\\/g, "/").includes(p)));
+		const suppressPerFileCoverageOutput = coverageQuiet || suppressFileOutput || json;
+		const showCoverageProgress = coverageQuiet && !json;
 
-		if (!coverageQuiet) {
+		if (!coverageQuiet && !suppressFileOutput && emitTextOutput) {
 			console.log(`\n🧪 Running ${allTestFiles.length} test files for coverage (blob + merge mode)`);
 			console.log(`⚙️  Workers: ${workers} (${soloFiles.length} solo first, then parallel)`);
 			if (maxOldSpaceMb) console.log(`🧠 Heap limit: ${maxOldSpaceMb} MB`);
 			console.log("");
 		}
 
-		const progress = coverageQuiet ? createCoverageProgressTracker(allTestFiles.length) : noopProgressTracker;
+		const progress = showCoverageProgress ? createCoverageProgressTracker(allTestFiles.length) : noopProgressTracker;
 		const coverageResults = [];
 		let blobIndex = 0;
 
@@ -182,7 +212,7 @@ export async function run(opts) {
 			const blobPath = path.join(blobsDir, `run-${blobIndex}.blob`);
 			blobIndex++;
 
-			if (!coverageQuiet) {
+			if (!suppressPerFileCoverageOutput && emitTextOutput) {
 				console.log(`\n${"=".repeat(80)}`);
 				console.log(`▶️  ${filePath}`);
 				console.log("=".repeat(80));
@@ -204,13 +234,13 @@ export async function run(opts) {
 				...spawnBase,
 				maxOldSpaceMb: getHeapForFile(filePath, maxOldSpaceMb, perFileHeapOverrides),
 				vitestArgs: blobArgs,
-				streamOutput: !coverageQuiet
+				streamOutput: !suppressPerFileCoverageOutput
 			});
 
 			coverageResults.push(result);
 			progress.onComplete(result.code !== 0);
 
-			if (!coverageQuiet) {
+			if (!suppressPerFileCoverageOutput && emitTextOutput) {
 				const durationSec = (result.duration / 1000).toFixed(2);
 				if (result.code === 0) {
 					const heapInfo = result.heapMb ? ` | ${result.heapMb} MB heap` : "";
@@ -223,7 +253,9 @@ export async function run(opts) {
 
 		// Phase 1: solo files — one at a time
 		for (const filePath of soloFiles) {
-			await runCoverageFile(filePath).catch((err) => console.error(`Error running ${filePath}:`, err));
+			await runCoverageFile(filePath).catch((err) => {
+				if (emitTextOutput) console.error(`Error running ${filePath}:`, err);
+			});
 		}
 
 		// Phase 2: parallel files with worker pool
@@ -234,7 +266,9 @@ export async function run(opts) {
 			while (coverageFileIndex < parallelFiles.length && coverageActivePromises.size < workers) {
 				const filePath = parallelFiles[coverageFileIndex++];
 				const promise = runCoverageFile(filePath)
-					.catch((err) => console.error(`Error running ${filePath}:`, err))
+					.catch((err) => {
+						if (emitTextOutput) console.error(`Error running ${filePath}:`, err);
+					})
 					.finally(() => coverageActivePromises.delete(promise));
 				coverageActivePromises.add(promise);
 			}
@@ -246,11 +280,48 @@ export async function run(opts) {
 
 		const blobFiles = (await fs.readdir(blobsDir).catch(() => [])).filter((f) => f.endsWith(".blob"));
 		if (blobFiles.length === 0) {
-			console.error("❌ No coverage blobs were generated — coverage report cannot be produced");
+			const message = "❌ No coverage blobs were generated — coverage report cannot be produced";
+			if (emitTextOutput) console.error(message);
+			if (json) {
+				return {
+					exitCode: 1,
+					mode: "coverage",
+					message,
+					options: {
+						cwd,
+						testDir,
+						testPatterns,
+						testListFile,
+						workers,
+						coverageQuiet,
+						suppressFileOutput,
+						suppressPassingFiles,
+						topSummary,
+						showErrorDetails,
+						worstCoverageCount,
+						vitestArgs
+					},
+					totals: {
+						testFiles: allTestFiles.length,
+						failedFiles: coverageResults.filter((r) => r.code !== 0).length,
+						passedFiles: coverageResults.filter((r) => r.code === 0).length
+					},
+					results: {
+						all: coverageResults,
+						failed: coverageResults.filter((r) => r.code !== 0)
+					},
+					merge: {
+						blobFiles: 0,
+						exitCode: 1,
+						output: ""
+					},
+					coverageSummary: null
+				};
+			}
 			return 1;
 		}
 
-		if (!coverageQuiet) {
+		if (!coverageQuiet && !suppressFileOutput && emitTextOutput) {
 			console.log(`\n${"=".repeat(80)}`);
 			console.log(`📊 Merging ${blobFiles.length} coverage blobs into final report...`);
 			console.log("=".repeat(80));
@@ -260,14 +331,14 @@ export async function run(opts) {
 			...spawnBase,
 			maxOldSpaceMb,
 			extraCoverageArgs,
-			quietOutput: coverageQuiet
+			quietOutput: coverageQuiet || json
 		});
 
-		if (coverageQuiet) {
+		if (coverageQuiet && emitTextOutput) {
 			printMergeOutput(mergeExitCode, mergeOutput);
 		}
 
-		await printCoverageSummary(cwd, extraCoverageArgs, worstCoverageCount);
+		const coverageSummary = await printCoverageSummary(cwd, extraCoverageArgs, worstCoverageCount, { silent: json });
 
 		// Clean up blobs and temp dirs
 		await Promise.all([
@@ -276,18 +347,81 @@ export async function run(opts) {
 		]);
 
 		const coverageFailed = coverageResults.filter((r) => r.code !== 0);
-		if (coverageQuiet) printQuietCoverageFailureDetails(coverageFailed);
+		if (coverageQuiet && emitTextOutput) printQuietCoverageFailureDetails(coverageFailed);
 
-		return coverageFailed.length > 0 ? 1 : mergeExitCode;
+		const exitCode = coverageFailed.length > 0 ? 1 : mergeExitCode;
+		if (json) {
+			const coverageWithHeap = coverageResults.filter((r) => r.heapMb !== null);
+			return {
+				exitCode,
+				mode: "coverage",
+				options: {
+					cwd,
+					testDir,
+					testPatterns,
+					testListFile,
+					workers,
+					coverageQuiet,
+					suppressFileOutput,
+					suppressPassingFiles,
+					topSummary,
+					showErrorDetails,
+					worstCoverageCount,
+					vitestArgs
+				},
+				totals: {
+					testFiles: allTestFiles.length,
+					failedFiles: coverageFailed.length,
+					passedFiles: coverageResults.length - coverageFailed.length
+				},
+				results: {
+					all: coverageResults,
+					failed: coverageFailed
+				},
+				merge: {
+					blobFiles: blobFiles.length,
+					exitCode: mergeExitCode,
+					output: mergeOutput
+				},
+				coverageSummary,
+				...(topSummary
+					? {
+							topMemoryUsers: [...coverageWithHeap].sort((a, b) => b.heapMb - a.heapMb).slice(0, 10),
+							topDuration: [...coverageResults].sort((a, b) => b.duration - a.duration).slice(0, 10)
+						}
+					: {})
+			};
+		}
+
+		return exitCode;
 	}
 
 	// ─── STANDARD (NON-COVERAGE) MODE ────────────────────────────────────────────
 	const testFiles = await discoverVitestFiles({ cwd, testDir, testPatterns, testListFile, testFilePattern, earlyRunPatterns });
 
 	if (testFiles.length === 0) {
-		console.log(
-			testPatterns.length > 0 ? `❌ No Vitest test files found matching: ${testPatterns.join(", ")}` : "❌ No Vitest test files found"
-		);
+		const noTestsMessage =
+			testPatterns.length > 0 ? `❌ No Vitest test files found matching: ${testPatterns.join(", ")}` : "❌ No Vitest test files found";
+		if (emitTextOutput) console.log(noTestsMessage);
+		if (json) {
+			return {
+				exitCode: 1,
+				mode: "standard",
+				message: noTestsMessage,
+				options: {
+					cwd,
+					testDir,
+					testPatterns,
+					testListFile,
+					workers,
+					coverageQuiet,
+					suppressFileOutput,
+					suppressPassingFiles,
+					topSummary,
+					vitestArgs
+				}
+			};
+		}
 		return 1;
 	}
 
@@ -297,15 +431,17 @@ export async function run(opts) {
 	const scriptStartTime = Date.now();
 	const scriptStartTimeFormatted = new Date().toLocaleTimeString("en-US", { hour12: false });
 
-	if (testPatterns.length > 0) {
+	if (emitTextOutput && !suppressFileOutput && testPatterns.length > 0) {
 		console.log(`\n🧪 Running ${testFiles.length} test files matching: ${testPatterns.join(", ")}`);
-	} else {
+	} else if (emitTextOutput && !suppressFileOutput) {
 		console.log(`\n🧪 Running ${testFiles.length} test files (${soloFiles.length} solo first, then parallel)`);
 	}
-	console.log(`⚙️  Workers: ${workers}`);
-	if (maxOldSpaceMb) console.log(`🧠 Heap limit: ${maxOldSpaceMb} MB`);
-	if (vitestArgs.length > 0) console.log(`🔧 Vitest args: ${vitestArgs.join(" ")}`);
-	console.log("");
+	if (emitTextOutput && !suppressFileOutput) {
+		console.log(`⚙️  Workers: ${workers}`);
+		if (maxOldSpaceMb) console.log(`🧠 Heap limit: ${maxOldSpaceMb} MB`);
+		if (vitestArgs.length > 0) console.log(`🔧 Vitest args: ${vitestArgs.join(" ")}`);
+		console.log("");
+	}
 
 	const results = [...(_testResultsOverride ?? [])];
 
@@ -315,22 +451,27 @@ export async function run(opts) {
 	 * @returns {Promise<import('./core/spawn.mjs').SingleFileResult>}
 	 */
 	const runTestFile = async (filePath) => {
-		console.log(`\n${"=".repeat(80)}`);
-		console.log(`▶️  ${filePath}`);
-		console.log("=".repeat(80));
+		if (!suppressFileOutput && emitTextOutput) {
+			console.log(`\n${"=".repeat(80)}`);
+			console.log(`▶️  ${filePath}`);
+			console.log("=".repeat(80));
+		}
 
 		const result = await runSingleFile(filePath, {
 			...spawnBase,
 			maxOldSpaceMb: getHeapForFile(filePath, maxOldSpaceMb, perFileHeapOverrides),
-			vitestArgs
+			vitestArgs,
+			streamOutput: !suppressFileOutput && !json
 		});
 
-		const durationSec = (result.duration / 1000).toFixed(2);
-		if (result.code === 0) {
-			const heapInfo = result.heapMb ? ` | ${result.heapMb} MB heap` : "";
-			console.log(`\n✅ PASSED (${durationSec}s${heapInfo})\n`);
-		} else {
-			console.log(`\n❌ FAILED (exit code ${result.code}, ${durationSec}s)\n`);
+		if (!suppressFileOutput && emitTextOutput) {
+			const durationSec = (result.duration / 1000).toFixed(2);
+			if (result.code === 0) {
+				const heapInfo = result.heapMb ? ` | ${result.heapMb} MB heap` : "";
+				console.log(`\n✅ PASSED (${durationSec}s${heapInfo})\n`);
+			} else {
+				console.log(`\n❌ FAILED (exit code ${result.code}, ${durationSec}s)\n`);
+			}
 		}
 
 		return result;
@@ -340,7 +481,7 @@ export async function run(opts) {
 		// Phase 1: solo files
 		for (const filePath of soloFiles) {
 			const result = await runTestFile(filePath).catch((err) => {
-				console.error(`Error running ${filePath}:`, err);
+				if (emitTextOutput) console.error(`Error running ${filePath}:`, err);
 				return null;
 			});
 			if (result) results.push(result);
@@ -355,7 +496,9 @@ export async function run(opts) {
 				const filePath = parallelFiles[index++];
 				const promise = runTestFile(filePath)
 					.then((result) => results.push(result))
-					.catch((err) => console.error(`Error running ${filePath}:`, err))
+					.catch((err) => {
+						if (emitTextOutput) console.error(`Error running ${filePath}:`, err);
+					})
 					.finally(() => activePromises.delete(promise));
 				activePromises.add(promise);
 			}
@@ -373,12 +516,69 @@ export async function run(opts) {
 	const totalDuration = results.reduce((s, r) => s + r.duration, 0);
 	const failedFiles = results.filter((r) => r.code !== 0);
 	const passedFiles = results.filter((r) => r.code === 0);
+	const exitCode = failedFiles.length > 0 ? 1 : 0;
+	const scriptMemory = process.memoryUsage();
+	const scriptHeapMb = Math.round(scriptMemory.heapUsed / 1024 / 1024);
+	const scriptRssMb = Math.round(scriptMemory.rss / 1024 / 1024);
+	const withHeap = results.filter((r) => r.heapMb !== null);
+	const actualDurationSec = ((Date.now() - scriptStartTime) / 1000).toFixed(2);
+	const testsDurationSec = (totalDuration / 1000).toFixed(2);
+
+	if (json) {
+		return {
+			exitCode,
+			mode: "standard",
+			options: {
+				cwd,
+				testDir,
+				testPatterns,
+				testListFile,
+				workers,
+				coverageQuiet,
+				suppressFileOutput,
+				suppressPassingFiles,
+				topSummary,
+				showErrorDetails,
+				worstCoverageCount,
+				vitestArgs
+			},
+			totals: {
+				testFilesPass: totalTestFilesPass,
+				testFilesFail: totalTestFilesFail,
+				testsPass: totalTestsPass,
+				testsFail: totalTestsFail,
+				testsSkip: totalTestsSkip,
+				totalTests: totalTestsPass + totalTestsFail + totalTestsSkip
+			},
+			timing: {
+				startAt: scriptStartTimeFormatted,
+				wallClockSeconds: Number(actualDurationSec),
+				testsSeconds: Number(testsDurationSec)
+			},
+			heap: {
+				scriptHeapMb,
+				scriptRssMb,
+				maxHeapMb: withHeap.length > 0 ? Math.max(...withHeap.map((r) => r.heapMb)) : null,
+				avgHeapMb: withHeap.length > 0 ? Number((withHeap.reduce((sum, r) => sum + r.heapMb, 0) / withHeap.length).toFixed(0)) : null
+			},
+			results: {
+				all: results,
+				passed: passedFiles,
+				failed: failedFiles
+			},
+			...(topSummary
+				? {
+						topMemoryUsers: [...withHeap].sort((a, b) => b.heapMb - a.heapMb).slice(0, 10),
+						topDuration: [...results].sort((a, b) => b.duration - a.duration).slice(0, 10)
+					}
+				: {})
+		};
+	}
 
 	console.log("\n" + "=".repeat(80));
 
 	// Top memory users
-	const withHeap = results.filter((r) => r.heapMb !== null);
-	if (withHeap.length > 0) {
+	if (topSummary && withHeap.length > 0) {
 		console.log("\n" + chalk.bold("🧠 TOP MEMORY USERS"));
 		console.log("-".repeat(80));
 		[...withHeap]
@@ -390,7 +590,7 @@ export async function run(opts) {
 	}
 
 	// Top duration
-	if (results.length > 0) {
+	if (topSummary && results.length > 0) {
 		console.log("\n" + chalk.bold("⏱️  TOP DURATION"));
 		console.log("-".repeat(80));
 		[...results]
@@ -403,7 +603,7 @@ export async function run(opts) {
 	}
 
 	// Passed files
-	if (passedFiles.length > 0) {
+	if (passedFiles.length > 0 && !suppressPassingFiles) {
 		console.log("\n" + "=".repeat(80));
 		console.log(chalk.bold.green("✓ PASSED TEST FILES"));
 		console.log("=".repeat(80));
@@ -468,13 +668,8 @@ export async function run(opts) {
 	console.log(`      ${chalk.bold("Tests")}  ${testsParts.join(` ${chalk.dim("|")} `)} ${chalk.dim(`(${totalTests})`)}`);
 	console.log(`   ${chalk.bold("Start at")}  ${scriptStartTimeFormatted}`);
 
-	const actualDurationSec = ((Date.now() - scriptStartTime) / 1000).toFixed(2);
-	const testsDurationSec = (totalDuration / 1000).toFixed(2);
 	console.log(`   ${chalk.bold("Duration")}  ${actualDurationSec}s ${chalk.dim(`(tests ${testsDurationSec}s)`)}`);
 
-	const scriptMemory = process.memoryUsage();
-	const scriptHeapMb = Math.round(scriptMemory.heapUsed / 1024 / 1024);
-	const scriptRssMb = Math.round(scriptMemory.rss / 1024 / 1024);
 	if (withHeap.length > 0) {
 		const maxHeap = Math.max(...withHeap.map((r) => r.heapMb));
 		const avgHeap = (withHeap.reduce((s, r) => s + r.heapMb, 0) / withHeap.length).toFixed(0);
@@ -483,9 +678,7 @@ export async function run(opts) {
 		console.log(`       ${chalk.bold("Heap")}  script ${scriptHeapMb} MB (RSS ${scriptRssMb} MB)`);
 	}
 
-	if (failedFiles.length > 0) {
-		return 1;
-	}
+	if (failedFiles.length > 0) return 1;
 
 	console.log(`\n✅ All ${passedFiles.length} test files passed\n`);
 	return 0;

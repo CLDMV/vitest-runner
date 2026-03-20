@@ -26,7 +26,11 @@ ${chalk.bold("SPECIAL FLAGS:")}
   --solo-pattern <pat>    Run files matching this path substring solo first (repeatable)
   --no-error-details      Hide detailed error output (show only counts)
   --coverage-quiet        Implies --coverage; show progress bar + final summaries only
-  --log-file <path>       Path for the coverage run log (default: coverage/coverage-run.log; implies --coverage-quiet)
+  --log-file <path>       Path for mirrored runner output (default: coverage/coverage-run.log with --coverage-quiet)
+  --suppress-file-output  Suppress per-file runner output blocks
+  --suppress-passing-files  Hide the PASSED TEST FILES section in the final summary
+  --no-top-summary        Hide TOP MEMORY USERS and TOP DURATION sections
+  --json                  Emit JSON summary output instead of text logs
   --help, -h              Show this help message
 
 ${chalk.bold("TEST PATTERNS:")}

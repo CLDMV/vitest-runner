@@ -11,6 +11,10 @@ describe("parseArguments", () => {
 		expect(result.showErrorDetails).toBe(true);
 		expect(result.coverageQuiet).toBe(false);
 		expect(result.logFile).toBeUndefined();
+		expect(result.suppressFileOutput).toBe(false);
+		expect(result.suppressPassingFiles).toBe(false);
+		expect(result.topSummary).toBe(true);
+		expect(result.json).toBe(false);
 		expect(result.help).toBe(false);
 		expect(result.workers).toBeUndefined();
 		expect(result.soloPatterns).toEqual([]);
@@ -103,6 +107,26 @@ describe("parseArguments", () => {
 	it("parses --log-file=<path> (equals form)", () => {
 		const result = parseArguments(["--log-file=run.log"]);
 		expect(result.logFile).toBe("run.log");
+	});
+
+	it("sets suppressFileOutput to true for --suppress-file-output", () => {
+		const result = parseArguments(["--suppress-file-output"]);
+		expect(result.suppressFileOutput).toBe(true);
+	});
+
+	it("sets suppressPassingFiles to true for --suppress-passing-files", () => {
+		const result = parseArguments(["--suppress-passing-files"]);
+		expect(result.suppressPassingFiles).toBe(true);
+	});
+
+	it("sets topSummary to false for --no-top-summary", () => {
+		const result = parseArguments(["--no-top-summary"]);
+		expect(result.topSummary).toBe(false);
+	});
+
+	it("sets json to true for --json", () => {
+		const result = parseArguments(["--json"]);
+		expect(result.json).toBe(true);
 	});
 
 	// ── --help / -h ───────────────────────────────────────────────────────────

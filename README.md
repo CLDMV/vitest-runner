@@ -53,7 +53,11 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--solo-pattern <pat>` | Run files matching this path substring solo (one at a time) before the worker pool; repeatable |
 | `--no-error-details` | Hide inline error blocks — show only counts in the summary |
 | `--coverage-quiet` | Implies `--coverage`; suppress per-file output and show only a live progress bar and final summaries |
-| `--log-file <path>` | Write a clean (ANSI-stripped) copy of all output to this file; implies `--coverage-quiet` when set without it. Defaults to `coverage/coverage-run.log` when `--coverage-quiet` is active |
+| `--log-file <path>` | Write a clean (ANSI-stripped) copy of all output to this file. Defaults to `coverage/coverage-run.log` when `--coverage-quiet` is active |
+| `--suppress-file-output` | Suppress per-file runner output blocks in any mode |
+| `--suppress-passing-files` | Hide the `PASSED TEST FILES` section in the final summary |
+| `--no-top-summary` | Hide `TOP MEMORY USERS` and `TOP DURATION` summary sections |
+| `--json` | Print a JSON run report (no runner text output) |
 | `--help`, `-h` | Print this help and exit |
 
 ### Test patterns
@@ -128,6 +132,12 @@ VITEST_HEAP_MB=8192 vitest-runner --workers 2 src/tests/heavy
 
 # Suppress error details in the summary
 vitest-runner --no-error-details
+
+# JSON output for automation
+vitest-runner --json
+
+# JSON output without top summary arrays
+vitest-runner --json --no-top-summary
 ```
 
 ---
@@ -141,9 +151,9 @@ import { run } from 'vitest-runner';
 const { run } = await require('vitest-runner');
 ```
 
-### `run(options)` → `Promise<number>`
+### `run(options)` → `Promise<number | object>`
 
-Runs the test suite and resolves with an exit code (`0` = all passed, `1` = any failure). Does **not** call `process.exit` — that is the caller's responsibility.
+Runs the test suite and resolves with an exit code (`0` = all passed, `1` = any failure) by default. When `json: true` is passed, it returns a structured JSON report object (including `exitCode`) instead of printing runner text output.
 
 ```js
 import { run } from 'vitest-runner';
@@ -168,6 +178,10 @@ process.exit(code);
 | `vitestArgs` | `string[]` | `[]` | Extra CLI args forwarded verbatim to every vitest invocation |
 | `showErrorDetails` | `boolean` | `true` | Print inline error blocks under each failed file in the summary |
 | `coverageQuiet` | `boolean` | `false` | Suppress per-file output; show only the progress bar and final summaries |
+| `suppressFileOutput` | `boolean` | `false` | Suppress per-file runner output blocks in all modes |
+| `suppressPassingFiles` | `boolean` | `false` | Hide passed-file rows in the final summary |
+| `topSummary` | `boolean` | `true` | Show or hide top memory/duration summary sections (and JSON arrays) |
+| `json` | `boolean` | `false` | Return a JSON report object instead of printing text output |
 | `workers` | `number` | `4` | Maximum parallel worker slots (overrides `VITEST_WORKERS`) |
 | `worstCoverageCount` | `number` | `10` | Rows in the worst-coverage table after a coverage run (`0` disables it) |
 | `maxOldSpaceMb` | `number` | `undefined` | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`) |
@@ -208,6 +222,14 @@ await run({
   coverageQuiet: true,
 });
 
+// Machine-readable output (no text logs)
+const report = await run({
+  testDir: 'src/tests',
+  json: true,
+});
+
+console.log(report.exitCode);
+
 // Give heap-heavy files a larger ceiling while keeping the global limit lower
 await run({
   testDir: 'src/tests',
@@ -235,7 +257,7 @@ This avoids the OOM crash that occurs when a single vitest process holds coverag
 
 `--coverage-quiet` / `coverageQuiet: true` suppresses all per-file output and renders a live progress bar instead. On completion it prints the coverage table and any failures verbosely. When running in this mode, output is also mirrored to `coverage/coverage-run.log` (CLI only) with ANSI colour codes stripped so the file is human-readable in any editor.
 
-The log file path can be overridden with `--log-file <path>`. Passing `--log-file` alone (without `--coverage-quiet`) also enables quiet mode and log mirroring.
+The log file path can be overridden with `--log-file <path>`. Passing `--log-file` by itself only enables log mirroring (it does not enable coverage mode).
 
 ---
 

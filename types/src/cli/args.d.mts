@@ -30,6 +30,22 @@ export type ParsedArgs = {
      */
     logFile: string | undefined;
     /**
+     * - Suppress per-file runner output blocks (`--suppress-file-output`).
+     */
+    suppressFileOutput: boolean;
+    /**
+     * - Suppress the passed-files section in the final summary (`--suppress-passing-files`).
+     */
+    suppressPassingFiles: boolean;
+    /**
+     * - Show top-summary sections for memory and duration (`true` by default, disabled by `--no-top-summary`).
+     */
+    topSummary: boolean;
+    /**
+     * - Emit a JSON run report instead of text output (`--json`).
+     */
+    json: boolean;
+    /**
      * - Whether `--help` / `-h` was passed.
      */
     help: boolean;

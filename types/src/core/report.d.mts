@@ -42,6 +42,29 @@ export function computeSummaryFromFinal(finalData: Record<string, object>): {
  * @param {string} cwd - Project root (used to make absolute file paths relative).
  * @param {string[]} extraCoverageArgs - Passthrough `--coverage.*` args (checked for `reportsDirectory`).
  * @param {number} [worstCount=10] - Number of worst-coverage files to show (0 = skip table).
- * @returns {Promise<void>}
+ * @param {{silent?: boolean}} [options] - Output controls.
+ * @returns {Promise<{
+ *  coverageDir: string,
+ *  total: object,
+ *  worstFiles: Array<{file: string, lines: number, stmts: number, fns: number, branches: number}>,
+ *  worstFilesShown: number,
+ *  worstFilesTotal: number,
+ *  summary: object
+ * }|null>}
  */
-export function printCoverageSummary(cwd: string, extraCoverageArgs: string[], worstCount?: number): Promise<void>;
+export function printCoverageSummary(cwd: string, extraCoverageArgs: string[], worstCount?: number, options?: {
+    silent?: boolean;
+}): Promise<{
+    coverageDir: string;
+    total: object;
+    worstFiles: Array<{
+        file: string;
+        lines: number;
+        stmts: number;
+        fns: number;
+        branches: number;
+    }>;
+    worstFilesShown: number;
+    worstFilesTotal: number;
+    summary: object;
+} | null>;

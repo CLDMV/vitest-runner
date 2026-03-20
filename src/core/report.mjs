@@ -150,9 +150,18 @@ export function computeSummaryFromFinal(finalData) {
  * @param {string} cwd - Project root (used to make absolute file paths relative).
  * @param {string[]} extraCoverageArgs - Passthrough `--coverage.*` args (checked for `reportsDirectory`).
  * @param {number} [worstCount=10] - Number of worst-coverage files to show (0 = skip table).
- * @returns {Promise<void>}
+ * @param {{silent?: boolean}} [options] - Output controls.
+ * @returns {Promise<{
+ *  coverageDir: string,
+ *  total: object,
+ *  worstFiles: Array<{file: string, lines: number, stmts: number, fns: number, branches: number}>,
+ *  worstFilesShown: number,
+ *  worstFilesTotal: number,
+ *  summary: object
+ * }|null>}
  */
-export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 10) {
+export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 10, options = {}) {
+	const { silent = false } = options;
 	let coverageDir = path.resolve(cwd, "coverage");
 	const repoDirArg = extraCoverageArgs.find((a) => a.startsWith("--coverage.reportsDirectory="));
 	if (repoDirArg) {
@@ -170,8 +179,8 @@ export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 
 			const content = await fs.readFile(path.join(coverageDir, "coverage-final.json"), "utf8");
 			summary = computeSummaryFromFinal(JSON.parse(content));
 		} catch {
-			console.log(chalk.dim("  (no coverage JSON found — skipping summary)"));
-			return;
+			if (!silent) console.log(chalk.dim("  (no coverage JSON found — skipping summary)"));
+			return null;
 		}
 	}
 
@@ -188,29 +197,59 @@ export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 
 			}))
 			.filter((r) => Math.min(r.lines, r.stmts, r.fns, r.branches) < 100)
 			.sort((a, b) => Math.min(a.lines, a.stmts, a.fns, a.branches) - Math.min(b.lines, b.stmts, b.fns, b.branches));
-
-		console.log("\n" + chalk.bold("📉 WORST COVERAGE FILES (lowest metric)"));
-		console.log("-".repeat(80));
-
 		const rowsToShow = fileRows.slice(0, worstCount);
-		rowsToShow.forEach(({ file, lines, stmts, fns, branches }) => {
-			const worst = Math.min(lines, stmts, fns, branches);
-			const extras = chalk.dim(
-				`lines ${lines.toFixed(0)}% | stmts ${stmts.toFixed(0)}% | fns ${fns.toFixed(0)}% | branches ${branches.toFixed(0)}%`
-			);
-			console.log(`  ${colourPct(chalk, worst)}%  ${chalk.dim(file)}  ${extras}`);
-		});
 
-		if (fileRows.length > worstCount) {
-			console.log(chalk.dim(`  ... and ${fileRows.length - worstCount} more files`));
+		if (!silent) {
+			console.log("\n" + chalk.bold("📉 WORST COVERAGE FILES (lowest metric)"));
+			console.log("-".repeat(80));
+
+			rowsToShow.forEach(({ file, lines, stmts, fns, branches }) => {
+				const worst = Math.min(lines, stmts, fns, branches);
+				const extras = chalk.dim(
+					`lines ${lines.toFixed(0)}% | stmts ${stmts.toFixed(0)}% | fns ${fns.toFixed(0)}% | branches ${branches.toFixed(0)}%`
+				);
+				console.log(`  ${colourPct(chalk, worst)}%  ${chalk.dim(file)}  ${extras}`);
+			});
+
+			if (fileRows.length > worstCount) {
+				console.log(chalk.dim(`  ... and ${fileRows.length - worstCount} more files`));
+			}
 		}
+
+		const tl = total.lines?.pct ?? 0;
+		const ts = total.statements?.pct ?? 0;
+		const tf = total.functions?.pct ?? 0;
+		const tb = total.branches?.pct ?? 0;
+		if (!silent) {
+			console.log(
+				`\n  ${chalk.bold("Coverage")}  ${colourPct(chalk, tl)}% lines ${chalk.dim("|")} ${colourPct(chalk, ts)}% statements ${chalk.dim("|")} ${colourPct(chalk, tf)}% functions ${chalk.dim("|")} ${colourPct(chalk, tb)}% branches`
+			);
+		}
+		return {
+			coverageDir,
+			total,
+			worstFiles: rowsToShow,
+			worstFilesShown: rowsToShow.length,
+			worstFilesTotal: fileRows.length,
+			summary
+		};
 	}
 
 	const tl = total.lines?.pct ?? 0;
 	const ts = total.statements?.pct ?? 0;
 	const tf = total.functions?.pct ?? 0;
 	const tb = total.branches?.pct ?? 0;
-	console.log(
-		`\n  ${chalk.bold("Coverage")}  ${colourPct(chalk, tl)}% lines ${chalk.dim("|")} ${colourPct(chalk, ts)}% statements ${chalk.dim("|")} ${colourPct(chalk, tf)}% functions ${chalk.dim("|")} ${colourPct(chalk, tb)}% branches`
-	);
+	if (!silent) {
+		console.log(
+			`\n  ${chalk.bold("Coverage")}  ${colourPct(chalk, tl)}% lines ${chalk.dim("|")} ${colourPct(chalk, ts)}% statements ${chalk.dim("|")} ${colourPct(chalk, tf)}% functions ${chalk.dim("|")} ${colourPct(chalk, tb)}% branches`
+		);
+	}
+	return {
+		coverageDir,
+		total,
+		worstFiles: [],
+		worstFilesShown: 0,
+		worstFilesTotal: 0,
+		summary
+	};
 }

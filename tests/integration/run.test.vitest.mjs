@@ -7,7 +7,7 @@
  * Each test is slow (~2–5 s) due to vitest startup overhead — testTimeout is
  * set to 30 s in vitest.config.mjs.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "../../src/runner.mjs";
@@ -339,6 +339,100 @@ describe("run() — _testResultsOverride (final-report render paths)", () => {
 		});
 		expect(code).toBe(1);
 	});
+
+	it("hides the passed-files section when suppressPassingFiles is true", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			const code = await run({
+				...QUIET_BASE,
+				suppressPassingFiles: true,
+				testDir: path.join(FIXTURES, "passing"),
+				_testResultsOverride: [makeResult({ testsPass: 1 })]
+			});
+			expect(code).toBe(0);
+			const printed = logSpy.mock.calls.map((entry) => String(entry[0] ?? "")).join("\n");
+			expect(printed).not.toContain("PASSED TEST FILES");
+		} finally {
+			logSpy.mockRestore();
+		}
+	});
+
+	it("hides top summary text sections when topSummary is false", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			const code = await run({
+				...QUIET_BASE,
+				topSummary: false,
+				testDir: path.join(FIXTURES, "passing"),
+				_testResultsOverride: [makeResult({ testsPass: 1, heapMb: 128 })]
+			});
+			expect(code).toBe(0);
+			const printed = logSpy.mock.calls.map((entry) => String(entry[0] ?? "")).join("\n");
+			expect(printed).not.toContain("TOP MEMORY USERS");
+			expect(printed).not.toContain("TOP DURATION");
+		} finally {
+			logSpy.mockRestore();
+		}
+	});
+
+	it("returns standard JSON with heap aggregates and top summary arrays by default", async () => {
+		const report = await run({
+			...QUIET_BASE,
+			json: true,
+			testDir: path.join(FIXTURES, "passing"),
+			_testResultsOverride: [
+				makeResult({ file: "tests/fixtures/passing/a.test.vitest.mjs", heapMb: 256, duration: 2000 }),
+				makeResult({ file: "tests/fixtures/passing/b.test.vitest.mjs", heapMb: 128, duration: 1000 })
+			]
+		});
+		expect(report.heap.maxHeapMb).toBe(256);
+		expect(report.heap.avgHeapMb).toBe(192);
+		expect(report).toHaveProperty("topMemoryUsers");
+		expect(report).toHaveProperty("topDuration");
+	});
+
+	it("omits standard JSON top summary arrays when topSummary is false", async () => {
+		const report = await run({
+			...QUIET_BASE,
+			json: true,
+			topSummary: false,
+			testDir: path.join(FIXTURES, "passing"),
+			_testResultsOverride: [makeResult({ heapMb: 256 })]
+		});
+		expect(report).not.toHaveProperty("topMemoryUsers");
+		expect(report).not.toHaveProperty("topDuration");
+	});
+});
+
+describe("run() — coverage json topSummary", () => {
+	it("includes top summary arrays in coverage JSON by default", async () => {
+		const coverageDir = path.join(CWD, "tmp", "test-coverage-json-top-summary-on");
+		const report = await run({
+			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "heap-output"),
+			json: true,
+			vitestArgs: ["--coverage", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
+		});
+
+		expect(report).toMatchObject({ mode: "coverage", exitCode: 0 });
+		expect(report).toHaveProperty("topMemoryUsers");
+		expect(report).toHaveProperty("topDuration");
+	});
+
+	it("omits top summary arrays in coverage JSON when topSummary is false", async () => {
+		const coverageDir = path.join(CWD, "tmp", "test-coverage-json-top-summary-off");
+		const report = await run({
+			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "heap-output"),
+			json: true,
+			topSummary: false,
+			vitestArgs: ["--coverage", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
+		});
+
+		expect(report).toMatchObject({ mode: "coverage", exitCode: 0 });
+		expect(report).not.toHaveProperty("topMemoryUsers");
+		expect(report).not.toHaveProperty("topDuration");
+	});
 });
 
 describe("run() — standard mode no-files / vitestArgs passthrough", () => {
@@ -422,20 +516,20 @@ describe("run() — coverageQuiet + --coverage already in vitestArgs (runner.mjs
 		expect(code).toBe(0);
 	});
 
-        it("skips unshift when coverageQuiet is true and vitestArgs has only a dotted --coverage.* arg (runner.mjs:134 startsWith branch)", async () => {
-                // coverageQuiet:true + vitestArgs has --coverage.enabled=true but NOT plain --coverage
-                // → some() checks: a==="--coverage" (false) then a.startsWith("--coverage.") (TRUE)
-                // → !some() = false → unshift is skipped; the startsWith("--coverage.") branch is hit
-                const coverageDir = path.join(CWD, "tmp", "test-coverage-dotted-only");
-                const code = await run({
-                        cwd: CWD,
-                        testDir: path.join(FIXTURES, "passing"),
-                        coverageQuiet: true,
-                        vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
-                        vitestArgs: ["--coverage.enabled=true", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
-                });
-                expect(code).toBe(0);
-        });
+	it("skips unshift when coverageQuiet is true and vitestArgs has only a dotted --coverage.* arg (runner.mjs:134 startsWith branch)", async () => {
+		// coverageQuiet:true + vitestArgs has --coverage.enabled=true but NOT plain --coverage
+		// → some() checks: a==="--coverage" (false) then a.startsWith("--coverage.") (TRUE)
+		// → !some() = false → unshift is skipped; the startsWith("--coverage.") branch is hit
+		const coverageDir = path.join(CWD, "tmp", "test-coverage-dotted-only");
+		const code = await run({
+			cwd: CWD,
+			testDir: path.join(FIXTURES, "passing"),
+			coverageQuiet: true,
+			vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
+			vitestArgs: ["--coverage.enabled=true", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
+		});
+		expect(code).toBe(0);
+	});
 });
 
 describe("run() — VITEST_HEAP_MB environment variable (runner.mjs:122)", () => {

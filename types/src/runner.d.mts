@@ -3,9 +3,9 @@
  * pool for the non-solo phase) and return an exit code.
  *
  * @param {RunOptions} opts
- * @returns {Promise<number>} `0` on full pass, `1` on any failure.
+ * @returns {Promise<number|object>} `0`/`1` by default; JSON report object when `opts.json` is true.
  */
-export function run(opts: RunOptions): Promise<number>;
+export function run(opts: RunOptions): Promise<number | object>;
 export { formatDuration } from "./utils/duration.mjs";
 export { buildNodeOptions } from "./utils/env.mjs";
 export type PerFileHeapOverride = {
@@ -55,6 +55,22 @@ export type RunOptions = {
      * - Suppress per-file output; show only progress bar + summaries.
      */
     coverageQuiet?: boolean;
+    /**
+     * - Suppress per-file runner output blocks in all modes.
+     */
+    suppressFileOutput?: boolean;
+    /**
+     * - Hide passed-file rows in the final summary.
+     */
+    suppressPassingFiles?: boolean;
+    /**
+     * - Show top memory and duration summary sections.
+     */
+    topSummary?: boolean;
+    /**
+     * - Return a JSON run report instead of printing text output.
+     */
+    json?: boolean;
     /**
      * - Maximum number of parallel worker slots.
      */

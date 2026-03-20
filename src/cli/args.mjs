@@ -9,6 +9,10 @@
  * @property {boolean} showErrorDetails - `false` when `--no-error-details` was passed.
  * @property {boolean} coverageQuiet - Whether `--coverage-quiet` was passed.
  * @property {string|undefined} logFile - Path for the coverage run log (`--log-file`); defaults to `coverage/coverage-run.log`.
+ * @property {boolean} suppressFileOutput - Suppress per-file runner output blocks (`--suppress-file-output`).
+ * @property {boolean} suppressPassingFiles - Suppress the passed-files section in the final summary (`--suppress-passing-files`).
+ * @property {boolean} topSummary - Show top-summary sections for memory and duration (`true` by default, disabled by `--no-top-summary`).
+ * @property {boolean} json - Emit a JSON run report instead of text output (`--json`).
  * @property {boolean} help - Whether `--help` / `-h` was passed.
  * @property {number|undefined} workers - Worker count from `--workers <n>`, or undefined.
  * @property {string[]} soloPatterns - Path substrings from `--solo-pattern <pattern>` (repeatable).
@@ -23,6 +27,10 @@ const RUNNER_FLAGS = new Set([
 	"--no-error-details",
 	"--coverage-quiet",
 	"--log-file",
+	"--suppress-file-output",
+	"--suppress-passing-files",
+	"--no-top-summary",
+	"--json",
 	"--workers",
 	"--solo-pattern",
 	"--file-pattern",
@@ -51,6 +59,10 @@ export function parseArguments(args) {
 	let showErrorDetails = true;
 	let coverageQuiet = false;
 	let logFile;
+	let suppressFileOutput = false;
+	let suppressPassingFiles = false;
+	let topSummary = true;
+	let json = false;
 	let workers;
 	let help = false;
 	let testFilePattern;
@@ -69,6 +81,14 @@ export function parseArguments(args) {
 			logFile = args[++i];
 		} else if (arg.startsWith("--log-file=")) {
 			logFile = arg.slice("--log-file=".length);
+		} else if (arg === "--suppress-file-output") {
+			suppressFileOutput = true;
+		} else if (arg === "--suppress-passing-files") {
+			suppressPassingFiles = true;
+		} else if (arg === "--no-top-summary") {
+			topSummary = false;
+		} else if (arg === "--json") {
+			json = true;
 		} else if (arg === "--workers") {
 			workers = parseInt(args[++i], 10);
 		} else if (arg.startsWith("--workers=")) {
@@ -100,6 +120,10 @@ export function parseArguments(args) {
 		showErrorDetails,
 		coverageQuiet,
 		logFile,
+		suppressFileOutput,
+		suppressPassingFiles,
+		topSummary,
+		json,
 		help,
 		workers,
 		soloPatterns,

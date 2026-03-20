@@ -50,4 +50,31 @@ describe("showHelp", () => {
 		showHelp();
 		expect(output).toContain("--coverage-quiet");
 	});
+
+	it("output contains --suppress-file-output flag description", () => {
+		let output = "";
+		vi.spyOn(console, "log").mockImplementation((msg) => {
+			output = String(msg);
+		});
+		showHelp();
+		expect(output).toContain("--suppress-file-output");
+	});
+
+	it("output contains --json flag description", () => {
+		let output = "";
+		vi.spyOn(console, "log").mockImplementation((msg) => {
+			output = String(msg);
+		});
+		showHelp();
+		expect(output).toContain("--json");
+	});
+
+	it("output contains --no-top-summary flag description", () => {
+		let output = "";
+		vi.spyOn(console, "log").mockImplementation((msg) => {
+			output = String(msg);
+		});
+		showHelp();
+		expect(output).toContain("--no-top-summary");
+	});
 });

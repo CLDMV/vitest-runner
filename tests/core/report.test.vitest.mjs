@@ -355,4 +355,59 @@ describe("printCoverageSummary", () => {
 		expect(all).toContain("Coverage");
 		expect(all).toContain("0");
 	});
+
+	it("returns null without logging when silent is true and coverage json is missing", async () => {
+		const { logs } = await captureConsole(async () => {
+			const result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10, { silent: true });
+			expect(result).toBeNull();
+		});
+		expect(logs.join("\n")).not.toContain("no coverage JSON found");
+	});
+
+	it("returns worst-files payload without console output when silent is true", async () => {
+		const summary = {
+			total: { lines: { pct: 75 }, statements: { pct: 70 }, functions: { pct: 80 }, branches: { pct: 65 } },
+			"/src/file-a.mjs": {
+				lines: { pct: 75 },
+				statements: { pct: 70 },
+				functions: { pct: 80 },
+				branches: { pct: 65 }
+			}
+		};
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(summary));
+
+		const { logs } = await captureConsole(async () => {
+			const result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10, { silent: true });
+			expect(result.worstFilesShown).toBe(1);
+			expect(result.worstFilesTotal).toBe(1);
+		});
+		expect(logs.join("\n").trim()).toBe("");
+	});
+
+	it("returns zero worst-files payload without console output when worstCount=0 and silent=true", async () => {
+		const summary = {
+			total: { lines: { pct: 100 }, statements: { pct: 100 }, functions: { pct: 100 }, branches: { pct: 100 } }
+		};
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(summary));
+
+		const { logs } = await captureConsole(async () => {
+			const result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 0, { silent: true });
+			expect(result.worstFiles).toEqual([]);
+			expect(result.worstFilesShown).toBe(0);
+			expect(result.worstFilesTotal).toBe(0);
+		});
+		expect(logs.join("\n").trim()).toBe("");
+	});
+
+	it("uses 0 fallbacks for totals when worstCount=0 and total metrics are missing", async () => {
+		const summary = { total: {} };
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(summary));
+
+		const { logs } = await captureConsole(async () => {
+			const result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 0, { silent: true });
+			expect(result.total).toEqual({});
+			// No explicit percentages in summary total; function should still return successfully.
+		});
+		expect(logs.join("\n").trim()).toBe("");
+	});
 });
