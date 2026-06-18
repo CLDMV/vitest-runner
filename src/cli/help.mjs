@@ -21,7 +21,7 @@ ${chalk.bold("USAGE:")}
 
 ${chalk.bold("SPECIAL FLAGS:")}
   --test-list <file>      Run only the files listed in a JSON array file
-  --file-pattern <regex>  Override the file discovery regex (default: \.test\.vitest\.(?:js|mjs|cjs)$)
+  --file-pattern <regex>  Override the file discovery regex (default: \\.test\\.vitest\\.(?:js|mjs|cjs)$)
   --workers <n>           Number of parallel workers (default: 4 or VITEST_WORKERS)
   --solo-pattern <pat>    Run files matching this path substring solo first (repeatable)
   --no-error-details      Hide detailed error output (show only counts)

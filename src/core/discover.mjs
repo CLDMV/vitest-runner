@@ -116,7 +116,7 @@ export async function discoverVitestFiles(opts) {
 			const content = await fs.readFile(resolvedListPath, "utf8");
 			testList = JSON.parse(content);
 		} catch (err) {
-			throw new Error(`Failed to read test list file "${resolvedListPath}": ${err.message}`);
+			throw new Error(`Failed to read test list file "${resolvedListPath}": ${err.message}`, { cause: err });
 		}
 
 		if (!Array.isArray(testList)) {

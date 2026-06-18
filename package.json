@@ -24,7 +24,7 @@
 		"bin/"
 	],
 	"scripts": {
-		"lint": "eslint src/ bin/ index.mjs",
+		"lint": "eslint --config .configs/eslint.config.mjs .",
 		"test": "vitest run --config .configs/vitest.config.mjs",
 		"test:watch": "vitest --config .configs/vitest.config.mjs",
 		"test:coverage": "vitest run --coverage --config .configs/vitest.config.mjs",
@@ -39,8 +39,14 @@
 		"oom"
 	],
 	"devDependencies": {
+		"@eslint/css": "^1.3.0",
+		"@eslint/js": "^10.0.1",
+		"@eslint/json": "^2.0.0",
+		"@eslint/markdown": "^8.0.2",
 		"@types/node": "^25.3.0",
 		"@vitest/coverage-v8": "^4.0.18",
+		"eslint": "^10.5.0",
+		"globals": "^17.6.0",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.18"
 	},

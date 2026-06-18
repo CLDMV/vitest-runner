@@ -1,7 +1,7 @@
 /**
  * @fileoverview Unit tests for src/core/discover.mjs
  */
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

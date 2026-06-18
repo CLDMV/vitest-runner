@@ -307,7 +307,7 @@ Pass `--test-list <file>` (CLI) or `testListFile: 'path/to/list.json'` (API) to 
 
 By default, the runner discovers files matching:
 
-```
+```text
 *.test.vitest.js
 *.test.vitest.mjs
 *.test.vitest.cjs
@@ -330,7 +330,7 @@ await run({ cwd, testDir: 'src', testFilePattern: /\.spec\.ts$/i });
 
 ## Source layout
 
-```
+```text
 index.mjs              ← ESM entry (re-exports src/runner.mjs)
 index.cjs              ← CJS shim (dynamic import of index.mjs)
 bin/

@@ -157,8 +157,8 @@ export function createCoverageProgressTracker(total) {
 export const noopProgressTracker = {
 	/** @returns {void} */
 	onStart() {},
-	/** @param {boolean} _failedRun @returns {void} */
-	onComplete(_failedRun) {},
+	/** @param {boolean} ___failedRun @returns {void} */
+	onComplete(___failedRun) {},
 	/** @returns {void} */
 	finish() {}
 };

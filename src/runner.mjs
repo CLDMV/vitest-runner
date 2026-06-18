@@ -35,8 +35,6 @@ import { runSingleFile, runMergeReports } from "./core/spawn.mjs";
 import { deduplicateErrors } from "./core/parse.mjs";
 import { createCoverageProgressTracker, noopProgressTracker } from "./core/progress.mjs";
 import { printQuietCoverageFailureDetails, printMergeOutput, printCoverageSummary } from "./core/report.mjs";
-import { formatDuration } from "./utils/duration.mjs";
-import { colourPct } from "./utils/ansi.mjs";
 
 /**
  * @typedef {Object} PerFileHeapOverride
