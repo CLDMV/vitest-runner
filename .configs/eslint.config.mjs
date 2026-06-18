@@ -5,14 +5,14 @@
  * @description
  * Mirrors the CLDMV @cldmv/slothlet lint setup: `@eslint/js` recommended for
  * JS/MJS/CJS sources (with the `_` / `___` unused-binding escape hatch), plus
- * the JSON, Markdown, and CSS language plugins. Run via `npm run lint`.
+ * the JSON and Markdown language plugins. (slothlet's CSS plugin is omitted —
+ * this repo has no CSS.) Run via `npm run lint`.
  */
 
 import js from "@eslint/js";
 import globals from "globals";
 import json from "@eslint/json";
 import markdown from "@eslint/markdown";
-import css from "@eslint/css";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
@@ -98,6 +98,5 @@ export default defineConfig([
 			// GitHub alerts like [!NOTE] / [!WARNING] are valid GFM but trip the label-ref check.
 			"markdown/no-missing-label-refs": "off"
 		}
-	},
-	{ files: ["**/*.css"], plugins: { css }, language: "css/css", extends: ["css/recommended"] }
+	}
 ]);

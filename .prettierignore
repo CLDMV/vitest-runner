@@ -1,0 +1,21 @@
+# Dependencies + generated/build output (not hand-authored)
+node_modules/
+dist/
+build/
+coverage/
+.vitest-coverage-tmp/
+.vitest-coverage-blobs/
+tmp/
+trash/
+types/
+package-lock.json
+*.min.js
+*.min.css
+
+# Untracked local copy of the original monolithic runner — kept for reference, not maintained.
+reference/
+
+# YAML — workflows are deliberately 4-space indented; prettier (tabWidth 2, and
+# YAML disallows tabs) would reindent every CI file 4->2 for no real gain.
+*.yml
+*.yaml
