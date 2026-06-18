@@ -46,6 +46,14 @@ export type ParsedArgs = {
      */
     json: boolean;
     /**
+     * - Directory for per-file coverage blobs (`--blobs-dir`); defaults to `<cwd>/.vitest-coverage-blobs`.
+     */
+    blobsDir: string | undefined;
+    /**
+     * - `false` when `--no-merge-reports` was passed; leaves blobs in `blobsDir` without merging.
+     */
+    mergeReports: boolean;
+    /**
      * - Whether `--help` / `-h` was passed.
      */
     help: boolean;

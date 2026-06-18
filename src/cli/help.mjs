@@ -31,6 +31,8 @@ ${chalk.bold("SPECIAL FLAGS:")}
   --suppress-passing-files  Hide the PASSED TEST FILES section in the final summary
   --no-top-summary        Hide TOP MEMORY USERS and TOP DURATION sections
   --json                  Emit JSON summary output instead of text logs
+  --blobs-dir <path>      Directory for per-file coverage blobs (default: .vitest-coverage-blobs)
+  --no-merge-reports      Leave coverage blobs in --blobs-dir without merging (for an external merge)
   --help, -h              Show this help message
 
 ${chalk.bold("TEST PATTERNS:")}

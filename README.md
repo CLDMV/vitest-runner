@@ -58,6 +58,8 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--suppress-passing-files` | Hide the `PASSED TEST FILES` section in the final summary |
 | `--no-top-summary` | Hide `TOP MEMORY USERS` and `TOP DURATION` summary sections |
 | `--json` | Print a JSON run report (no runner text output) |
+| `--blobs-dir <path>` | Directory for per-file coverage blobs (default: `.vitest-coverage-blobs`, relative to `cwd`) |
+| `--no-merge-reports` | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step |
 | `--help`, `-h` | Print this help and exit |
 
 ### Test patterns
@@ -184,6 +186,8 @@ process.exit(code);
 | `json` | `boolean` | `false` | Return a JSON report object instead of printing text output |
 | `workers` | `number` | `4` | Maximum parallel worker slots (overrides `VITEST_WORKERS`) |
 | `worstCoverageCount` | `number` | `10` | Rows in the worst-coverage table after a coverage run (`0` disables it) |
+| `blobsDir` | `string` | `<cwd>/.vitest-coverage-blobs` | Directory for per-file coverage blobs. Relative paths resolve against `cwd`. Always cleared at the start of a coverage run |
+| `mergeReports` | `boolean` | `true` | When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted. When `false`, the run stops after producing blobs — no merge, no summary — and `blobsDir` is left populated for an external merge |
 | `maxOldSpaceMb` | `number` | `undefined` | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`) |
 | `earlyRunPatterns` | `string[]` | `[]` | Path substrings — matching files run solo (one at a time) before the parallel worker pool starts |
 | `perFileHeapOverrides` | `PerFileHeapOverride[]` | `[]` | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins |
@@ -258,6 +262,28 @@ This avoids the OOM crash that occurs when a single vitest process holds coverag
 `--coverage-quiet` / `coverageQuiet: true` suppresses all per-file output and renders a live progress bar instead. On completion it prints the coverage table and any failures verbosely. When running in this mode, output is also mirrored to `coverage/coverage-run.log` (CLI only) with ANSI colour codes stripped so the file is human-readable in any editor.
 
 The log file path can be overridden with `--log-file <path>`. Passing `--log-file` by itself only enables log mirroring (it does not enable coverage mode).
+
+### Producing blobs for an external merge
+
+Set `mergeReports: false` (CLI: `--no-merge-reports`) to stop the run after the per-file blobs are written. The internal `vitest --mergeReports` call and the coverage summary are skipped, and `blobsDir` is left intact instead of being deleted. The blobs directory is still cleared at the **start** of each run, so it only ever contains the current run's output.
+
+This is useful when a second coverage blob set (for example, a browser-mode run with a different coverage transform) needs to be merged together with the node-mode blobs. Point both runs at known directories with `blobsDir`, then merge them in one external `vitest --mergeReports` step:
+
+```js
+// Node-mode blobs, no internal merge
+await run({
+  testDir: 'src/tests',
+  vitestArgs: ['--coverage'],
+  blobsDir: '.coverage-blobs/node',
+  mergeReports: false,
+});
+
+// (separately produce browser-mode blobs into .coverage-blobs/browser)
+// then merge both blob sets in a single external step:
+//   vitest --mergeReports .coverage-blobs --coverage
+```
+
+The exit code still reflects test pass/fail; there is just no coverage-merge result to fold in.
 
 ---
 

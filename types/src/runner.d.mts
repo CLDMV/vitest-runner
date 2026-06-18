@@ -80,6 +80,14 @@ export type RunOptions = {
      */
     worstCoverageCount?: number;
     /**
+     * - Directory for per-file coverage blobs (default `<cwd>/.vitest-coverage-blobs`). Relative paths resolve against `cwd`. Always cleared at the start of a coverage run.
+     */
+    blobsDir?: string;
+    /**
+     * - When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted at the end. When `false`, the run stops after producing blobs: no merge, no summary, and `blobsDir` is left populated for an external merge step.
+     */
+    mergeReports?: boolean;
+    /**
      * - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
      */
     maxOldSpaceMb?: number;

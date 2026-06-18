@@ -61,6 +61,8 @@ import { colourPct } from "./utils/ansi.mjs";
  * @property {boolean} [json=false] - Return a JSON run report instead of printing text output.
  * @property {number} [workers=4] - Maximum number of parallel worker slots.
  * @property {number} [worstCoverageCount=10] - Rows in the worst-coverage table (0 = disable).
+ * @property {string} [blobsDir] - Directory for per-file coverage blobs (default `<cwd>/.vitest-coverage-blobs`). Relative paths resolve against `cwd`. Always cleared at the start of a coverage run.
+ * @property {boolean} [mergeReports=true] - When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted at the end. When `false`, the run stops after producing blobs: no merge, no summary, and `blobsDir` is left populated for an external merge step.
  * @property {number} [maxOldSpaceMb] - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
  * @property {string[]} [earlyRunPatterns=[]] - Path substrings — matching files run solo before the worker pool.
  * @property {PerFileHeapOverride[]} [perFileHeapOverrides=[]] - Per-file minimum heap overrides.
@@ -118,6 +120,8 @@ export async function run(opts) {
 		json = false,
 		workers = parseInt(process.env.VITEST_WORKERS ?? "4", 10),
 		worstCoverageCount = 10,
+		blobsDir: blobsDirOpt,
+		mergeReports = true,
 		earlyRunPatterns = [],
 		perFileHeapOverrides = [],
 		conditions = [],
@@ -147,7 +151,7 @@ export async function run(opts) {
 
 	// ─── COVERAGE MODE ───────────────────────────────────────────────────────────
 	if (hasCoverage) {
-		const blobsDir = path.resolve(cwd, ".vitest-coverage-blobs");
+		const blobsDir = path.resolve(cwd, blobsDirOpt ?? ".vitest-coverage-blobs");
 		// Temp coverage dirs live OUTSIDE blobsDir — vitest --mergeReports errors on
 		// any non-blob entry found inside the blobs directory.
 		const coverageTmpBase = path.resolve(cwd, ".vitest-coverage-tmp");
@@ -321,28 +325,38 @@ export async function run(opts) {
 			return 1;
 		}
 
-		if (!coverageQuiet && !suppressFileOutput && emitTextOutput) {
-			console.log(`\n${"=".repeat(80)}`);
-			console.log(`📊 Merging ${blobFiles.length} coverage blobs into final report...`);
-			console.log("=".repeat(80));
+		// When mergeReports is false, stop after producing the blobs: skip the merge
+		// step and the coverage summary, and leave blobsDir intact so an external step
+		// can merge these blobs together with a separately-produced blob set.
+		let mergeExitCode = 0;
+		let mergeOutput = "";
+		let coverageSummary = null;
+
+		if (mergeReports) {
+			if (!coverageQuiet && !suppressFileOutput && emitTextOutput) {
+				console.log(`\n${"=".repeat(80)}`);
+				console.log(`📊 Merging ${blobFiles.length} coverage blobs into final report...`);
+				console.log("=".repeat(80));
+			}
+
+			({ exitCode: mergeExitCode, output: mergeOutput } = await runMergeReports(blobsDir, {
+				...spawnBase,
+				maxOldSpaceMb,
+				extraCoverageArgs,
+				quietOutput: coverageQuiet || json
+			}));
+
+			if (coverageQuiet && emitTextOutput) {
+				printMergeOutput(mergeExitCode, mergeOutput);
+			}
+
+			coverageSummary = await printCoverageSummary(cwd, extraCoverageArgs, worstCoverageCount, { silent: json });
 		}
 
-		const { exitCode: mergeExitCode, output: mergeOutput } = await runMergeReports(blobsDir, {
-			...spawnBase,
-			maxOldSpaceMb,
-			extraCoverageArgs,
-			quietOutput: coverageQuiet || json
-		});
-
-		if (coverageQuiet && emitTextOutput) {
-			printMergeOutput(mergeExitCode, mergeOutput);
-		}
-
-		const coverageSummary = await printCoverageSummary(cwd, extraCoverageArgs, worstCoverageCount, { silent: json });
-
-		// Clean up blobs and temp dirs
+		// Clean up temp dirs always; only delete blobsDir when we consumed it via merge.
+		// With mergeReports:false the blobs must survive for the caller's external merge.
 		await Promise.all([
-			fs.rm(blobsDir, { recursive: true, force: true }).catch(() => {}),
+			...(mergeReports ? [fs.rm(blobsDir, { recursive: true, force: true }).catch(() => {})] : []),
 			fs.rm(coverageTmpBase, { recursive: true, force: true }).catch(() => {})
 		]);
 

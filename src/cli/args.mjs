@@ -13,6 +13,8 @@
  * @property {boolean} suppressPassingFiles - Suppress the passed-files section in the final summary (`--suppress-passing-files`).
  * @property {boolean} topSummary - Show top-summary sections for memory and duration (`true` by default, disabled by `--no-top-summary`).
  * @property {boolean} json - Emit a JSON run report instead of text output (`--json`).
+ * @property {string|undefined} blobsDir - Directory for per-file coverage blobs (`--blobs-dir`); defaults to `<cwd>/.vitest-coverage-blobs`.
+ * @property {boolean} mergeReports - `false` when `--no-merge-reports` was passed; leaves blobs in `blobsDir` without merging.
  * @property {boolean} help - Whether `--help` / `-h` was passed.
  * @property {number|undefined} workers - Worker count from `--workers <n>`, or undefined.
  * @property {string[]} soloPatterns - Path substrings from `--solo-pattern <pattern>` (repeatable).
@@ -31,6 +33,8 @@ const RUNNER_FLAGS = new Set([
 	"--suppress-passing-files",
 	"--no-top-summary",
 	"--json",
+	"--blobs-dir",
+	"--no-merge-reports",
 	"--workers",
 	"--solo-pattern",
 	"--file-pattern",
@@ -63,6 +67,8 @@ export function parseArguments(args) {
 	let suppressPassingFiles = false;
 	let topSummary = true;
 	let json = false;
+	let blobsDir;
+	let mergeReports = true;
 	let workers;
 	let help = false;
 	let testFilePattern;
@@ -89,6 +95,12 @@ export function parseArguments(args) {
 			topSummary = false;
 		} else if (arg === "--json") {
 			json = true;
+		} else if (arg === "--blobs-dir") {
+			blobsDir = args[++i];
+		} else if (arg.startsWith("--blobs-dir=")) {
+			blobsDir = arg.slice("--blobs-dir=".length);
+		} else if (arg === "--no-merge-reports") {
+			mergeReports = false;
 		} else if (arg === "--workers") {
 			workers = parseInt(args[++i], 10);
 		} else if (arg.startsWith("--workers=")) {
@@ -124,6 +136,8 @@ export function parseArguments(args) {
 		suppressPassingFiles,
 		topSummary,
 		json,
+		blobsDir,
+		mergeReports,
 		help,
 		workers,
 		soloPatterns,
