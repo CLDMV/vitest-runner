@@ -2,7 +2,7 @@
  * @fileoverview Unit tests for src/utils/ansi.mjs
  */
 import { describe, it, expect } from "vitest";
-import { stripAnsi, colourPct } from "../../src/utils/ansi.mjs";
+import { stripAnsi, colourPct, toSafePct } from "../../src/utils/ansi.mjs";
 
 /** Minimal chalk stub: green/yellow/red just return the string unchanged */
 const chalk = {
@@ -72,5 +72,47 @@ describe("colourPct", () => {
 		const result = stripAnsi(colourPct(chalk, 5));
 		expect(result.length).toBe(6);
 		expect(result.trimStart()).toBe("5.00");
+	});
+
+	// Regression: a malformed/empty coverage summary (e.g. coverage run against a
+	// deleted src/ tree) surfaces a non-numeric pct. This used to throw
+	// `pct.toFixed is not a function` and crash the whole run.
+	it("does not throw on a non-numeric pct — coerces undefined to 0.00", () => {
+		expect(() => colourPct(chalk, undefined)).not.toThrow();
+		expect(stripAnsi(colourPct(chalk, undefined))).toBe("  0.00");
+	});
+
+	it("does not throw on an empty-string pct — coerces to 0.00 (red)", () => {
+		expect(() => colourPct(chalk, "")).not.toThrow();
+		expect(stripAnsi(colourPct(chalk, ""))).toBe("  0.00");
+		expect(colourPct(chalk, "")).toContain("\x1B[31m"); // red
+	});
+
+	it("accepts a numeric string and colours by its value", () => {
+		expect(stripAnsi(colourPct(chalk, "75.5"))).toBe(" 75.50");
+		expect(colourPct(chalk, "75.5")).toContain("\x1B[33m"); // yellow
+	});
+});
+
+describe("toSafePct", () => {
+	it("passes finite numbers through unchanged", () => {
+		expect(toSafePct(0)).toBe(0);
+		expect(toSafePct(75.5)).toBe(75.5);
+		expect(toSafePct(100)).toBe(100);
+	});
+
+	it("parses numeric strings", () => {
+		expect(toSafePct("75.5")).toBe(75.5);
+		expect(toSafePct("0")).toBe(0);
+	});
+
+	it("defaults non-numeric / empty / NaN / Infinity input to 0", () => {
+		expect(toSafePct(undefined)).toBe(0);
+		expect(toSafePct(null)).toBe(0);
+		expect(toSafePct("")).toBe(0);
+		expect(toSafePct("n/a")).toBe(0);
+		expect(toSafePct(NaN)).toBe(0);
+		expect(toSafePct(Infinity)).toBe(0);
+		expect(toSafePct({})).toBe(0);
 	});
 });

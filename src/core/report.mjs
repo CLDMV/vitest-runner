@@ -6,7 +6,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import chalk from "chalk";
-import { stripAnsi, colourPct } from "../utils/ansi.mjs";
+import { stripAnsi, colourPct, toSafePct } from "../utils/ansi.mjs";
 
 /**
  * Print verbose output for files that failed during a quiet coverage run.
@@ -190,10 +190,13 @@ export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 
 		const fileRows = Object.entries(fileSummaries)
 			.map(([absFile, data]) => ({
 				file: path.relative(cwd, absFile),
-				lines: data.lines?.pct ?? 0,
-				stmts: data.statements?.pct ?? 0,
-				fns: data.functions?.pct ?? 0,
-				branches: data.branches?.pct ?? 0
+				// Coerce defensively: these feed Math.min + a direct `.toFixed(0)`
+				// below, so a non-numeric pct (malformed/empty coverage summary)
+				// would crash the summary. `?? 0` alone doesn't catch NaN / strings.
+				lines: toSafePct(data.lines?.pct),
+				stmts: toSafePct(data.statements?.pct),
+				fns: toSafePct(data.functions?.pct),
+				branches: toSafePct(data.branches?.pct)
 			}))
 			.filter((r) => Math.min(r.lines, r.stmts, r.fns, r.branches) < 100)
 			.sort((a, b) => Math.min(a.lines, a.stmts, a.fns, a.branches) - Math.min(b.lines, b.stmts, b.fns, b.branches));
