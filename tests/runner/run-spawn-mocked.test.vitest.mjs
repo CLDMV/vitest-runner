@@ -43,6 +43,31 @@ const BASE = {
 	vitestConfig: FIXTURE_CONFIG
 };
 
+/**
+ * runSingleFile mock that writes a `.blob` file to the per-file `--outputFile`
+ * path the runner passes in, then returns a passing result.
+ * @param {string} filePath
+ * @param {{ vitestArgs: string[] }} options
+ * @returns {Promise<object>}
+ */
+const writeBlobMock = async (filePath, options) => {
+	const outputFile = options.vitestArgs.find((arg) => arg.startsWith("--outputFile=")).slice("--outputFile=".length);
+	await fs.writeFile(outputFile, "blob");
+	return {
+		file: String(filePath),
+		code: 0,
+		duration: 100,
+		testFilesPass: 1,
+		testFilesFail: 0,
+		testsPass: 1,
+		testsFail: 0,
+		testsSkip: 0,
+		heapMb: null,
+		errors: [],
+		rawOutput: ""
+	};
+};
+
 // ─── STANDARD (NON-COVERAGE) MODE ────────────────────────────────────────────
 describe("run() — spawn catch handlers: standard mode", () => {
 	afterEach(() => {
@@ -320,6 +345,36 @@ describe("run() — output suppression and json mode", () => {
 		expect(report.results.failed).toHaveLength(2);
 	});
 
+	it("redirects per-file blobs into a custom blobsDir and merges from there", async () => {
+		const blobsDir = path.join(PKG_ROOT, "tmp", "blobs-custom");
+		await fs.rm(blobsDir, { recursive: true, force: true });
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+		vi.mocked(runMergeReports).mockResolvedValue({ exitCode: 0, output: "merged" });
+
+		try {
+			const code = await run({
+				...BASE,
+				blobsDir,
+				suppressFileOutput: true,
+				vitestArgs: ["--coverage", "--coverage.provider=v8"]
+			});
+
+			expect(code).toBe(0);
+
+			// Every per-file --outputFile lands inside the custom blobsDir.
+			const outputFiles = vi
+				.mocked(runSingleFile)
+				.mock.calls.map(([, options]) => options.vitestArgs.find((a) => a.startsWith("--outputFile=")).slice("--outputFile=".length));
+			expect(outputFiles.length).toBeGreaterThan(0);
+			for (const f of outputFiles) expect(f.startsWith(blobsDir)).toBe(true);
+
+			// mergeReports defaults to true → merge runs against the custom dir.
+			expect(runMergeReports).toHaveBeenCalledWith(blobsDir, expect.any(Object));
+		} finally {
+			await fs.rm(blobsDir, { recursive: true, force: true });
+		}
+	}, 60_000);
+
 	it("returns coverage JSON with top summaries when multiple mocked files produce blobs", async () => {
 		vi.mocked(runSingleFile).mockImplementation(async (filePath, options) => {
 			const outputFileArg = options.vitestArgs.find((arg) => arg.startsWith("--outputFile="));
@@ -353,4 +408,115 @@ describe("run() — output suppression and json mode", () => {
 		expect(report.topMemoryUsers[0].heapMb).toBeGreaterThanOrEqual(report.topMemoryUsers[1].heapMb);
 		expect(report.topDuration[0].duration).toBeGreaterThanOrEqual(report.topDuration[1].duration);
 	});
+});
+
+describe("run() — mergeReports:false (coverage blobs left for external merge)", () => {
+	afterEach(() => {
+		vi.resetAllMocks();
+	});
+
+	it("produces blobs, skips the internal merge, and leaves blobsDir populated", async () => {
+		const blobsDir = path.join(PKG_ROOT, "tmp", "blobs-no-merge");
+		await fs.rm(blobsDir, { recursive: true, force: true });
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+
+		try {
+			const code = await run({
+				...BASE,
+				blobsDir,
+				mergeReports: false,
+				suppressFileOutput: true,
+				vitestArgs: ["--coverage", "--coverage.provider=v8"]
+			});
+
+			expect(code).toBe(0);
+			expect(runMergeReports).not.toHaveBeenCalled();
+
+			// a.test + b.test → two blobs that survive for the external merge.
+			const blobs = (await fs.readdir(blobsDir)).filter((f) => f.endsWith(".blob"));
+			expect(blobs).toHaveLength(2);
+		} finally {
+			await fs.rm(blobsDir, { recursive: true, force: true });
+		}
+	}, 60_000);
+
+	it("still clears blobsDir at the start of the run, keeping only fresh blobs", async () => {
+		const blobsDir = path.join(PKG_ROOT, "tmp", "blobs-start-clean");
+		await fs.rm(blobsDir, { recursive: true, force: true });
+		await fs.mkdir(blobsDir, { recursive: true });
+		await fs.writeFile(path.join(blobsDir, "stale.blob"), "old");
+		await fs.writeFile(path.join(blobsDir, "stale.txt"), "old");
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+
+		try {
+			const code = await run({
+				...BASE,
+				blobsDir,
+				mergeReports: false,
+				suppressFileOutput: true,
+				vitestArgs: ["--coverage", "--coverage.provider=v8"]
+			});
+
+			expect(code).toBe(0);
+			const entries = await fs.readdir(blobsDir);
+			expect(entries).not.toContain("stale.blob");
+			expect(entries).not.toContain("stale.txt");
+			expect(entries.filter((f) => f.endsWith(".blob"))).toHaveLength(2);
+		} finally {
+			await fs.rm(blobsDir, { recursive: true, force: true });
+		}
+	}, 60_000);
+
+	it("returns coverage JSON with no merge result or coverageSummary", async () => {
+		const blobsDir = path.join(PKG_ROOT, "tmp", "blobs-no-merge-json");
+		await fs.rm(blobsDir, { recursive: true, force: true });
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+
+		try {
+			const report = await run({
+				...BASE,
+				blobsDir,
+				mergeReports: false,
+				json: true,
+				vitestArgs: ["--coverage", "--coverage.provider=v8"]
+			});
+
+			expect(report).toMatchObject({
+				mode: "coverage",
+				exitCode: 0,
+				merge: { blobFiles: 2, exitCode: 0, output: "" },
+				coverageSummary: null
+			});
+			expect(runMergeReports).not.toHaveBeenCalled();
+
+			const blobs = (await fs.readdir(blobsDir)).filter((f) => f.endsWith(".blob"));
+			expect(blobs).toHaveLength(2);
+		} finally {
+			await fs.rm(blobsDir, { recursive: true, force: true });
+		}
+	}, 60_000);
+
+	it("reflects test failures in the exit code even with no merge result", async () => {
+		const blobsDir = path.join(PKG_ROOT, "tmp", "blobs-no-merge-fail");
+		await fs.rm(blobsDir, { recursive: true, force: true });
+		vi.mocked(runSingleFile).mockImplementation(async (filePath, options) => {
+			const result = await writeBlobMock(filePath, options);
+			return { ...result, code: 1, testFilesPass: 0, testFilesFail: 1, testsPass: 0, testsFail: 1 };
+		});
+
+		try {
+			const code = await run({
+				...BASE,
+				blobsDir,
+				mergeReports: false,
+				suppressFileOutput: true,
+				vitestArgs: ["--coverage", "--coverage.provider=v8"]
+			});
+
+			expect(code).toBe(1);
+			expect(runMergeReports).not.toHaveBeenCalled();
+		} finally {
+			await fs.rm(blobsDir, { recursive: true, force: true });
+		}
+	}, 60_000);
 });

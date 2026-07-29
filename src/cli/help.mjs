@@ -21,7 +21,7 @@ ${chalk.bold("USAGE:")}
 
 ${chalk.bold("SPECIAL FLAGS:")}
   --test-list <file>      Run only the files listed in a JSON array file
-  --file-pattern <regex>  Override the file discovery regex (default: \.test\.vitest\.(?:js|mjs|cjs)$)
+  --file-pattern <regex>  Override the file discovery regex (default: \\.test\\.vitest\\.(?:js|mjs|cjs)$)
   --workers <n>           Number of parallel workers (default: 4 or VITEST_WORKERS)
   --solo-pattern <pat>    Run files matching this path substring solo first (repeatable)
   --no-error-details      Hide detailed error output (show only counts)
@@ -31,6 +31,8 @@ ${chalk.bold("SPECIAL FLAGS:")}
   --suppress-passing-files  Hide the PASSED TEST FILES section in the final summary
   --no-top-summary        Hide TOP MEMORY USERS and TOP DURATION sections
   --json                  Emit JSON summary output instead of text logs
+  --blobs-dir <path>      Directory for per-file coverage blobs (default: .vitest-coverage-blobs)
+  --no-merge-reports      Leave coverage blobs in --blobs-dir without merging (for an external merge)
   --help, -h              Show this help message
 
 ${chalk.bold("TEST PATTERNS:")}

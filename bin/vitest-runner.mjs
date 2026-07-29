@@ -79,6 +79,8 @@ try {
 		suppressPassingFiles: args.suppressPassingFiles,
 		topSummary: args.topSummary,
 		json: args.json,
+		mergeReports: args.mergeReports,
+		...(args.blobsDir !== undefined && { blobsDir: args.blobsDir }),
 		...(args.workers !== undefined && { workers: args.workers }),
 		...(args.soloPatterns.length > 0 && { earlyRunPatterns: args.soloPatterns })
 	});

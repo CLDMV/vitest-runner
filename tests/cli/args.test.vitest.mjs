@@ -129,6 +129,37 @@ describe("parseArguments", () => {
 		expect(result.json).toBe(true);
 	});
 
+	// ── --blobs-dir ───────────────────────────────────────────────────────────
+
+	it("defaults blobsDir to undefined and mergeReports to true", () => {
+		const result = parseArguments([]);
+		expect(result.blobsDir).toBeUndefined();
+		expect(result.mergeReports).toBe(true);
+	});
+
+	it("parses --blobs-dir <path> (space-separated)", () => {
+		const result = parseArguments(["--blobs-dir", ".coverage-blobs/node"]);
+		expect(result.blobsDir).toBe(".coverage-blobs/node");
+	});
+
+	it("parses --blobs-dir=<path> (equals form)", () => {
+		const result = parseArguments(["--blobs-dir=/abs/blobs"]);
+		expect(result.blobsDir).toBe("/abs/blobs");
+	});
+
+	// ── --no-merge-reports ────────────────────────────────────────────────────
+
+	it("sets mergeReports to false for --no-merge-reports", () => {
+		const result = parseArguments(["--no-merge-reports"]);
+		expect(result.mergeReports).toBe(false);
+	});
+
+	it("does not forward --blobs-dir / --no-merge-reports to vitest passthrough args", () => {
+		const result = parseArguments(["--blobs-dir", "out/blobs", "--no-merge-reports"]);
+		expect(result.vitestPassthroughArgs).toEqual([]);
+		expect(result.testPatterns).toEqual([]);
+	});
+
 	// ── --help / -h ───────────────────────────────────────────────────────────
 
 	it("sets help to true for --help", () => {

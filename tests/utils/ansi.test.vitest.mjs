@@ -1,7 +1,7 @@
 /**
  * @fileoverview Unit tests for src/utils/ansi.mjs
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { stripAnsi, colourPct } from "../../src/utils/ansi.mjs";
 
 /** Minimal chalk stub: green/yellow/red just return the string unchanged */

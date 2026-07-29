@@ -45,20 +45,22 @@ vitest-runner [OPTIONS] [PATTERNS...]
 
 ### Runner flags
 
-| Flag | Description |
-|------|-------------|
-| `--test-list <file>` | Run only the files listed in a JSON array file instead of scanning |
-| `--file-pattern <regex>` | Override the file discovery regex (default: `\.test\.vitest\.(?:js\|mjs\|cjs)$`) |
-| `--workers <n>` | Number of parallel workers (default: `4` or `VITEST_WORKERS`) |
-| `--solo-pattern <pat>` | Run files matching this path substring solo (one at a time) before the worker pool; repeatable |
-| `--no-error-details` | Hide inline error blocks — show only counts in the summary |
-| `--coverage-quiet` | Implies `--coverage`; suppress per-file output and show only a live progress bar and final summaries |
-| `--log-file <path>` | Write a clean (ANSI-stripped) copy of all output to this file. Defaults to `coverage/coverage-run.log` when `--coverage-quiet` is active |
-| `--suppress-file-output` | Suppress per-file runner output blocks in any mode |
-| `--suppress-passing-files` | Hide the `PASSED TEST FILES` section in the final summary |
-| `--no-top-summary` | Hide `TOP MEMORY USERS` and `TOP DURATION` summary sections |
-| `--json` | Print a JSON run report (no runner text output) |
-| `--help`, `-h` | Print this help and exit |
+| Flag                       | Description                                                                                                                              |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `--test-list <file>`       | Run only the files listed in a JSON array file instead of scanning                                                                       |
+| `--file-pattern <regex>`   | Override the file discovery regex (default: `\.test\.vitest\.(?:js\|mjs\|cjs)$`)                                                         |
+| `--workers <n>`            | Number of parallel workers (default: `4` or `VITEST_WORKERS`)                                                                            |
+| `--solo-pattern <pat>`     | Run files matching this path substring solo (one at a time) before the worker pool; repeatable                                           |
+| `--no-error-details`       | Hide inline error blocks — show only counts in the summary                                                                               |
+| `--coverage-quiet`         | Implies `--coverage`; suppress per-file output and show only a live progress bar and final summaries                                     |
+| `--log-file <path>`        | Write a clean (ANSI-stripped) copy of all output to this file. Defaults to `coverage/coverage-run.log` when `--coverage-quiet` is active |
+| `--suppress-file-output`   | Suppress per-file runner output blocks in any mode                                                                                       |
+| `--suppress-passing-files` | Hide the `PASSED TEST FILES` section in the final summary                                                                                |
+| `--no-top-summary`         | Hide `TOP MEMORY USERS` and `TOP DURATION` summary sections                                                                              |
+| `--json`                   | Print a JSON run report (no runner text output)                                                                                          |
+| `--blobs-dir <path>`       | Directory for per-file coverage blobs (default: `.vitest-coverage-blobs`, relative to `cwd`)                                             |
+| `--no-merge-reports`       | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step                      |
+| `--help`, `-h`             | Print this help and exit                                                                                                                 |
 
 ### Test patterns
 
@@ -95,10 +97,10 @@ vitest-runner --bail
 
 ### Environment variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITEST_HEAP_MB` | *(none)* | `--max-old-space-size` ceiling passed to every child process |
-| `VITEST_WORKERS` | `4` | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`) |
+| Variable         | Default  | Description                                                                     |
+| ---------------- | -------- | ------------------------------------------------------------------------------- |
+| `VITEST_HEAP_MB` | _(none)_ | `--max-old-space-size` ceiling passed to every child process                    |
+| `VITEST_WORKERS` | `4`      | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`) |
 
 ### Examples
 
@@ -145,10 +147,10 @@ vitest-runner --json --no-top-summary
 ## Programmatic API
 
 ```js
-import { run } from 'vitest-runner';
+import { run } from "vitest-runner";
 
 // CommonJS
-const { run } = await require('vitest-runner');
+const { run } = await require("vitest-runner");
 ```
 
 ### `run(options)` → `Promise<number | object>`
@@ -156,10 +158,10 @@ const { run } = await require('vitest-runner');
 Runs the test suite and resolves with an exit code (`0` = all passed, `1` = any failure) by default. When `json: true` is passed, it returns a structured JSON report object (including `exitCode`) instead of printing runner text output.
 
 ```js
-import { run } from 'vitest-runner';
+import { run } from "vitest-runner";
 
 const code = await run({
-  testDir: 'src/tests',
+	testDir: "src/tests"
 });
 
 process.exit(code);
@@ -167,33 +169,38 @@ process.exit(code);
 
 #### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `cwd` | `string` | `process.cwd()` | Absolute project root directory |
-| `testDir` | `string` | `cwd` | Directory (absolute or relative to `cwd`) to scan for `*.test.vitest.{js,mjs}` files |
-| `vitestConfig` | `string` | auto-detect | Explicit vitest config path; when omitted the runner walks standard config names (`vitest.config.ts`, `vite.config.ts`, etc.) relative to `cwd` |
-| `testPatterns` | `string[]` | `[]` | File / folder patterns to filter — empty means all files in `testDir` |
-| `testListFile` | `string` | `undefined` | Path to a JSON array of test file paths; when set, scanning is skipped entirely |
-| `testFilePattern` | `RegExp` | `DEFAULT_TEST_FILE_PATTERN` | Regex matched against file names during discovery (`*.test.vitest.{js,mjs,cjs}` by default) |
-| `vitestArgs` | `string[]` | `[]` | Extra CLI args forwarded verbatim to every vitest invocation |
-| `showErrorDetails` | `boolean` | `true` | Print inline error blocks under each failed file in the summary |
-| `coverageQuiet` | `boolean` | `false` | Suppress per-file output; show only the progress bar and final summaries |
-| `suppressFileOutput` | `boolean` | `false` | Suppress per-file runner output blocks in all modes |
-| `suppressPassingFiles` | `boolean` | `false` | Hide passed-file rows in the final summary |
-| `topSummary` | `boolean` | `true` | Show or hide top memory/duration summary sections (and JSON arrays) |
-| `json` | `boolean` | `false` | Return a JSON report object instead of printing text output |
-| `workers` | `number` | `4` | Maximum parallel worker slots (overrides `VITEST_WORKERS`) |
-| `worstCoverageCount` | `number` | `10` | Rows in the worst-coverage table after a coverage run (`0` disables it) |
-| `maxOldSpaceMb` | `number` | `undefined` | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`) |
-| `earlyRunPatterns` | `string[]` | `[]` | Path substrings — matching files run solo (one at a time) before the parallel worker pool starts |
-| `perFileHeapOverrides` | `PerFileHeapOverride[]` | `[]` | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins |
-| `conditions` | `string[]` | `[]` | Additional `--conditions` Node flags forwarded to children |
-| `nodeEnv` | `string` | `'development'` | Value written to `NODE_ENV` in child processes |
+| Option                 | Type                    | Default                        | Description                                                                                                                                                                                                                                              |
+| ---------------------- | ----------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cwd`                  | `string`                | `process.cwd()`                | Absolute project root directory                                                                                                                                                                                                                          |
+| `testDir`              | `string`                | `cwd`                          | Directory (absolute or relative to `cwd`) to scan for `*.test.vitest.{js,mjs}` files                                                                                                                                                                     |
+| `vitestConfig`         | `string`                | auto-detect                    | Explicit vitest config path; when omitted the runner walks standard config names (`vitest.config.ts`, `vite.config.ts`, etc.) relative to `cwd`                                                                                                          |
+| `testPatterns`         | `string[]`              | `[]`                           | File / folder patterns to filter — empty means all files in `testDir`                                                                                                                                                                                    |
+| `testListFile`         | `string`                | `undefined`                    | Path to a JSON array of test file paths; when set, scanning is skipped entirely                                                                                                                                                                          |
+| `testFilePattern`      | `RegExp`                | `DEFAULT_TEST_FILE_PATTERN`    | Regex matched against file names during discovery (`*.test.vitest.{js,mjs,cjs}` by default)                                                                                                                                                              |
+| `vitestArgs`           | `string[]`              | `[]`                           | Extra CLI args forwarded verbatim to every vitest invocation                                                                                                                                                                                             |
+| `showErrorDetails`     | `boolean`               | `true`                         | Print inline error blocks under each failed file in the summary                                                                                                                                                                                          |
+| `coverageQuiet`        | `boolean`               | `false`                        | Suppress per-file output; show only the progress bar and final summaries                                                                                                                                                                                 |
+| `suppressFileOutput`   | `boolean`               | `false`                        | Suppress per-file runner output blocks in all modes                                                                                                                                                                                                      |
+| `suppressPassingFiles` | `boolean`               | `false`                        | Hide passed-file rows in the final summary                                                                                                                                                                                                               |
+| `topSummary`           | `boolean`               | `true`                         | Show or hide top memory/duration summary sections (and JSON arrays)                                                                                                                                                                                      |
+| `json`                 | `boolean`               | `false`                        | Return a JSON report object instead of printing text output                                                                                                                                                                                              |
+| `workers`              | `number`                | `4`                            | Maximum parallel worker slots (overrides `VITEST_WORKERS`)                                                                                                                                                                                               |
+| `worstCoverageCount`   | `number`                | `10`                           | Rows in the worst-coverage table after a coverage run (`0` disables it)                                                                                                                                                                                  |
+| `blobsDir`             | `string`                | `<cwd>/.vitest-coverage-blobs` | Directory for per-file coverage blobs. Relative paths resolve against `cwd`. Always cleared at the start of a coverage run                                                                                                                               |
+| `mergeReports`         | `boolean`               | `true`                         | When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted. When `false`, the run stops after producing blobs — no merge, no summary — and `blobsDir` is left populated for an external merge |
+| `maxOldSpaceMb`        | `number`                | `undefined`                    | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`)                                                                                                                                                                                 |
+| `earlyRunPatterns`     | `string[]`              | `[]`                           | Path substrings — matching files run solo (one at a time) before the parallel worker pool starts                                                                                                                                                         |
+| `perFileHeapOverrides` | `PerFileHeapOverride[]` | `[]`                           | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins                                                                                                                                                                             |
+| `conditions`           | `string[]`              | `[]`                           | Additional `--conditions` Node flags forwarded to children                                                                                                                                                                                               |
+| `nodeEnv`              | `string`                | `'development'`                | Value written to `NODE_ENV` in child processes                                                                                                                                                                                                           |
 
 #### `PerFileHeapOverride`
 
 ```ts
-{ pattern: string; heapMb: number }
+{
+	pattern: string;
+	heapMb: number;
+}
 ```
 
 `pattern` is a substring matched against the normalised (forward-slash) file path. The first match wins and is compared against the global `maxOldSpaceMb`; the larger value is used.
@@ -202,42 +209,40 @@ process.exit(code);
 
 ```js
 // Run all tests under src/tests/ (cwd defaults to process.cwd())
-await run({ testDir: 'src/tests' });
+await run({ testDir: "src/tests" });
 
 // Run only the config and metadata suites
 await run({
-  testDir: 'src/tests',
-  testPatterns: ['src/tests/config', 'src/tests/metadata'],
+	testDir: "src/tests",
+	testPatterns: ["src/tests/config", "src/tests/metadata"]
 });
 
 // Coverage run (OOM-safe blob + merge mode)
 await run({
-  testDir: 'src/tests',
-  vitestArgs: ['--coverage'],
+	testDir: "src/tests",
+	vitestArgs: ["--coverage"]
 });
 
 // Quiet coverage with live progress bar
 await run({
-  testDir: 'src/tests',
-  coverageQuiet: true,
+	testDir: "src/tests",
+	coverageQuiet: true
 });
 
 // Machine-readable output (no text logs)
 const report = await run({
-  testDir: 'src/tests',
-  json: true,
+	testDir: "src/tests",
+	json: true
 });
 
 console.log(report.exitCode);
 
 // Give heap-heavy files a larger ceiling while keeping the global limit lower
 await run({
-  testDir: 'src/tests',
-  maxOldSpaceMb: 2048,
-  earlyRunPatterns: ['listener-cleanup/'],
-  perFileHeapOverrides: [
-    { pattern: 'listener-cleanup/', heapMb: 6144 },
-  ],
+	testDir: "src/tests",
+	maxOldSpaceMb: 2048,
+	earlyRunPatterns: ["listener-cleanup/"],
+	perFileHeapOverrides: [{ pattern: "listener-cleanup/", heapMb: 6144 }]
 });
 ```
 
@@ -259,6 +264,28 @@ This avoids the OOM crash that occurs when a single vitest process holds coverag
 
 The log file path can be overridden with `--log-file <path>`. Passing `--log-file` by itself only enables log mirroring (it does not enable coverage mode).
 
+### Producing blobs for an external merge
+
+Set `mergeReports: false` (CLI: `--no-merge-reports`) to stop the run after the per-file blobs are written. The internal `vitest --mergeReports` call and the coverage summary are skipped, and `blobsDir` is left intact instead of being deleted. The blobs directory is still cleared at the **start** of each run, so it only ever contains the current run's output.
+
+This is useful when a second coverage blob set (for example, a browser-mode run with a different coverage transform) needs to be merged together with the node-mode blobs. Point both runs at known directories with `blobsDir`, then merge them in one external `vitest --mergeReports` step:
+
+```js
+// Node-mode blobs, no internal merge
+await run({
+	testDir: "src/tests",
+	vitestArgs: ["--coverage"],
+	blobsDir: ".coverage-blobs/node",
+	mergeReports: false
+});
+
+// (separately produce browser-mode blobs into .coverage-blobs/browser)
+// then merge both blob sets in a single external step:
+//   vitest --mergeReports .coverage-blobs --coverage
+```
+
+The exit code still reflects test pass/fail; there is just no coverage-merge result to fold in.
+
 ---
 
 ## Test list files
@@ -266,11 +293,7 @@ The log file path can be overridden with `--log-file <path>`. Passing `--log-fil
 A test list file is a plain JSON array of test file paths (relative to `cwd`):
 
 ```json
-[
-  "src/tests/auth/login.test.vitest.mjs",
-  "src/tests/auth/register.test.vitest.mjs",
-  "src/tests/config/defaults.test.vitest.mjs"
-]
+["src/tests/auth/login.test.vitest.mjs", "src/tests/auth/register.test.vitest.mjs", "src/tests/config/defaults.test.vitest.mjs"]
 ```
 
 Pass `--test-list <file>` (CLI) or `testListFile: 'path/to/list.json'` (API) to run exactly those files instead of scanning `testDir`.
@@ -281,7 +304,7 @@ Pass `--test-list <file>` (CLI) or `testListFile: 'path/to/list.json'` (API) to 
 
 By default, the runner discovers files matching:
 
-```
+```text
 *.test.vitest.js
 *.test.vitest.mjs
 *.test.vitest.cjs
@@ -297,14 +320,14 @@ vitest-runner --file-pattern '\.spec\.ts$'
 ```
 
 ```js
-await run({ cwd, testDir: 'src', testFilePattern: /\.spec\.ts$/i });
+await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 ```
 
 ---
 
 ## Source layout
 
-```
+```text
 index.mjs              ← ESM entry (re-exports src/runner.mjs)
 index.cjs              ← CJS shim (dynamic import of index.mjs)
 bin/

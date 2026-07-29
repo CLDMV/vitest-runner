@@ -1,6 +1,6 @@
 {
 	"name": "@cldmv/vitest-runner",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"description": "Sequential Vitest runner to avoid OOM issues with large test suites",
 	"type": "module",
 	"main": "index.cjs",
@@ -24,13 +24,16 @@
 		"bin/"
 	],
 	"scripts": {
-		"lint": "eslint src/ bin/ index.mjs",
+		"lint": "eslint --config .configs/eslint.config.mjs .",
+		"format": "prettier --write . --config .configs/.prettierrc",
+		"format:check": "prettier --check . --config .configs/.prettierrc",
 		"test": "vitest run --config .configs/vitest.config.mjs",
 		"test:watch": "vitest --config .configs/vitest.config.mjs",
 		"test:coverage": "vitest run --coverage --config .configs/vitest.config.mjs",
 		"ci:coverage": "vitest run --coverage --reporter=dot --maxWorkers=1 --config .configs/vitest.config.mjs",
 		"types:build": "tsc -p .configs/tsconfig.json",
-		"types:check": "tsc -p .configs/tsconfig.json --noEmit"
+		"types:check": "tsc -p .configs/tsconfig.json --noEmit",
+		"build:ci": "npm run lint && npm run format:check && npm run types:build"
 	},
 	"keywords": [
 		"vitest",
@@ -39,10 +42,16 @@
 		"oom"
 	],
 	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@eslint/json": "^2.0.0",
+		"@eslint/markdown": "^8.0.2",
 		"@types/node": "^25.3.0",
-		"@vitest/coverage-v8": "^4.0.18",
+		"@vitest/coverage-v8": "^4.1.9",
+		"eslint": "^10.5.0",
+		"globals": "^17.6.0",
+		"prettier": "^3.8.4",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.18"
+		"vitest": "^4.1.9"
 	},
 	"dependencies": {
 		"chalk": "^5.4.1"
@@ -51,7 +60,7 @@
 		"vitest": ">=1.0.0"
 	},
 	"engines": {
-		"node": ">=18.0.0"
+		"node": ">=20.19.0"
 	},
 	"publishConfig": {
 		"access": "public"
