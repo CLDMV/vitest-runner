@@ -1,4 +1,17 @@
 /**
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /tests/fixtures/scratch-check/check.test.vitest.mjs
+ *	@Date: 2026-09-27T03:31:00-07:00 (1790505060)
+ *	@Author: Shinrai <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-09-27 08:51:32 -07:00 (1790524292)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ */
+
+/**
  * Fixture that writes a marker file into its VITEST_RUNNER_TMP-provided scratch
  * directory (via makeRunTmpDir), then reports that directory's path to a FIXED
  * location outside the scratch tree (vitest swallows console output from a
