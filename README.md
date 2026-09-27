@@ -7,11 +7,28 @@ Sequential Vitest runner that spawns each test file in its own child process to 
 - Auto-detects your vitest config; accepts an explicit path if needed
 - All standard Vitest CLI flags are forwarded unchanged
 - Usable as a **CLI binary** or as a **programmatic Node.js API**
-- Pure ESM with a CJS shim for `require()` compatibility
+- Pure ESM source, bundled to a real CJS build for `require()` compatibility
 
 [![npm version]][npm_version_url] [![npm downloads]][npm_downloads_url] <!-- [![GitHub release]][github_release_url] -->[![GitHub downloads]][github_downloads_url] [![Last commit]][last_commit_url] <!-- [![Release date]][release_date_url] -->[![npm last update]][npm_last_update_url] [![Coverage]][coverage_url]
 
 [![Contributors]][contributors_url] [![Sponsor shinrai]][sponsor_url]
+
+---
+
+## ✨ What's New
+
+### Latest: v1.4.0 (September 2026)
+
+- **A real build, and a CLI that finally works when installed** — `dist/` (library) and `bin/` (CLI) are now bundled with tsup instead of hand-written; a one-character npm packaging bug that silently stripped the `bin` field is fixed, so `vitest-runner` now works as an installed command for the first time.
+- **Runner-owned scratch directories** — a per-run scratch root is created and cleaned up automatically, with a `makeRunTmpDir(label)` helper for test files instead of managing your own `mkdtemp` base.
+- [View full v1.4.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.0.md)
+
+### Recent Releases
+
+- **v1.3.3** (September 2026) — Dependency bump (`brace-expansion`, `postcss`) via Dependabot.
+- **v1.3.2** (September 2026) — CI: pass `BOT_NAME`/`BOT_EMAIL` through to the v4 release/feature-PR workflows.
+- **v1.3.0** (July 2026) — Onboarded onto the CLDMV v4 staging-branch release flow.
+- **v1.2.0** (June 2026) — Added coverage `blobsDir` + `mergeReports` options.
 
 ---
 
