@@ -1,6 +1,6 @@
 {
 	"name": "@cldmv/vitest-runner",
-	"version": "1.4.0",
+	"version": "1.4.1",
 	"description": "Sequential Vitest runner to avoid OOM issues with large test suites",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -39,7 +39,7 @@
 		"types:check": "tsc -p .configs/tsconfig.json --noEmit",
 		"build": "tsup",
 		"build:ci": "npm run lint && npm run format:check && npm run types:build && npm run build",
-		"prepack": "npm run build",
+		"prepack": "node -e \"const fs=require('node:fs');const hasTsup=fs.existsSync('node_modules/.bin/tsup')||fs.existsSync('node_modules/.bin/tsup.cmd');if(hasTsup){require('node:child_process').execSync('npm run build',{stdio:'inherit'})}else if(!fs.existsSync('dist/index.mjs')){throw new Error('dist/ is missing and tsup is unavailable to build it (expected in a bare package-contents publish dir with a prebuilt dist/; unexpected anywhere else)')}\"",
 		"fix:headers": "node tools/fix-headers.mjs"
 	},
 	"keywords": [
@@ -54,13 +54,13 @@
 		"@eslint/json": "^2.0.0",
 		"@eslint/markdown": "^8.0.2",
 		"@types/node": "^25.3.0",
-		"@vitest/coverage-v8": "^4.1.9",
+		"@vitest/coverage-v8": "^5.0.2",
 		"eslint": "^10.5.0",
 		"globals": "^17.6.0",
 		"prettier": "^3.8.4",
 		"tsup": "^8.5.1",
 		"typescript": "^5.9.3",
-		"vitest": "^4.1.9"
+		"vitest": "^5.0.1"
 	},
 	"dependencies": {
 		"chalk": "^5.4.1"
