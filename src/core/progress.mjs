@@ -1,4 +1,17 @@
 /**
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /src/core/progress.mjs
+ *	@Date: 2026-02-24T22:33:55-08:00 (1772001235)
+ *	@Author: Shinrai <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-09-27 08:51:31 -07:00 (1790524291)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ */
+
+/**
  * @fileoverview Live progress tracker for coverage runs.
  * @module vitest-runner/src/core/progress
  */

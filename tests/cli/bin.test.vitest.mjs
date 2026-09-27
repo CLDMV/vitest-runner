@@ -1,4 +1,17 @@
 /**
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /tests/cli/bin.test.vitest.mjs
+ *	@Date: 2026-03-19T23:08:28-07:00 (1773986908)
+ *	@Author: Shinrai <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-09-27 08:51:31 -07:00 (1790524291)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ */
+
+/**
  * @fileoverview Integration tests for the CLI binary behavior.
  */
 import { describe, it, expect } from "vitest";
@@ -8,7 +21,9 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-const BIN = path.join(ROOT, "bin", "vitest-runner.mjs");
+// Source, not the built bin/vitest-runner.mjs — bin/ is a build artifact (not tracked,
+// not guaranteed to exist without an `npm run build`); tests run against source directly.
+const BIN = path.join(ROOT, "src", "bin", "vitest-runner.mjs");
 
 describe("vitest-runner CLI", () => {
 	it("does not force coverage when --log-file is set", () => {

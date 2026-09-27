@@ -1,4 +1,17 @@
 /**
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /tests/runner/run-fs-errors.test.vitest.mjs
+ *	@Date: 2026-02-25T14:20:44-08:00 (1772058044)
+ *	@Author: Shinrai <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-09-27 08:51:32 -07:00 (1790524292)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ */
+
+/**
  * @fileoverview Tests for runner.mjs defensive fs error-suppression catch() callbacks.
  *
  * Uses vi.mock("node:fs/promises") with a factory to make specific fs operations

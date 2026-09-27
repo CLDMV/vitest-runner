@@ -1,27 +1,31 @@
 {
 	"name": "@cldmv/vitest-runner",
-	"version": "1.3.3",
+	"version": "1.4.0",
 	"description": "Sequential Vitest runner to avoid OOM issues with large test suites",
 	"type": "module",
-	"main": "index.cjs",
-	"module": "index.mjs",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.mjs",
 	"types": "./types/index.d.mts",
 	"exports": {
 		".": {
+			"vitest-runner-dev": {
+				"types": "./types/index.d.mts",
+				"import": "./src/runner.mjs"
+			},
 			"types": "./types/index.d.mts",
-			"import": "./index.mjs",
-			"require": "./index.cjs"
+			"import": "./dist/index.mjs",
+			"require": "./dist/index.cjs"
 		}
 	},
 	"bin": {
-		"vitest-runner": "./bin/vitest-runner.mjs"
+		"vitest-runner": "bin/vitest-runner.mjs"
 	},
 	"files": [
-		"index.mjs",
-		"index.cjs",
+		"dist/",
+		"!dist/**/*.map",
 		"types/",
-		"src/",
-		"bin/"
+		"bin/",
+		"!bin/**/*.map"
 	],
 	"scripts": {
 		"lint": "eslint --config .configs/eslint.config.mjs .",
@@ -33,8 +37,10 @@
 		"ci:coverage": "vitest run --coverage --reporter=dot --maxWorkers=1 --config .configs/vitest.config.mjs",
 		"types:build": "tsc -p .configs/tsconfig.json",
 		"types:check": "tsc -p .configs/tsconfig.json --noEmit",
-		"build:ci": "npm run lint && npm run format:check && npm run types:build",
-		"build": "echo 'no build step - stopgap for CI coverage-badge; see tracking issue'"
+		"build": "tsup",
+		"build:ci": "npm run lint && npm run format:check && npm run types:build && npm run build",
+		"prepack": "npm run build",
+		"fix:headers": "node tools/fix-headers.mjs"
 	},
 	"keywords": [
 		"vitest",
@@ -43,6 +49,7 @@
 		"oom"
 	],
 	"devDependencies": {
+		"@cldmv/fix-headers": "^1.3.12",
 		"@eslint/js": "^10.0.1",
 		"@eslint/json": "^2.0.0",
 		"@eslint/markdown": "^8.0.2",
@@ -51,6 +58,7 @@
 		"eslint": "^10.5.0",
 		"globals": "^17.6.0",
 		"prettier": "^3.8.4",
+		"tsup": "^8.5.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.1.9"
 	},

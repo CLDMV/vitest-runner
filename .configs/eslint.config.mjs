@@ -1,4 +1,17 @@
 /**
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /.configs/eslint.config.mjs
+ *	@Date: 2026-06-18T08:20:39-07:00 (1781796039)
+ *	@Author: Shinrai <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-09-27 08:51:26 -07:00 (1790524286)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ */
+
+/**
  * @fileoverview ESLint flat configuration for @cldmv/vitest-runner.
  * @module vitest-runner/.configs/eslint.config
  *
@@ -23,6 +36,7 @@ export default defineConfig([
 			"trash/**",
 			"node_modules/**",
 			"dist/**",
+			"bin/**",
 			"build/**",
 			".git/**",
 			".configs/**",

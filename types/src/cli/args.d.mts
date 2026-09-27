@@ -77,4 +77,12 @@ export type ParsedArgs = {
      * - Non-flag positional arguments (file / folder patterns).
      */
     testPatterns: string[];
+    /**
+     * - Keep the run's scratch directory instead of removing it on completion (`--keep-tmp`).
+     */
+    keepTmp: boolean;
+    /**
+     * - Per-run scratch root, relative to `cwd` (`--scratch-dir`); defaults to `tmp/vitest-runner`.
+     */
+    scratchDir: string | undefined;
 };

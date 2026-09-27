@@ -1,4 +1,17 @@
 /**
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /tests/integration/run.test.vitest.mjs
+ *	@Date: 2026-02-24T23:27:21-08:00 (1772004441)
+ *	@Author: Shinrai <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-09-27 08:51:32 -07:00 (1790524292)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ */
+
+/**
  * @fileoverview Integration tests for the run() API.
  *
  * These tests spawn real child vitest processes against the fixture test files
@@ -8,6 +21,7 @@
  * set to 30 s in vitest.config.mjs.
  */
 import { describe, it, expect, vi } from "vitest";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "../../src/runner.mjs";
@@ -35,6 +49,15 @@ describe("run() — basic pass/fail", () => {
 	it("returns 0 when all discovered test files pass", async () => {
 		const code = await run({
 			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "passing")
+		});
+		expect(code).toBe(0);
+	});
+
+	it("defaults cwd to process.cwd() when omitted", async () => {
+		const { cwd: _, ...baseWithoutCwd } = QUIET_BASE;
+		const code = await run({
+			...baseWithoutCwd,
 			testDir: path.join(FIXTURES, "passing")
 		});
 		expect(code).toBe(0);
@@ -102,6 +125,37 @@ describe("run() — earlyRunPatterns (solo phase)", () => {
 			earlyRunPatterns: ["a.test"]
 		});
 		expect(code).toBe(0);
+	});
+});
+
+describe("run() — same-basename files in different directories", () => {
+	it("does not let Vitest's substring filter merge a root-level file with a same-basename nested file", async () => {
+		const report = await run({
+			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "basename-collision"),
+			json: true,
+			workers: 1
+		});
+
+		expect(report.exitCode).toBe(0);
+		// 2 real files (1 root-level "tests/contract...", 1 nested "packages/a/tests/contract...")
+		expect(report.totals.testFilesPass).toBe(2);
+		expect(report.totals.testsPass).toBe(3); // 2 root tests + 1 nested test
+
+		const rootResult = report.results.all.find((r) =>
+			r.file.replace(/\\/g, "/").endsWith("basename-collision/tests/contract.test.vitest.mjs")
+		);
+		const nestedResult = report.results.all.find((r) =>
+			r.file.replace(/\\/g, "/").endsWith("basename-collision/packages/a/tests/contract.test.vitest.mjs")
+		);
+
+		expect(rootResult).toBeDefined();
+		expect(nestedResult).toBeDefined();
+		// Before the fix, the root file's shorter path is a trailing substring of the
+		// nested file's path, so Vitest's own CLI filter ran both under the root
+		// invocation and double-counted the nested file's test here too.
+		expect(rootResult.testsPass).toBe(2);
+		expect(nestedResult.testsPass).toBe(1);
 	});
 });
 
@@ -548,5 +602,109 @@ describe("run() — VITEST_HEAP_MB environment variable (runner.mjs:122)", () =>
 			if (saved === undefined) delete process.env.VITEST_HEAP_MB;
 			else process.env.VITEST_HEAP_MB = saved;
 		}
+	});
+});
+
+describe("run() — scratch directory lifecycle (VITEST_RUNNER_TMP / keepTmp / scratchDir)", () => {
+	it("exposes a per-file scratch dir via VITEST_RUNNER_TMP and removes the run root on completion", async () => {
+		const scratchDir = path.join("tmp", "scratch-lifecycle-default");
+		const markerFile = path.join(CWD, "tmp", "scratch-lifecycle-default-marker.json");
+		process.env.SCRATCH_CHECK_MARKER_FILE = markerFile;
+
+		let code;
+		try {
+			code = await run({
+				...QUIET_BASE,
+				testDir: path.join(FIXTURES, "scratch-check"),
+				scratchDir
+			});
+		} finally {
+			delete process.env.SCRATCH_CHECK_MARKER_FILE;
+		}
+		expect(code).toBe(0);
+
+		// makeRunTmpDir's mkdtemp result lives one level below VITEST_RUNNER_TMP
+		// (the per-file worker dir), which lives one level below the run root.
+		const { dir: mkdtempDir } = JSON.parse(await fs.readFile(markerFile, "utf8"));
+		const workerDir = path.dirname(mkdtempDir);
+		const runRoot = path.dirname(workerDir);
+		const scratchBase = path.dirname(runRoot);
+		expect(scratchBase).toBe(path.resolve(CWD, scratchDir));
+		// The run root (and everything under it, including the worker dir) is
+		// removed once run() completes — the default keepTmp: false behavior.
+		await expect(fs.access(runRoot)).rejects.toThrow();
+		await fs.rm(markerFile, { force: true });
+	});
+
+	it("keeps the scratch root when keepTmp is true", async () => {
+		const scratchDir = path.join("tmp", "scratch-lifecycle-keep");
+		const markerFile = path.join(CWD, "tmp", "scratch-lifecycle-keep-marker.json");
+		process.env.SCRATCH_CHECK_MARKER_FILE = markerFile;
+
+		let code;
+		try {
+			code = await run({
+				...QUIET_BASE,
+				testDir: path.join(FIXTURES, "scratch-check"),
+				scratchDir,
+				keepTmp: true
+			});
+		} finally {
+			delete process.env.SCRATCH_CHECK_MARKER_FILE;
+		}
+		expect(code).toBe(0);
+
+		const { dir: mkdtempDir } = JSON.parse(await fs.readFile(markerFile, "utf8"));
+		const runRoot = path.dirname(path.dirname(mkdtempDir));
+
+		await expect(fs.access(runRoot)).resolves.toBeUndefined();
+		await fs.rm(path.resolve(CWD, scratchDir), { recursive: true, force: true });
+		await fs.rm(markerFile, { force: true });
+	});
+
+	it("sweeps stale scratch roots left by a dead process before creating this run's root", async () => {
+		const scratchDir = path.join("tmp", "scratch-lifecycle-sweep");
+		const base = path.resolve(CWD, scratchDir);
+		const staleRoot = path.join(base, "999999999-123");
+		await fs.mkdir(staleRoot, { recursive: true });
+
+		const code = await run({
+			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "passing"),
+			scratchDir
+		});
+		expect(code).toBe(0);
+
+		await expect(fs.access(staleRoot)).rejects.toThrow();
+		await fs.rm(base, { recursive: true, force: true });
+	});
+
+	it("removes the scratch root and sets exitCode 130 on SIGINT", async () => {
+		const scratchDir = path.join("tmp", "scratch-lifecycle-sigint");
+		// process.emit (not a real OS signal) invokes the registered listener
+		// synchronously without actually terminating this test process; process.exit
+		// is mocked so the listener's own process.exit() call is a no-op here too.
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {});
+		const savedExitCode = process.exitCode;
+
+		const runPromise = run({
+			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "passing"),
+			scratchDir
+		});
+
+		// Let sweepStaleScratchRoots/createRunScratchRoot (real fs ops, dispatched via
+		// libuv's threadpool — not microtask-resolved) settle and the SIGINT listener
+		// register, well before the real child vitest spawn completes.
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		process.emit("SIGINT");
+
+		expect(process.exitCode).toBe(130);
+		expect(exitSpy).toHaveBeenCalledOnce();
+
+		await runPromise;
+		exitSpy.mockRestore();
+		process.exitCode = savedExitCode;
+		await fs.rm(path.resolve(CWD, scratchDir), { recursive: true, force: true });
 	});
 });

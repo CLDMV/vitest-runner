@@ -1,11 +1,13 @@
-#
-# @Project: @cldmv/.github
-# @Filename: /examples/individual-repo-workflows/core-cicd/ci.yml
-# @Date: 2026-05-20 00:00:00 -07:00 (1779606000)
-# @Author: Nate Corcoran <CLDMV>
-# @Email: <Shinrai@users.noreply.github.com>
-# @Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
-#
+#	@Project: @cldmv/vitest-runner
+#	@Filename: /.github/workflows/ci.yml
+#	@Date: 2026-05-20 00:00:00 -07:00 (1779606000)
+#	@Author: Nate Corcoran <CLDMV>
+#	@Email: <Shinrai@users.noreply.github.com>
+#	-----
+#	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+#	@Last modified time: 2026-09-27 08:51:26 -07:00 (1790524286)
+#	-----
+#	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
 
 # Individual repo: .github/workflows/ci.yml
 name: 🧪 CI Tests & Build
@@ -224,6 +226,9 @@ jobs:
       # Requires: the coverage_command produces coverage/coverage-summary.json
       enable_coverage_badge: ${{ github.event.inputs.enable_coverage_badge != 'false' }}
       default_branch: ${{ github.event.inputs.default_branch || 'master' }} # Badge only pushed when a push lands on this branch
+      # This repo ships source directly (no dist build) — build:ci (lint + format:check +
+      # types:build) preserves src/ for the coverage run, unlike a dist-only build_command.
+      coverage_build_command: "npm run build:ci"
       coverage_command: ${{ github.event.inputs.coverage_command || 'npm run ci:coverage' }}
       coverage_summary_path: ${{ github.event.inputs.coverage_summary_path || 'coverage/coverage-summary.json' }}
       badges_branch: ${{ github.event.inputs.badges_branch || 'badges' }}

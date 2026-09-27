@@ -16,7 +16,7 @@
  * Run a single Vitest test file in a child process and return parsed results.
  *
  * @param {string} filePath - Test file path (relative to `cwd` or absolute).
- * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean }} opts
+ * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv }} opts
  * @returns {Promise<SingleFileResult>}
  * @example
  * const result = await runSingleFile('src/tests/foo.test.vitest.mjs', {
@@ -28,6 +28,8 @@
 export function runSingleFile(filePath: string, opts: SpawnBaseOptions & {
     vitestArgs?: string[];
     streamOutput?: boolean;
+    excludePaths?: string[];
+    extraEnv?: NodeJS.ProcessEnv;
 }): Promise<SingleFileResult>;
 /**
  * Run Vitest directly (all files in one process) with inherited stdio.

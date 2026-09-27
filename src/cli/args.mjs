@@ -1,4 +1,17 @@
 /**
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /src/cli/args.mjs
+ *	@Date: 2026-02-24T22:33:55-08:00 (1772001235)
+ *	@Author: Shinrai <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-09-27 08:51:30 -07:00 (1790524290)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ */
+
+/**
  * @fileoverview CLI argument parsing for the vitest-runner binary.
  * @module vitest-runner/src/cli/args
  */
@@ -21,6 +34,8 @@
  * @property {RegExp|undefined} testFilePattern - Compiled regex from `--file-pattern <regex>`, or undefined.
  * @property {string[]} vitestPassthroughArgs - Flags forwarded verbatim to vitest.
  * @property {string[]} testPatterns - Non-flag positional arguments (file / folder patterns).
+ * @property {boolean} keepTmp - Keep the run's scratch directory instead of removing it on completion (`--keep-tmp`).
+ * @property {string|undefined} scratchDir - Per-run scratch root, relative to `cwd` (`--scratch-dir`); defaults to `tmp/vitest-runner`.
  */
 
 /** Runner-owned flags that must not be forwarded to vitest. */
@@ -38,6 +53,8 @@ const RUNNER_FLAGS = new Set([
 	"--workers",
 	"--solo-pattern",
 	"--file-pattern",
+	"--keep-tmp",
+	"--scratch-dir",
 	"--help",
 	"-h"
 ]);
@@ -72,6 +89,8 @@ export function parseArguments(args) {
 	let workers;
 	let help = false;
 	let testFilePattern;
+	let keepTmp = false;
+	let scratchDir;
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
 
@@ -113,6 +132,12 @@ export function parseArguments(args) {
 			testFilePattern = new RegExp(args[++i], "i");
 		} else if (arg.startsWith("--file-pattern=")) {
 			testFilePattern = new RegExp(arg.slice("--file-pattern=".length), "i");
+		} else if (arg === "--keep-tmp") {
+			keepTmp = true;
+		} else if (arg === "--scratch-dir") {
+			scratchDir = args[++i];
+		} else if (arg.startsWith("--scratch-dir=")) {
+			scratchDir = arg.slice("--scratch-dir=".length);
 		} else if (arg === "--help" || arg === "-h") {
 			help = true;
 		} else if ((arg.startsWith("--") || arg.startsWith("-")) && !RUNNER_FLAGS.has(arg)) {
@@ -143,6 +168,8 @@ export function parseArguments(args) {
 		soloPatterns,
 		testFilePattern,
 		vitestPassthroughArgs,
-		testPatterns
+		testPatterns,
+		keepTmp,
+		scratchDir
 	};
 }

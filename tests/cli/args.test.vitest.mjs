@@ -1,4 +1,17 @@
 /**
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /tests/cli/args.test.vitest.mjs
+ *	@Date: 2026-02-24T23:27:21-08:00 (1772004441)
+ *	@Author: Shinrai <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-09-27 08:51:31 -07:00 (1790524291)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ */
+
+/**
  * @fileoverview Unit tests for src/cli/args.mjs
  */
 import { describe, it, expect } from "vitest";
@@ -21,6 +34,8 @@ describe("parseArguments", () => {
 		expect(result.testFilePattern).toBeUndefined();
 		expect(result.vitestPassthroughArgs).toEqual([]);
 		expect(result.testPatterns).toEqual([]);
+		expect(result.keepTmp).toBe(false);
+		expect(result.scratchDir).toBeUndefined();
 	});
 
 	// ── --test-list ────────────────────────────────────────────────────────────
@@ -45,6 +60,28 @@ describe("parseArguments", () => {
 	it("parses --workers=<n> (equals form)", () => {
 		const result = parseArguments(["--workers=4"]);
 		expect(result.workers).toBe(4);
+	});
+
+	// ── --keep-tmp / --scratch-dir ───────────────────────────────────────────────
+
+	it("parses --keep-tmp", () => {
+		const result = parseArguments(["--keep-tmp"]);
+		expect(result.keepTmp).toBe(true);
+	});
+
+	it("parses --scratch-dir <path> (space-separated)", () => {
+		const result = parseArguments(["--scratch-dir", "tmp/custom"]);
+		expect(result.scratchDir).toBe("tmp/custom");
+	});
+
+	it("parses --scratch-dir=<path> (equals form)", () => {
+		const result = parseArguments(["--scratch-dir=tmp/custom"]);
+		expect(result.scratchDir).toBe("tmp/custom");
+	});
+
+	it("does not forward --keep-tmp or --scratch-dir to vitest passthrough args", () => {
+		const result = parseArguments(["--keep-tmp", "--scratch-dir", "tmp/custom", "--reporter", "verbose"]);
+		expect(result.vitestPassthroughArgs).toEqual(["--reporter", "verbose"]);
 	});
 
 	// ── --solo-pattern ────────────────────────────────────────────────────────

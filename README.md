@@ -7,11 +7,29 @@ Sequential Vitest runner that spawns each test file in its own child process to 
 - Auto-detects your vitest config; accepts an explicit path if needed
 - All standard Vitest CLI flags are forwarded unchanged
 - Usable as a **CLI binary** or as a **programmatic Node.js API**
-- Pure ESM with a CJS shim for `require()` compatibility
+- Pure ESM source, bundled to a real CJS build for `require()` compatibility
 
 [![npm version]][npm_version_url] [![npm downloads]][npm_downloads_url] <!-- [![GitHub release]][github_release_url] -->[![GitHub downloads]][github_downloads_url] [![Last commit]][last_commit_url] <!-- [![Release date]][release_date_url] -->[![npm last update]][npm_last_update_url] [![Coverage]][coverage_url]
 
 [![Contributors]][contributors_url] [![Sponsor shinrai]][sponsor_url]
+
+---
+
+## ✨ What's New
+
+### Latest: v1.4.0 (September 2026)
+
+- **A real build, and a CLI that finally works when installed** — `dist/` (library) and `bin/` (CLI) are now bundled with tsup instead of hand-written; a one-character npm packaging bug that silently stripped the `bin` field is fixed, so `vitest-runner` now works as an installed command for the first time.
+- **Runner-owned scratch directories** — a per-run scratch root is created and cleaned up automatically, with a `makeRunTmpDir(label)` helper for test files instead of managing your own `mkdtemp` base.
+- **CI/release automation completed** — the v4 staging-branch workflow set is now full (auto-merging the release PR on approval, `dependabot.yml`, and the rest), and every file header is normalized.
+- [View full v1.4.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.0.md)
+
+### Recent Releases
+
+- **v1.3.3** (September 2026) — Dependency bump (`brace-expansion`, `postcss`) via Dependabot.
+- **v1.3.2** (September 2026) — CI: pass `BOT_NAME`/`BOT_EMAIL` through to the v4 release/feature-PR workflows.
+- **v1.3.0** (July 2026) — Onboarded onto the CLDMV v4 staging-branch release flow.
+- **v1.2.0** (June 2026) — Added coverage `blobsDir` + `mergeReports` options.
 
 ---
 
@@ -60,6 +78,8 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--json`                   | Print a JSON run report (no runner text output)                                                                                          |
 | `--blobs-dir <path>`       | Directory for per-file coverage blobs (default: `.vitest-coverage-blobs`, relative to `cwd`)                                             |
 | `--no-merge-reports`       | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step                      |
+| `--keep-tmp`               | Keep this run's scratch directory instead of removing it on completion                                                                   |
+| `--scratch-dir <path>`     | Per-run scratch root, relative to `cwd` (default: `tmp/vitest-runner`)                                                                   |
 | `--help`, `-h`             | Print this help and exit                                                                                                                 |
 
 ### Test patterns
@@ -150,7 +170,7 @@ vitest-runner --json --no-top-summary
 import { run } from "vitest-runner";
 
 // CommonJS
-const { run } = await require("vitest-runner");
+const { run } = require("vitest-runner");
 ```
 
 ### `run(options)` → `Promise<number | object>`
@@ -193,6 +213,22 @@ process.exit(code);
 | `perFileHeapOverrides` | `PerFileHeapOverride[]` | `[]`                           | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins                                                                                                                                                                             |
 | `conditions`           | `string[]`              | `[]`                           | Additional `--conditions` Node flags forwarded to children                                                                                                                                                                                               |
 | `nodeEnv`              | `string`                | `'development'`                | Value written to `NODE_ENV` in child processes                                                                                                                                                                                                           |
+| `scratchDir`           | `string`                | `'tmp/vitest-runner'`          | Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`                                                                                                           |
+| `keepTmp`              | `boolean`               | `false`                        | Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM)                                                                                                                                               |
+
+### Scratch directories (`VITEST_RUNNER_TMP` / `makeRunTmpDir`)
+
+Every run gets its own scratch root (`<scratchDir>/<pid>-<timestamp>/`), created before any file runs and removed once the run completes — on success, on failure, and on SIGINT/SIGTERM — unless `keepTmp` is set. Each file invocation gets its own subdirectory under that root, exposed to the child as `process.env.VITEST_RUNNER_TMP`. Stale roots left by a crashed prior run (dead PID) are swept at the start of the next run.
+
+From a test file, use `makeRunTmpDir(label)` to get a fresh, uniquely-named subdirectory instead of managing your own `mkdtemp` base:
+
+```js
+import { makeRunTmpDir } from "vitest-runner";
+
+const dir = makeRunTmpDir("my-fixture"); // a fresh directory under VITEST_RUNNER_TMP
+```
+
+CLI flags: `--scratch-dir <path>` and `--keep-tmp` (see [Runner flags](#runner-flags) below).
 
 #### `PerFileHeapOverride`
 
@@ -328,29 +364,33 @@ await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 ## Source layout
 
 ```text
-index.mjs              ← ESM entry (re-exports src/runner.mjs)
-index.cjs              ← CJS shim (dynamic import of index.mjs)
-bin/
-  vitest-runner.mjs    ← CLI binary
+dist/                  ← built library entry (npm run build / tsup) — generated, not committed
+  index.mjs            ← bundled ESM entry
+  index.cjs            ← bundled CJS entry (real sync require, generated from the same source)
+bin/                   ← built CLI binary (npm run build / tsup) — generated, not committed
+  vitest-runner.mjs    ← bundled CLI, from src/bin/vitest-runner.mjs (shebang preserved)
 src/
   runner.mjs           ← main run() API + re-exports
+  bin/
+    vitest-runner.mjs  ← CLI entry SOURCE — run this directly for source-level dev/testing
   utils/
     ansi.mjs           ← stripAnsi, colourPct
     duration.mjs       ← formatDuration
     env.mjs            ← buildNodeOptions
     resolve.mjs        ← resolveBin, resolveVitestConfig
   core/
-    discover.mjs       ← discoverVitestFiles, sortWithPriority
+    discover.mjs       ← discoverVitestFiles, sortWithPriority, computeFilterConflicts
     parse.mjs          ← parseVitestOutput, deduplicateErrors
     spawn.mjs          ← runSingleFile, runVitestDirect, runMergeReports
     report.mjs         ← printCoverageSummary, printMergeOutput
     progress.mjs       ← createCoverageProgressTracker
+    scratch.mjs        ← makeRunTmpDir + the scratch-directory lifecycle
   cli/
     args.mjs           ← parseArguments
     help.mjs           ← showHelp
 ```
 
-All sub-module utilities are re-exported from the root entry point, so deep imports are optional.
+`src/` is not published — only `dist/`, `bin/`, and `types/` ship (see [Programmatic API](#programmatic-api) for the `vitest-runner-dev` export condition, used when developing against a workspace/local checkout instead of the published package). All sub-module utilities are re-exported from the root entry point, so deep imports are optional.
 
 ---
 
