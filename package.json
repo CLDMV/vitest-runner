@@ -39,7 +39,7 @@
 		"types:check": "tsc -p .configs/tsconfig.json --noEmit",
 		"build": "tsup",
 		"build:ci": "npm run lint && npm run format:check && npm run types:build && npm run build",
-		"prepack": "node -e \"require('node:fs').existsSync('dist/index.mjs') || require('node:child_process').execSync('npm run build', { stdio: 'inherit' })\"",
+		"prepack": "node -e \"const fs=require('node:fs');const hasTsup=fs.existsSync('node_modules/.bin/tsup')||fs.existsSync('node_modules/.bin/tsup.cmd');if(hasTsup){require('node:child_process').execSync('npm run build',{stdio:'inherit'})}else if(!fs.existsSync('dist/index.mjs')){throw new Error('dist/ is missing and tsup is unavailable to build it (expected in a bare package-contents publish dir with a prebuilt dist/; unexpected anywhere else)')}\"",
 		"fix:headers": "node tools/fix-headers.mjs"
 	},
 	"keywords": [
