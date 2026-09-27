@@ -5,6 +5,8 @@ trash/
 other_drivers/
 dist
 dist/
+/bin
+/bin/
 types/dist
 types/dist/
 build/

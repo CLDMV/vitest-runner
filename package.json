@@ -8,6 +8,10 @@
 	"types": "./types/index.d.mts",
 	"exports": {
 		".": {
+			"vitest-runner-dev": {
+				"types": "./types/index.d.mts",
+				"import": "./src/runner.mjs"
+			},
 			"types": "./types/index.d.mts",
 			"import": "./dist/index.mjs",
 			"require": "./dist/index.cjs"
@@ -18,9 +22,10 @@
 	},
 	"files": [
 		"dist/",
+		"!dist/**/*.map",
 		"types/",
-		"src/",
-		"bin/"
+		"bin/",
+		"!bin/**/*.map"
 	],
 	"scripts": {
 		"lint": "eslint --config .configs/eslint.config.mjs .",
