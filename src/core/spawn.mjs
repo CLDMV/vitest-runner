@@ -62,7 +62,7 @@ function buildBaseArgs(vitestBin, vitestConfig) {
  * Run a single Vitest test file in a child process and return parsed results.
  *
  * @param {string} filePath - Test file path (relative to `cwd` or absolute).
- * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean }} opts
+ * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[] }} opts
  * @returns {Promise<SingleFileResult>}
  * @example
  * const result = await runSingleFile('src/tests/foo.test.vitest.mjs', {
@@ -80,12 +80,17 @@ export function runSingleFile(filePath, opts) {
 		conditions = [],
 		nodeEnv = "development",
 		vitestArgs = [],
-		streamOutput = true
+		streamOutput = true,
+		// Other discovered files whose path would spuriously also match Vitest's
+		// own substring filter on `filePath` (see discover.mjs computeFilterConflicts).
+		// Excluded explicitly so this invocation runs exactly `filePath`.
+		excludePaths = []
 	} = opts;
 
 	return new Promise((resolve) => {
 		const startTime = Date.now();
-		const args = [...buildBaseArgs(vitestBin, vitestConfig), ...vitestArgs, filePath];
+		const excludeArgs = excludePaths.flatMap((p) => ["--exclude", p]);
+		const args = [...buildBaseArgs(vitestBin, vitestConfig), ...vitestArgs, ...excludeArgs, filePath];
 		const env = buildEnv({ maxOldSpaceMb, conditions, nodeEnv });
 
 		const child = spawn(process.execPath, args, { cwd, stdio: ["ignore", "pipe", "pipe"], env });

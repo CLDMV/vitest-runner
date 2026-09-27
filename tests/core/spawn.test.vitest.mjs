@@ -68,6 +68,24 @@ describe("runSingleFile", () => {
 		expect(result.rawOutput).toMatch(/test-stderr-marker/);
 	});
 
+	it("excludePaths keeps Vitest's own substring filter from also matching a same-basename nested file", async () => {
+		const vitestBin = resolveBin(PKG_ROOT, "vitest", "vitest");
+		const FIXTURE_CONFIG_COLLISION = path.join(FIXTURES, "basename-collision", "..", "vitest.config.mjs");
+
+		// Without excludePaths, Vitest's CLI filter on the root file's shorter path
+		// also matches the nested same-basename file — this call's own result would
+		// report testFilesPass: 2 / testsPass: 3 instead of just the root file's 2.
+		const result = await runSingleFile("tests/fixtures/basename-collision/tests/contract.test.vitest.mjs", {
+			cwd: PKG_ROOT,
+			vitestBin,
+			vitestConfig: FIXTURE_CONFIG_COLLISION,
+			excludePaths: ["tests/fixtures/basename-collision/packages/a/tests/contract.test.vitest.mjs"]
+		});
+		expect(result.code).toBe(0);
+		expect(result.testFilesPass).toBe(1);
+		expect(result.testsPass).toBe(2);
+	});
+
 	it("resolves with code 1 via child.on('error') when cwd does not exist (spawn.mjs:127)", async () => {
 		// spawn() with a non-existent cwd emits ENOENT via the 'error' event — not 'close'
 		// This exercises the child.on("error") handler body at spawn.mjs:127

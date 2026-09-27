@@ -105,6 +105,37 @@ describe("run() — earlyRunPatterns (solo phase)", () => {
 	});
 });
 
+describe("run() — same-basename files in different directories", () => {
+	it("does not let Vitest's substring filter merge a root-level file with a same-basename nested file", async () => {
+		const report = await run({
+			...QUIET_BASE,
+			testDir: path.join(FIXTURES, "basename-collision"),
+			json: true,
+			workers: 1
+		});
+
+		expect(report.exitCode).toBe(0);
+		// 2 real files (1 root-level "tests/contract...", 1 nested "packages/a/tests/contract...")
+		expect(report.totals.testFilesPass).toBe(2);
+		expect(report.totals.testsPass).toBe(3); // 2 root tests + 1 nested test
+
+		const rootResult = report.results.all.find((r) =>
+			r.file.replace(/\\/g, "/").endsWith("basename-collision/tests/contract.test.vitest.mjs")
+		);
+		const nestedResult = report.results.all.find((r) =>
+			r.file.replace(/\\/g, "/").endsWith("basename-collision/packages/a/tests/contract.test.vitest.mjs")
+		);
+
+		expect(rootResult).toBeDefined();
+		expect(nestedResult).toBeDefined();
+		// Before the fix, the root file's shorter path is a trailing substring of the
+		// nested file's path, so Vitest's own CLI filter ran both under the root
+		// invocation and double-counted the nested file's test here too.
+		expect(rootResult.testsPass).toBe(2);
+		expect(nestedResult.testsPass).toBe(1);
+	});
+});
+
 describe("run() — testFilePattern", () => {
 	it("respects a custom pattern that matches fixtures", async () => {
 		const code = await run({
