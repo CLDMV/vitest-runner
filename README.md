@@ -150,7 +150,7 @@ vitest-runner --json --no-top-summary
 import { run } from "vitest-runner";
 
 // CommonJS
-const { run } = await require("vitest-runner");
+const { run } = require("vitest-runner");
 ```
 
 ### `run(options)` → `Promise<number | object>`
@@ -328,8 +328,9 @@ await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 ## Source layout
 
 ```text
-index.mjs              ← ESM entry (re-exports src/runner.mjs)
-index.cjs              ← CJS shim (dynamic import of index.mjs)
+dist/                  ← built package entry (npm run build / tsup) — generated, not committed
+  index.mjs            ← bundled ESM entry
+  index.cjs            ← bundled CJS entry (real sync require, generated from the same source)
 bin/
   vitest-runner.mjs    ← CLI binary
 src/
