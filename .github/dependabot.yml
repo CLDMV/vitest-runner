@@ -1,11 +1,13 @@
-#
-# @Project: @cldmv/.github
-# @Filename: /examples/individual-repo-workflows/automation/dependabot.yml
-# @Date: 2026-05-26 00:00:00 -07:00 (1782460800)
-# @Author: Nate Corcoran <CLDMV>
-# @Email: <Shinrai@users.noreply.github.com>
-# @Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
-#
+#	@Project: @cldmv/vitest-runner
+#	@Filename: /.github/dependabot.yml
+#	@Date: 2026-05-26 00:00:00 -07:00 (1782460800)
+#	@Author: Nate Corcoran <CLDMV>
+#	@Email: <Shinrai@users.noreply.github.com>
+#	-----
+#	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
+#	@Last modified time: 2026-09-27 08:51:26 -07:00 (1790524286)
+#	-----
+#	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
 
 # Individual repo: .github/dependabot.yml
 #
