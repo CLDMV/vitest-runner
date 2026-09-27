@@ -19,15 +19,17 @@ import { buildNodeOptions } from "../utils/env.mjs";
 
 /**
  * Build the environment object for a vitest child process.
- * @param {Pick<SpawnBaseOptions, 'maxOldSpaceMb'|'conditions'|'nodeEnv'>} opts
+ * @param {Pick<SpawnBaseOptions, 'maxOldSpaceMb'|'conditions'|'nodeEnv'> & { extraEnv?: NodeJS.ProcessEnv }} opts
  * @returns {NodeJS.ProcessEnv}
  */
-function buildEnv({ maxOldSpaceMb, conditions = [], nodeEnv = "development" }) {
+function buildEnv({ maxOldSpaceMb, conditions = [], nodeEnv = "development", extraEnv = {} }) {
 	const env = { ...process.env };
 	if (!env.NODE_ENV) env.NODE_ENV = nodeEnv;
 
 	const nodeOptions = buildNodeOptions({ maxOldSpaceMb, conditions, base: env.NODE_OPTIONS ?? "" });
 	if (nodeOptions) env.NODE_OPTIONS = nodeOptions;
+
+	Object.assign(env, extraEnv);
 
 	return env;
 }
@@ -62,7 +64,7 @@ function buildBaseArgs(vitestBin, vitestConfig) {
  * Run a single Vitest test file in a child process and return parsed results.
  *
  * @param {string} filePath - Test file path (relative to `cwd` or absolute).
- * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[] }} opts
+ * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv }} opts
  * @returns {Promise<SingleFileResult>}
  * @example
  * const result = await runSingleFile('src/tests/foo.test.vitest.mjs', {
@@ -84,14 +86,16 @@ export function runSingleFile(filePath, opts) {
 		// Other discovered files whose path would spuriously also match Vitest's
 		// own substring filter on `filePath` (see discover.mjs computeFilterConflicts).
 		// Excluded explicitly so this invocation runs exactly `filePath`.
-		excludePaths = []
+		excludePaths = [],
+		// Extra env vars for the child (e.g. VITEST_RUNNER_TMP — see core/scratch.mjs).
+		extraEnv = {}
 	} = opts;
 
 	return new Promise((resolve) => {
 		const startTime = Date.now();
 		const excludeArgs = excludePaths.flatMap((p) => ["--exclude", p]);
 		const args = [...buildBaseArgs(vitestBin, vitestConfig), ...vitestArgs, ...excludeArgs, filePath];
-		const env = buildEnv({ maxOldSpaceMb, conditions, nodeEnv });
+		const env = buildEnv({ maxOldSpaceMb, conditions, nodeEnv, extraEnv });
 
 		const child = spawn(process.execPath, args, { cwd, stdio: ["ignore", "pipe", "pipe"], env });
 

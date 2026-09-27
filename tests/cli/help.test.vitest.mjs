@@ -77,4 +77,22 @@ describe("showHelp", () => {
 		showHelp();
 		expect(output).toContain("--no-top-summary");
 	});
+
+	it("output contains --keep-tmp flag description", () => {
+		let output = "";
+		vi.spyOn(console, "log").mockImplementation((msg) => {
+			output = String(msg);
+		});
+		showHelp();
+		expect(output).toContain("--keep-tmp");
+	});
+
+	it("output contains --scratch-dir flag description", () => {
+		let output = "";
+		vi.spyOn(console, "log").mockImplementation((msg) => {
+			output = String(msg);
+		});
+		showHelp();
+		expect(output).toContain("--scratch-dir");
+	});
 });

@@ -2,12 +2,19 @@
  * Run all discovered Vitest test files sequentially (with a configurable worker
  * pool for the non-solo phase) and return an exit code.
  *
+ * Owns the run's scratch directory lifecycle (`scratchDir`/`keepTmp`): sweeps stale
+ * roots from dead prior runs, creates this run's root, and removes it on every exit
+ * path — normal completion, a thrown error, or SIGINT/SIGTERM — unless `keepTmp` is
+ * set. The actual run logic lives in {@link runImpl}; this wrapper only exists to
+ * guarantee that cleanup regardless of how `runImpl` returns or throws.
+ *
  * @param {RunOptions} opts
  * @returns {Promise<number|object>} `0`/`1` by default; JSON report object when `opts.json` is true.
  */
 export function run(opts: RunOptions): Promise<number | object>;
 export { formatDuration } from "./utils/duration.mjs";
 export { buildNodeOptions } from "./utils/env.mjs";
+export { makeRunTmpDir } from "./core/scratch.mjs";
 export type PerFileHeapOverride = {
     /**
      * - Substring matched against the normalised file path.
@@ -107,6 +114,14 @@ export type RunOptions = {
      * - Value for `NODE_ENV` in child processes.
      */
     nodeEnv?: string;
+    /**
+     * - Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`.
+     */
+    scratchDir?: string;
+    /**
+     * - Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM).
+     */
+    keepTmp?: boolean;
     /**
      * -
      */

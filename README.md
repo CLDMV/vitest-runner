@@ -60,6 +60,8 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--json`                   | Print a JSON run report (no runner text output)                                                                                          |
 | `--blobs-dir <path>`       | Directory for per-file coverage blobs (default: `.vitest-coverage-blobs`, relative to `cwd`)                                             |
 | `--no-merge-reports`       | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step                      |
+| `--keep-tmp`               | Keep this run's scratch directory instead of removing it on completion                                                                   |
+| `--scratch-dir <path>`     | Per-run scratch root, relative to `cwd` (default: `tmp/vitest-runner`)                                                                   |
 | `--help`, `-h`             | Print this help and exit                                                                                                                 |
 
 ### Test patterns
@@ -193,6 +195,22 @@ process.exit(code);
 | `perFileHeapOverrides` | `PerFileHeapOverride[]` | `[]`                           | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins                                                                                                                                                                             |
 | `conditions`           | `string[]`              | `[]`                           | Additional `--conditions` Node flags forwarded to children                                                                                                                                                                                               |
 | `nodeEnv`              | `string`                | `'development'`                | Value written to `NODE_ENV` in child processes                                                                                                                                                                                                           |
+| `scratchDir`           | `string`                | `'tmp/vitest-runner'`          | Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`                                                                                                           |
+| `keepTmp`              | `boolean`               | `false`                        | Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM)                                                                                                                                               |
+
+### Scratch directories (`VITEST_RUNNER_TMP` / `makeRunTmpDir`)
+
+Every run gets its own scratch root (`<scratchDir>/<pid>-<timestamp>/`), created before any file runs and removed once the run completes — on success, on failure, and on SIGINT/SIGTERM — unless `keepTmp` is set. Each file invocation gets its own subdirectory under that root, exposed to the child as `process.env.VITEST_RUNNER_TMP`. Stale roots left by a crashed prior run (dead PID) are swept at the start of the next run.
+
+From a test file, use `makeRunTmpDir(label)` to get a fresh, uniquely-named subdirectory instead of managing your own `mkdtemp` base:
+
+```js
+import { makeRunTmpDir } from "vitest-runner";
+
+const dir = makeRunTmpDir("my-fixture"); // a fresh directory under VITEST_RUNNER_TMP
+```
+
+CLI flags: `--scratch-dir <path>` and `--keep-tmp` (see [Runner flags](#runner-flags) below).
 
 #### `PerFileHeapOverride`
 
@@ -348,6 +366,7 @@ src/
     spawn.mjs          ← runSingleFile, runVitestDirect, runMergeReports
     report.mjs         ← printCoverageSummary, printMergeOutput
     progress.mjs       ← createCoverageProgressTracker
+    scratch.mjs        ← makeRunTmpDir + the scratch-directory lifecycle
   cli/
     args.mjs           ← parseArguments
     help.mjs           ← showHelp

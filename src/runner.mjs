@@ -35,6 +35,14 @@ import { runSingleFile, runMergeReports } from "./core/spawn.mjs";
 import { deduplicateErrors } from "./core/parse.mjs";
 import { createCoverageProgressTracker, noopProgressTracker } from "./core/progress.mjs";
 import { printQuietCoverageFailureDetails, printMergeOutput, printCoverageSummary } from "./core/report.mjs";
+import {
+	DEFAULT_SCRATCH_DIR,
+	sweepStaleScratchRoots,
+	createRunScratchRoot,
+	createFileScratchDir,
+	removeScratchRoot,
+	removeScratchRootSync
+} from "./core/scratch.mjs";
 
 /**
  * @typedef {Object} PerFileHeapOverride
@@ -66,6 +74,8 @@ import { printQuietCoverageFailureDetails, printMergeOutput, printCoverageSummar
  * @property {PerFileHeapOverride[]} [perFileHeapOverrides=[]] - Per-file minimum heap overrides.
  * @property {string[]} [conditions=[]] - Additional `--conditions` Node flags forwarded to children.
  * @property {string} [nodeEnv='development'] - Value for `NODE_ENV` in child processes.
+ * @property {string} [scratchDir='tmp/vitest-runner'] - Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`.
+ * @property {boolean} [keepTmp=false] - Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM).
  * @property {object[] | null} [_testResultsOverride=null] - @internal Inject pre-built results to bypass discovery and spawn (for testing final-report render paths).
  */
 
@@ -99,10 +109,49 @@ function getHeapForFile(filePath, globalMaxMb, overrides) {
  * Run all discovered Vitest test files sequentially (with a configurable worker
  * pool for the non-solo phase) and return an exit code.
  *
+ * Owns the run's scratch directory lifecycle (`scratchDir`/`keepTmp`): sweeps stale
+ * roots from dead prior runs, creates this run's root, and removes it on every exit
+ * path — normal completion, a thrown error, or SIGINT/SIGTERM — unless `keepTmp` is
+ * set. The actual run logic lives in {@link runImpl}; this wrapper only exists to
+ * guarantee that cleanup regardless of how `runImpl` returns or throws.
+ *
  * @param {RunOptions} opts
  * @returns {Promise<number|object>} `0`/`1` by default; JSON report object when `opts.json` is true.
  */
 export async function run(opts) {
+	const cwd = opts.cwd ?? process.cwd();
+	const scratchDirOpt = opts.scratchDir ?? DEFAULT_SCRATCH_DIR;
+	const keepTmp = opts.keepTmp ?? false;
+
+	await sweepStaleScratchRoots(cwd, scratchDirOpt);
+	const scratchRoot = await createRunScratchRoot(cwd, scratchDirOpt);
+
+	const onSignal = () => {
+		removeScratchRootSync(scratchRoot);
+		process.exitCode = 130;
+		process.exit();
+	};
+
+	if (!keepTmp) {
+		process.once("SIGINT", onSignal);
+		process.once("SIGTERM", onSignal);
+	}
+
+	try {
+		return await runImpl(opts, scratchRoot);
+	} finally {
+		process.removeListener("SIGINT", onSignal);
+		process.removeListener("SIGTERM", onSignal);
+		if (!keepTmp) await removeScratchRoot(scratchRoot);
+	}
+}
+
+/**
+ * @param {RunOptions} opts
+ * @param {string} scratchRoot - This run's scratch root (see {@link run}).
+ * @returns {Promise<number|object>}
+ */
+async function runImpl(opts, scratchRoot) {
 	const {
 		cwd = process.cwd(),
 		testDir,
@@ -127,6 +176,9 @@ export async function run(opts) {
 		/** @internal Inject pre-built results to bypass discovery and spawn (for testing final-report render paths). */
 		_testResultsOverride = null
 	} = opts;
+
+	/** Unique index per file invocation, used to name that file's scratch subdirectory. */
+	let fileScratchIndex = 0;
 
 	const maxOldSpaceMb = opts.maxOldSpaceMb ?? (process.env.VITEST_HEAP_MB ? parseInt(process.env.VITEST_HEAP_MB, 10) : undefined);
 	const emitTextOutput = !json;
@@ -233,12 +285,14 @@ export async function run(opts) {
 				`--outputFile=${blobPath}`
 			];
 
+			const scratchDir = await createFileScratchDir(scratchRoot, fileScratchIndex++);
 			const result = await runSingleFile(filePath, {
 				...spawnBase,
 				maxOldSpaceMb: getHeapForFile(filePath, maxOldSpaceMb, perFileHeapOverrides),
 				vitestArgs: blobArgs,
 				streamOutput: !suppressPerFileCoverageOutput,
-				excludePaths: filterConflicts.get(filePath)
+				excludePaths: filterConflicts.get(filePath),
+				extraEnv: { VITEST_RUNNER_TMP: scratchDir }
 			});
 
 			coverageResults.push(result);
@@ -472,12 +526,14 @@ export async function run(opts) {
 			console.log("=".repeat(80));
 		}
 
+		const scratchDir = await createFileScratchDir(scratchRoot, fileScratchIndex++);
 		const result = await runSingleFile(filePath, {
 			...spawnBase,
 			maxOldSpaceMb: getHeapForFile(filePath, maxOldSpaceMb, perFileHeapOverrides),
 			vitestArgs,
 			streamOutput: !suppressFileOutput && !json,
-			excludePaths: filterConflicts.get(filePath)
+			excludePaths: filterConflicts.get(filePath),
+			extraEnv: { VITEST_RUNNER_TMP: scratchDir }
 		});
 
 		if (!suppressFileOutput && emitTextOutput) {
@@ -710,3 +766,4 @@ export { printCoverageSummary, printMergeOutput, printQuietCoverageFailureDetail
 export { formatDuration } from "./utils/duration.mjs";
 export { stripAnsi, colourPct } from "./utils/ansi.mjs";
 export { buildNodeOptions } from "./utils/env.mjs";
+export { makeRunTmpDir } from "./core/scratch.mjs";
