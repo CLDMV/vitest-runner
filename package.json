@@ -33,8 +33,7 @@
 		"ci:coverage": "vitest run --coverage --reporter=dot --maxWorkers=1 --config .configs/vitest.config.mjs",
 		"types:build": "tsc -p .configs/tsconfig.json",
 		"types:check": "tsc -p .configs/tsconfig.json --noEmit",
-		"build:ci": "npm run lint && npm run format:check && npm run types:build",
-		"build": "echo 'no build step - stopgap for CI coverage-badge; see tracking issue'"
+		"build:ci": "npm run lint && npm run format:check && npm run types:build"
 	},
 	"keywords": [
 		"vitest",

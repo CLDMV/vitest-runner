@@ -224,6 +224,9 @@ jobs:
       # Requires: the coverage_command produces coverage/coverage-summary.json
       enable_coverage_badge: ${{ github.event.inputs.enable_coverage_badge != 'false' }}
       default_branch: ${{ github.event.inputs.default_branch || 'master' }} # Badge only pushed when a push lands on this branch
+      # This repo ships source directly (no dist build) — build:ci (lint + format:check +
+      # types:build) preserves src/ for the coverage run, unlike a dist-only build_command.
+      coverage_build_command: "npm run build:ci"
       coverage_command: ${{ github.event.inputs.coverage_command || 'npm run ci:coverage' }}
       coverage_summary_path: ${{ github.event.inputs.coverage_summary_path || 'coverage/coverage-summary.json' }}
       badges_branch: ${{ github.event.inputs.badges_branch || 'badges' }}
