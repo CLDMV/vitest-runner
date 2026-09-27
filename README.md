@@ -21,6 +21,7 @@ Sequential Vitest runner that spawns each test file in its own child process to 
 
 - **A real build, and a CLI that finally works when installed** — `dist/` (library) and `bin/` (CLI) are now bundled with tsup instead of hand-written; a one-character npm packaging bug that silently stripped the `bin` field is fixed, so `vitest-runner` now works as an installed command for the first time.
 - **Runner-owned scratch directories** — a per-run scratch root is created and cleaned up automatically, with a `makeRunTmpDir(label)` helper for test files instead of managing your own `mkdtemp` base.
+- **CI/release automation completed** — the v4 staging-branch workflow set is now full (auto-merging the release PR on approval, `dependabot.yml`, and the rest), and every file header is normalized.
 - [View full v1.4.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.0.md)
 
 ### Recent Releases
