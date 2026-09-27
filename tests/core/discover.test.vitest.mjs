@@ -5,7 +5,13 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEFAULT_TEST_FILE_PATTERN, discoverFilesInDir, discoverVitestFiles, sortWithPriority } from "../../src/core/discover.mjs";
+import {
+	DEFAULT_TEST_FILE_PATTERN,
+	discoverFilesInDir,
+	discoverVitestFiles,
+	sortWithPriority,
+	computeFilterConflicts
+} from "../../src/core/discover.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, "../..");
@@ -72,6 +78,49 @@ describe("sortWithPriority", () => {
 });
 
 // ─── discoverFilesInDir ───────────────────────────────────────────────────────
+
+// ─── computeFilterConflicts ────────────────────────────────────────────────
+
+describe("computeFilterConflicts", () => {
+	it("returns empty conflict lists when no file's path is a substring of another's", () => {
+		const files = ["tests/a.test.vitest.mjs", "tests/b.test.vitest.mjs"];
+		const conflicts = computeFilterConflicts(files);
+		expect(conflicts.get("tests/a.test.vitest.mjs")).toEqual([]);
+		expect(conflicts.get("tests/b.test.vitest.mjs")).toEqual([]);
+	});
+
+	it("flags a root-level file whose path is a trailing substring of a nested file's path", () => {
+		const files = ["tests/contract.test.vitest.mjs", "packages/a/tests/contract.test.vitest.mjs"];
+		const conflicts = computeFilterConflicts(files);
+		expect(conflicts.get("tests/contract.test.vitest.mjs")).toEqual(["packages/a/tests/contract.test.vitest.mjs"]);
+		// The reverse direction is unambiguous: the nested file's longer path is
+		// never a substring of the shorter root-level path.
+		expect(conflicts.get("packages/a/tests/contract.test.vitest.mjs")).toEqual([]);
+	});
+
+	it("flags every colliding file when more than two share a basename+parent-dir tail", () => {
+		const files = [
+			"tests/contract.test.vitest.mjs",
+			"packages/a/tests/contract.test.vitest.mjs",
+			"packages/b/tests/contract.test.vitest.mjs"
+		];
+		const conflicts = computeFilterConflicts(files);
+		expect(conflicts.get("tests/contract.test.vitest.mjs")).toEqual([
+			"packages/a/tests/contract.test.vitest.mjs",
+			"packages/b/tests/contract.test.vitest.mjs"
+		]);
+	});
+
+	it("normalises backslashes before comparing (Windows-style paths)", () => {
+		const files = ["tests\\contract.test.vitest.mjs", "packages\\a\\tests\\contract.test.vitest.mjs"];
+		const conflicts = computeFilterConflicts(files);
+		expect(conflicts.get("tests\\contract.test.vitest.mjs")).toEqual(["packages\\a\\tests\\contract.test.vitest.mjs"]);
+	});
+
+	it("returns an empty map for empty input", () => {
+		expect(computeFilterConflicts([]).size).toBe(0);
+	});
+});
 
 describe("discoverFilesInDir", () => {
 	it("discovers .mjs fixture files under tests/fixtures/passing", async () => {

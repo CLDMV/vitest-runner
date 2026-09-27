@@ -30,7 +30,7 @@ import path from "node:path";
 import chalk from "chalk";
 
 import { resolveBin, resolveVitestConfig } from "./utils/resolve.mjs";
-import { discoverVitestFiles } from "./core/discover.mjs";
+import { discoverVitestFiles, computeFilterConflicts } from "./core/discover.mjs";
 import { runSingleFile, runMergeReports } from "./core/spawn.mjs";
 import { deduplicateErrors } from "./core/parse.mjs";
 import { createCoverageProgressTracker, noopProgressTracker } from "./core/progress.mjs";
@@ -158,6 +158,7 @@ export async function run(opts) {
 		await Promise.all([fs.mkdir(blobsDir, { recursive: true }), fs.mkdir(coverageTmpBase, { recursive: true })]);
 
 		const allTestFiles = await discoverVitestFiles({ cwd, testDir, testPatterns, testListFile, testFilePattern, earlyRunPatterns });
+		const filterConflicts = computeFilterConflicts(allTestFiles);
 
 		if (allTestFiles.length === 0) {
 			const noTestsMessage =
@@ -236,7 +237,8 @@ export async function run(opts) {
 				...spawnBase,
 				maxOldSpaceMb: getHeapForFile(filePath, maxOldSpaceMb, perFileHeapOverrides),
 				vitestArgs: blobArgs,
-				streamOutput: !suppressPerFileCoverageOutput
+				streamOutput: !suppressPerFileCoverageOutput,
+				excludePaths: filterConflicts.get(filePath)
 			});
 
 			coverageResults.push(result);
@@ -410,6 +412,7 @@ export async function run(opts) {
 
 	// ─── STANDARD (NON-COVERAGE) MODE ────────────────────────────────────────────
 	const testFiles = await discoverVitestFiles({ cwd, testDir, testPatterns, testListFile, testFilePattern, earlyRunPatterns });
+	const filterConflicts = computeFilterConflicts(testFiles);
 
 	if (testFiles.length === 0) {
 		const noTestsMessage =
@@ -473,7 +476,8 @@ export async function run(opts) {
 			...spawnBase,
 			maxOldSpaceMb: getHeapForFile(filePath, maxOldSpaceMb, perFileHeapOverrides),
 			vitestArgs,
-			streamOutput: !suppressFileOutput && !json
+			streamOutput: !suppressFileOutput && !json,
+			excludePaths: filterConflicts.get(filePath)
 		});
 
 		if (!suppressFileOutput && emitTextOutput) {

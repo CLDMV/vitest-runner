@@ -80,6 +80,44 @@ export function sortWithPriority(files, earlyRunPatterns = []) {
 }
 
 /**
+ * Compute, for every file in `files`, the set of *other* files that Vitest's
+ * own CLI filter would spuriously also match when that file's path is passed
+ * as the filter argument.
+ *
+ * Vitest's `vitest run <filter>` matches any discovered test file whose path
+ * *contains* `<filter>` as a substring — not just an exact-path match. Two
+ * files that share the same basename (and immediate parent directory) at
+ * different depths — e.g. `tests/contract.test.vitest.mjs` and
+ * `packages/a/tests/contract.test.vitest.mjs` — collide because the shorter
+ * path is a trailing substring of the longer one, so filtering on the shorter
+ * path's exact string also matches the longer path's file. Passing an
+ * absolute path does not help: Vitest normalises to a root-relative path
+ * before matching.
+ *
+ * @param {string[]} files - File paths relative to the project root, as returned by discovery.
+ * @returns {Map<string, string[]>} Map from each file to the other files it would spuriously match (empty array when unambiguous).
+ * @example
+ * const conflicts = computeFilterConflicts(["tests/a.mjs", "pkg/tests/a.mjs"]);
+ * conflicts.get("tests/a.mjs"); // ["pkg/tests/a.mjs"]
+ * conflicts.get("pkg/tests/a.mjs"); // []
+ */
+export function computeFilterConflicts(files) {
+	const normalized = files.map((f) => f.replace(/\\/g, "/"));
+	const conflicts = new Map();
+
+	for (let i = 0; i < files.length; i++) {
+		const matches = [];
+		for (let j = 0; j < files.length; j++) {
+			if (i === j) continue;
+			if (normalized[j].includes(normalized[i])) matches.push(files[j]);
+		}
+		conflicts.set(files[i], matches);
+	}
+
+	return conflicts;
+}
+
+/**
  * @typedef {Object} DiscoverOptions
  * @property {string} cwd - Project root directory.
  * @property {string} [testDir] - Root directory to search for test files (defaults to `cwd`).
