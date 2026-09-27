@@ -17,19 +17,18 @@ Sequential Vitest runner that spawns each test file in its own child process to 
 
 ## ✨ What's New
 
-### Latest: v1.4.0 (September 2026)
+### Latest: v1.4.2 (September 2026)
 
-- **A real build, and a CLI that finally works when installed** — `dist/` (library) and `bin/` (CLI) are now bundled with tsup instead of hand-written; a one-character npm packaging bug that silently stripped the `bin` field is fixed, so `vitest-runner` now works as an installed command for the first time.
-- **Runner-owned scratch directories** — a per-run scratch root is created and cleaned up automatically, with a `makeRunTmpDir(label)` helper for test files instead of managing your own `mkdtemp` base.
-- **CI/release automation completed** — the v4 staging-branch workflow set is now full (auto-merging the release PR on approval, `dependabot.yml`, and the rest), and every file header is normalized.
-- [View full v1.4.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.0.md)
+- **npm publish actually reaches the registry now** — `package.json` was missing `repository`/`bugs`/`homepage` fields entirely, so npm's provenance verification rejected every publish attempt with a 422. This had been broken since the repo's creation but was masked by an earlier `prepack` crash (fixed in v1.4.1); v1.4.2 is the first version of the `dist/`-based build to actually land on the npm registry.
+- **The vitest 4→5 major upgrade is complete** — `@vitest/coverage-v8` is bumped alongside `vitest` to satisfy its exact peer-version pin, closing out an `npm ci` conflict that a partial Dependabot bump had left behind.
+- [View full v1.4.2 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.2.md)
 
 ### Recent Releases
 
+- **v1.4.1** (September 2026) — Completed the vitest 5 upgrade, fixed the README npm badges, and fixed a `prepack` bug crashing every publish job ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.1.md))
+- **v1.4.0** (September 2026) — Real bundled `dist/`/`bin/` build, a working CLI, and a runner-owned scratch-directory lifecycle ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.0.md))
 - **v1.3.3** (September 2026) — Dependency bump (`brace-expansion`, `postcss`) via Dependabot.
 - **v1.3.2** (September 2026) — CI: pass `BOT_NAME`/`BOT_EMAIL` through to the v4 release/feature-PR workflows.
-- **v1.3.0** (July 2026) — Onboarded onto the CLDMV v4 staging-branch release flow.
-- **v1.2.0** (June 2026) — Added coverage `blobsDir` + `mergeReports` options.
 
 ---
 
