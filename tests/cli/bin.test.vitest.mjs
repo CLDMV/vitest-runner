@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-const BIN = path.join(ROOT, "bin", "vitest-runner.mjs");
+// Source, not the built bin/vitest-runner.mjs — bin/ is a build artifact (not tracked,
+// not guaranteed to exist without an `npm run build`); tests run against source directly.
+const BIN = path.join(ROOT, "src", "bin", "vitest-runner.mjs");
 
 describe("vitest-runner CLI", () => {
 	it("does not force coverage when --log-file is set", () => {

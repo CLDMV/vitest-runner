@@ -23,6 +23,7 @@ export default defineConfig([
 			"trash/**",
 			"node_modules/**",
 			"dist/**",
+			"bin/**",
 			"build/**",
 			".git/**",
 			".configs/**",

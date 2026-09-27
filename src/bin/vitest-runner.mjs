@@ -1,18 +1,22 @@
 #!/usr/bin/env node
 /**
  * @fileoverview CLI entry point for the vitest-runner binary.
- * @module vitest-runner/bin/vitest-runner
+ * @module vitest-runner/src/bin/vitest-runner
  *
  * Mirrors its own output to a log file when --coverage-quiet or --log-file is set, then
- * delegates all logic to `src/runner.mjs` via the programmatic `run()` API.
+ * delegates all logic to `runner.mjs` via the programmatic `run()` API.
+ *
+ * This is the SOURCE — `npm run build` bundles it (with its src/cli/* dependencies
+ * inlined) into the published bin/vitest-runner.mjs. bin/ is a build artifact, not
+ * tracked in git; run this file directly (as tests do) for source-level dev/testing.
  */
 
 import { createWriteStream, mkdirSync } from "node:fs";
 import path from "node:path";
-import { parseArguments } from "../src/cli/args.mjs";
-import { showHelp } from "../src/cli/help.mjs";
-import { run } from "../src/runner.mjs";
-import { stripAnsi } from "../src/utils/ansi.mjs";
+import { parseArguments } from "../cli/args.mjs";
+import { showHelp } from "../cli/help.mjs";
+import { run } from "../runner.mjs";
+import { stripAnsi } from "../utils/ansi.mjs";
 
 const args = parseArguments(process.argv.slice(2));
 
@@ -80,9 +84,11 @@ try {
 		topSummary: args.topSummary,
 		json: args.json,
 		mergeReports: args.mergeReports,
+		keepTmp: args.keepTmp,
 		...(args.blobsDir !== undefined && { blobsDir: args.blobsDir }),
 		...(args.workers !== undefined && { workers: args.workers }),
-		...(args.soloPatterns.length > 0 && { earlyRunPatterns: args.soloPatterns })
+		...(args.soloPatterns.length > 0 && { earlyRunPatterns: args.soloPatterns }),
+		...(args.scratchDir !== undefined && { scratchDir: args.scratchDir })
 	});
 
 	if (args.json) {
