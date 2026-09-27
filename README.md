@@ -346,20 +346,22 @@ await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 ## Source layout
 
 ```text
-dist/                  ← built package entry (npm run build / tsup) — generated, not committed
+dist/                  ← built library entry (npm run build / tsup) — generated, not committed
   index.mjs            ← bundled ESM entry
   index.cjs            ← bundled CJS entry (real sync require, generated from the same source)
-bin/
-  vitest-runner.mjs    ← CLI binary
+bin/                   ← built CLI binary (npm run build / tsup) — generated, not committed
+  vitest-runner.mjs    ← bundled CLI, from src/bin/vitest-runner.mjs (shebang preserved)
 src/
   runner.mjs           ← main run() API + re-exports
+  bin/
+    vitest-runner.mjs  ← CLI entry SOURCE — run this directly for source-level dev/testing
   utils/
     ansi.mjs           ← stripAnsi, colourPct
     duration.mjs       ← formatDuration
     env.mjs            ← buildNodeOptions
     resolve.mjs        ← resolveBin, resolveVitestConfig
   core/
-    discover.mjs       ← discoverVitestFiles, sortWithPriority
+    discover.mjs       ← discoverVitestFiles, sortWithPriority, computeFilterConflicts
     parse.mjs          ← parseVitestOutput, deduplicateErrors
     spawn.mjs          ← runSingleFile, runVitestDirect, runMergeReports
     report.mjs         ← printCoverageSummary, printMergeOutput
@@ -370,7 +372,7 @@ src/
     help.mjs           ← showHelp
 ```
 
-All sub-module utilities are re-exported from the root entry point, so deep imports are optional.
+`src/` is not published — only `dist/`, `bin/`, and `types/` ship (see [Programmatic API](#programmatic-api) for the `vitest-runner-dev` export condition, used when developing against a workspace/local checkout instead of the published package). All sub-module utilities are re-exported from the root entry point, so deep imports are optional.
 
 ---
 
