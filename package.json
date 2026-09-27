@@ -1,6 +1,6 @@
 {
 	"name": "@cldmv/vitest-runner",
-	"version": "1.4.1",
+	"version": "1.4.2",
 	"description": "Sequential Vitest runner to avoid OOM issues with large test suites",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -74,5 +74,13 @@
 	"publishConfig": {
 		"access": "public"
 	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/CLDMV/vitest-runner.git"
+	},
+	"bugs": {
+		"url": "https://github.com/CLDMV/vitest-runner/issues"
+	},
+	"homepage": "https://github.com/CLDMV/vitest-runner#readme",
 	"license": "MIT"
 }
