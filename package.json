@@ -18,7 +18,7 @@
 		}
 	},
 	"bin": {
-		"vitest-runner": "./bin/vitest-runner.mjs"
+		"vitest-runner": "bin/vitest-runner.mjs"
 	},
 	"files": [
 		"dist/",
