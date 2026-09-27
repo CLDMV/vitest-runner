@@ -40,7 +40,7 @@ const shared = {
 	splitting: false,
 	sourcemap: true,
 	dts: false,
-	minify: false
+	minify: true
 };
 
 export default defineConfig([
