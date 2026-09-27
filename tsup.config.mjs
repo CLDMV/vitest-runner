@@ -15,8 +15,13 @@
  * @fileoverview Bundler config — produces the published dist/ output from source.
  *
  * Two entries, two different jobs:
- *  - `index`  → dist/index.mjs + dist/index.cjs — the public programmatic API (dual format,
- *    the CJS build is generated from the same source instead of hand-maintained).
+ *  - `index`  → dist/index.mjs (real esbuild bundle) + dist/index.cjs (a thin, hand-written
+ *    shim — see src/cjs-shim.cjs — copied in verbatim by onSuccess below, never bundled by
+ *    esbuild). Node's `require()` can load an ES module synchronously and read its exports
+ *    directly as long as the module has no top-level await, which src/runner.mjs doesn't —
+ *    so the shim can just `require("./index.mjs")` instead of esbuild compiling a second,
+ *    independent copy of the whole module for the CJS format. Matches @cldmv/uuid's
+ *    index.cjs pattern.
  *  - `cli`    → bin/vitest-runner.mjs — the CLI binary, ESM only, bundled from
  *    src/bin/vitest-runner.mjs (with its src/cli/* + runner.mjs dependencies inlined).
  *    bin/ is the STABLE PUBLISHED PATH (package.json "bin" never changes) but is a
@@ -31,6 +36,7 @@
  *
  * No code-splitting: each entry is one self-contained file, never a set of shared chunks.
  */
+import { copyFileSync } from "node:fs";
 import { defineConfig } from "tsup";
 
 const shared = {
@@ -40,17 +46,20 @@ const shared = {
 	splitting: false,
 	sourcemap: true,
 	dts: false,
-	minify: false
+	minify: true
 };
 
 export default defineConfig([
 	{
 		...shared,
 		entry: { index: "src/runner.mjs" },
-		format: ["esm", "cjs"],
+		format: ["esm"],
 		clean: true,
-		outExtension({ format }) {
-			return { js: format === "cjs" ? ".cjs" : ".mjs" };
+		outExtension() {
+			return { js: ".mjs" };
+		},
+		onSuccess() {
+			copyFileSync("src/cjs-shim.cjs", "dist/index.cjs");
 		}
 	},
 	{
