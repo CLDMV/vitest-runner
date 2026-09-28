@@ -299,6 +299,12 @@ This avoids the OOM crash that occurs when a single vitest process holds coverag
 
 The log file path can be overridden with `--log-file <path>`. Passing `--log-file` by itself only enables log mirroring (it does not enable coverage mode).
 
+### When no files are measured
+
+If the coverage `include` matches no files (for example, a scaffold repo with a test but no source yet), istanbul reports every percentage as `Unknown` rather than a number. The runner prints those metrics as `Unknown` — `Coverage  Unknown% lines | Unknown% statements | …` — adds a note that no files were measured, and exits `0` if the tests passed. The same applies to any individual non-numeric percentage in the worst-coverage table.
+
+Coverage thresholds are skipped in this case, because there is nothing to measure: vitest's own threshold check does not fail on an `Unknown` percentage, and the runner does not add a check of its own. Thresholds apply again as soon as at least one file is measured. The JSON report's `coverageSummary.noFilesMeasured` is `true` for such a run.
+
 ### Producing blobs for an external merge
 
 Set `mergeReports: false` (CLI: `--no-merge-reports`) to stop the run after the per-file blobs are written. The internal `vitest --mergeReports` call and the coverage summary are skipped, and `blobsDir` is left intact instead of being deleted. The blobs directory is still cleared at the **start** of each run, so it only ever contains the current run's output.

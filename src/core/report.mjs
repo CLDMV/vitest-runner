@@ -19,7 +19,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import chalk from "chalk";
-import { stripAnsi, colourPct } from "../utils/ansi.mjs";
+import { stripAnsi, colourPct, formatPct, isKnownPct } from "../utils/ansi.mjs";
 
 /**
  * Print verbose output for files that failed during a quiet coverage run.
@@ -92,6 +92,10 @@ export function printMergeOutput(exitCode, output) {
 /**
  * Compute a coverage-summary-style object from a raw V8/Istanbul `coverage-final.json`.
  *
+ * Matches istanbul's own summary: a file with no entries for a metric counts as
+ * 100% for that metric, and when there are no files at all every total `pct` is
+ * the string `"Unknown"`.
+ *
  * @param {Record<string, object>} finalData - Parsed `coverage-final.json` contents.
  * @returns {{ total: object, [filePath: string]: object }} Istanbul coverage-summary format.
  */
@@ -145,12 +149,57 @@ export function computeSummaryFromFinal(finalData) {
 		}
 	}
 
+	const hasFiles = Object.keys(finalData).length > 0;
 	for (const key of ["statements", "branches", "functions", "lines"]) {
 		const { total, covered } = summary.total[key];
-		summary.total[key].pct = pct(covered, total);
+		summary.total[key].pct = hasFiles ? pct(covered, total) : "Unknown";
 	}
 
 	return summary;
+}
+
+/**
+ * Lowest known metric of a worst-files row, or `null` when every metric is non-numeric.
+ *
+ * @param {{lines: number|string, stmts: number|string, fns: number|string, branches: number|string}} row
+ * @returns {number|null}
+ */
+function lowestKnownPct({ lines, stmts, fns, branches }) {
+	const known = [lines, stmts, fns, branches].filter(isKnownPct);
+	return known.length > 0 ? Math.min(...known) : null;
+}
+
+/**
+ * Sort key for a worst-files row: rows with no numeric metric at all sort after
+ * every measured row.
+ *
+ * @param {number|null} worst - Result of {@link lowestKnownPct}.
+ * @returns {number}
+ */
+function worstSortKey(worst) {
+	return worst ?? Number.MAX_VALUE;
+}
+
+/**
+ * Whether any metric of a worst-files row is non-numeric (e.g. `"Unknown"`).
+ *
+ * @param {{lines: number|string, stmts: number|string, fns: number|string, branches: number|string}} row
+ * @returns {boolean}
+ */
+function hasUnknownPct({ lines, stmts, fns, branches }) {
+	return ![lines, stmts, fns, branches].every(isKnownPct);
+}
+
+/**
+ * Print the one-line overall coverage totals.
+ *
+ * @param {{lines: number|string, stmts: number|string, fns: number|string, branches: number|string}} totals
+ * @returns {void}
+ */
+function printTotalsLine({ lines, stmts, fns, branches }) {
+	console.log(
+		`\n  ${chalk.bold("Coverage")}  ${colourPct(chalk, lines)}% lines ${chalk.dim("|")} ${colourPct(chalk, stmts)}% statements ${chalk.dim("|")} ${colourPct(chalk, fns)}% functions ${chalk.dim("|")} ${colourPct(chalk, branches)}% branches`
+	);
 }
 
 /**
@@ -160,6 +209,11 @@ export function computeSummaryFromFinal(finalData) {
  * Tries `coverage-summary.json` first; falls back to computing from
  * `coverage-final.json` if that is not present.
  *
+ * A non-numeric `pct` (istanbul reports `"Unknown"` when the coverage `include`
+ * matched no files) is printed as `Unknown` and never throws. When no files were
+ * measured at all, a note says so: there is nothing for a coverage threshold to
+ * measure, and vitest's own threshold check does not fail on an `Unknown` value.
+ *
  * @param {string} cwd - Project root (used to make absolute file paths relative).
  * @param {string[]} extraCoverageArgs - Passthrough `--coverage.*` args (checked for `reportsDirectory`).
  * @param {number} [worstCount=10] - Number of worst-coverage files to show (0 = skip table).
@@ -167,7 +221,8 @@ export function computeSummaryFromFinal(finalData) {
  * @returns {Promise<{
  *  coverageDir: string,
  *  total: object,
- *  worstFiles: Array<{file: string, lines: number, stmts: number, fns: number, branches: number}>,
+ *  noFilesMeasured: boolean,
+ *  worstFiles: Array<{file: string, lines: number|string, stmts: number|string, fns: number|string, branches: number|string}>,
  *  worstFilesShown: number,
  *  worstFilesTotal: number,
  *  summary: object
@@ -198,6 +253,16 @@ export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 
 	}
 
 	const { total, ...fileSummaries } = summary;
+	const totals = {
+		lines: total.lines?.pct ?? 0,
+		stmts: total.statements?.pct ?? 0,
+		fns: total.functions?.pct ?? 0,
+		branches: total.branches?.pct ?? 0
+	};
+	const noFilesMeasured = Object.keys(fileSummaries).length === 0 && !Object.values(totals).some(isKnownPct);
+
+	let worstFiles = [];
+	let worstFilesTotal = 0;
 
 	if (worstCount > 0) {
 		const fileRows = Object.entries(fileSummaries)
@@ -208,18 +273,18 @@ export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 
 				fns: data.functions?.pct ?? 0,
 				branches: data.branches?.pct ?? 0
 			}))
-			.filter((r) => Math.min(r.lines, r.stmts, r.fns, r.branches) < 100)
-			.sort((a, b) => Math.min(a.lines, a.stmts, a.fns, a.branches) - Math.min(b.lines, b.stmts, b.fns, b.branches));
+			.map((row) => ({ row, worst: lowestKnownPct(row) }))
+			.filter(({ row, worst }) => hasUnknownPct(row) || worst < 100)
+			.sort((a, b) => worstSortKey(a.worst) - worstSortKey(b.worst));
 		const rowsToShow = fileRows.slice(0, worstCount);
 
 		if (!silent) {
 			console.log("\n" + chalk.bold("📉 WORST COVERAGE FILES (lowest metric)"));
 			console.log("-".repeat(80));
 
-			rowsToShow.forEach(({ file, lines, stmts, fns, branches }) => {
-				const worst = Math.min(lines, stmts, fns, branches);
+			rowsToShow.forEach(({ row: { file, lines, stmts, fns, branches }, worst }) => {
 				const extras = chalk.dim(
-					`lines ${lines.toFixed(0)}% | stmts ${stmts.toFixed(0)}% | fns ${fns.toFixed(0)}% | branches ${branches.toFixed(0)}%`
+					`lines ${formatPct(lines, 0)}% | stmts ${formatPct(stmts, 0)}% | fns ${formatPct(fns, 0)}% | branches ${formatPct(branches, 0)}%`
 				);
 				console.log(`  ${colourPct(chalk, worst)}%  ${chalk.dim(file)}  ${extras}`);
 			});
@@ -229,40 +294,28 @@ export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 
 			}
 		}
 
-		const tl = total.lines?.pct ?? 0;
-		const ts = total.statements?.pct ?? 0;
-		const tf = total.functions?.pct ?? 0;
-		const tb = total.branches?.pct ?? 0;
-		if (!silent) {
-			console.log(
-				`\n  ${chalk.bold("Coverage")}  ${colourPct(chalk, tl)}% lines ${chalk.dim("|")} ${colourPct(chalk, ts)}% statements ${chalk.dim("|")} ${colourPct(chalk, tf)}% functions ${chalk.dim("|")} ${colourPct(chalk, tb)}% branches`
-			);
-		}
-		return {
-			coverageDir,
-			total,
-			worstFiles: rowsToShow,
-			worstFilesShown: rowsToShow.length,
-			worstFilesTotal: fileRows.length,
-			summary
-		};
+		worstFiles = rowsToShow.map(({ row }) => row);
+		worstFilesTotal = fileRows.length;
 	}
 
-	const tl = total.lines?.pct ?? 0;
-	const ts = total.statements?.pct ?? 0;
-	const tf = total.functions?.pct ?? 0;
-	const tb = total.branches?.pct ?? 0;
 	if (!silent) {
-		console.log(
-			`\n  ${chalk.bold("Coverage")}  ${colourPct(chalk, tl)}% lines ${chalk.dim("|")} ${colourPct(chalk, ts)}% statements ${chalk.dim("|")} ${colourPct(chalk, tf)}% functions ${chalk.dim("|")} ${colourPct(chalk, tb)}% branches`
-		);
+		printTotalsLine(totals);
+		if (noFilesMeasured) {
+			console.log(
+				chalk.dim(
+					"  No files were measured (the coverage include matched nothing), so every percentage is Unknown and coverage thresholds are skipped."
+				)
+			);
+		}
 	}
+
 	return {
 		coverageDir,
 		total,
-		worstFiles: [],
-		worstFilesShown: 0,
-		worstFilesTotal: 0,
+		noFilesMeasured,
+		worstFiles,
+		worstFilesShown: worstFiles.length,
+		worstFilesTotal,
 		summary
 	};
 }

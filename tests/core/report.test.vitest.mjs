@@ -18,6 +18,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripAnsi } from "../../src/utils/ansi.mjs";
 import {
 	computeSummaryFromFinal,
 	printMergeOutput,
@@ -71,10 +72,12 @@ function makeFinalData(filePath, { s = [1, 1], f = [1], b = [[1, 0]] } = {}) {
 // ─── computeSummaryFromFinal ──────────────────────────────────────────────────
 
 describe("computeSummaryFromFinal", () => {
-	it("returns a total entry with 100% for an empty dataset", () => {
+	it("reports every total pct as 'Unknown' for an empty dataset, like istanbul", () => {
 		const summary = computeSummaryFromFinal({});
-		expect(summary.total.statements.pct).toBe(100);
-		expect(summary.total.lines.pct).toBe(100);
+		expect(summary.total.statements.pct).toBe("Unknown");
+		expect(summary.total.branches.pct).toBe("Unknown");
+		expect(summary.total.functions.pct).toBe("Unknown");
+		expect(summary.total.lines.pct).toBe("Unknown");
 	});
 
 	it("computes correct statement percentages", () => {
@@ -422,5 +425,189 @@ describe("printCoverageSummary", () => {
 			// No explicit percentages in summary total; function should still return successfully.
 		});
 		expect(logs.join("\n").trim()).toBe("");
+	});
+});
+
+// ─── printCoverageSummary — non-numeric pct (issue #55) ──────────────────────
+
+/**
+ * The exact `coverage-summary.json` istanbul writes when the coverage `include`
+ * matches no files: no per-file entries, and every total pct is "Unknown".
+ */
+const NO_FILES_SUMMARY = {
+	total: {
+		lines: { total: 0, covered: 0, skipped: 0, pct: "Unknown" },
+		statements: { total: 0, covered: 0, skipped: 0, pct: "Unknown" },
+		functions: { total: 0, covered: 0, skipped: 0, pct: "Unknown" },
+		branches: { total: 0, covered: 0, skipped: 0, pct: "Unknown" },
+		branchesTrue: { total: 0, covered: 0, skipped: 0, pct: "Unknown" }
+	}
+};
+
+const NO_FILES_NOTE =
+	"No files were measured (the coverage include matched nothing), so every percentage is Unknown and coverage thresholds are skipped.";
+
+describe("printCoverageSummary — no files measured and non-numeric pct", () => {
+	let tmpDir;
+
+	beforeEach(async () => {
+		tmpDir = path.join(TMP_ROOT, `run-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		await fs.mkdir(tmpDir, { recursive: true });
+	});
+
+	afterEach(async () => {
+		await fs.rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it("prints Unknown and the no-files note instead of throwing when 0 files were measured", async () => {
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(NO_FILES_SUMMARY));
+
+		let result;
+		const { logs } = await captureConsole(async () => {
+			result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10);
+		});
+		const all = stripAnsi(logs.join("\n"));
+		expect(all).toContain("Coverage  Unknown% lines | Unknown% statements | Unknown% functions | Unknown% branches");
+		expect(all).toContain(NO_FILES_NOTE);
+		expect(result.noFilesMeasured).toBe(true);
+		expect(result.worstFiles).toEqual([]);
+		expect(result.worstFilesTotal).toBe(0);
+	});
+
+	it("prints Unknown and the note when the worst-files table is disabled (worstCount=0)", async () => {
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(NO_FILES_SUMMARY));
+
+		let result;
+		const { logs } = await captureConsole(async () => {
+			result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 0);
+		});
+		const all = stripAnsi(logs.join("\n"));
+		expect(all).not.toContain("WORST COVERAGE");
+		expect(all).toContain("Unknown% lines");
+		expect(all).toContain(NO_FILES_NOTE);
+		expect(result.noFilesMeasured).toBe(true);
+	});
+
+	it("stays silent but still flags noFilesMeasured when silent is true", async () => {
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(NO_FILES_SUMMARY));
+
+		let result;
+		const { logs } = await captureConsole(async () => {
+			result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10, { silent: true });
+		});
+		expect(logs.join("\n").trim()).toBe("");
+		expect(result.noFilesMeasured).toBe(true);
+		expect(result.total.lines.pct).toBe("Unknown");
+	});
+
+	it("prints Unknown for an empty coverage-final.json fallback", async () => {
+		await fs.writeFile(path.join(tmpDir, "coverage-final.json"), JSON.stringify({}));
+
+		let result;
+		const { logs } = await captureConsole(async () => {
+			result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10);
+		});
+		const all = stripAnsi(logs.join("\n"));
+		expect(all).toContain("Unknown% lines");
+		expect(all).toContain(NO_FILES_NOTE);
+		expect(result.noFilesMeasured).toBe(true);
+	});
+
+	it("prints Unknown for non-numeric per-file metrics and sorts rows with no numeric metric last", async () => {
+		const summary = {
+			total: { lines: { pct: 50 }, statements: { pct: 50 }, functions: { pct: 50 }, branches: { pct: "Unknown" } },
+			[path.join(PKG_ROOT, "src/all-unknown.mjs")]: {
+				lines: { pct: "Unknown" },
+				statements: { pct: "Unknown" },
+				functions: { pct: "Unknown" },
+				branches: { pct: "Unknown" }
+			},
+			[path.join(PKG_ROOT, "src/none.mjs")]: {
+				lines: { pct: "Unknown" },
+				statements: { pct: "Unknown" },
+				functions: { pct: "Unknown" },
+				branches: { pct: "Unknown" }
+			},
+			[path.join(PKG_ROOT, "src/partly.mjs")]: {
+				lines: { pct: 100 },
+				statements: { pct: 100 },
+				functions: { pct: 100 },
+				branches: { pct: "Unknown" }
+			},
+			[path.join(PKG_ROOT, "src/low.mjs")]: {
+				lines: { pct: 40 },
+				statements: { pct: 45 },
+				functions: { pct: 50 },
+				branches: { pct: "Unknown" }
+			},
+			[path.join(PKG_ROOT, "src/full.mjs")]: {
+				lines: { pct: 100 },
+				statements: { pct: 100 },
+				functions: { pct: 100 },
+				branches: { pct: 100 }
+			}
+		};
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(summary));
+
+		let result;
+		const { logs } = await captureConsole(async () => {
+			result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10);
+		});
+		const rows = logs.map(stripAnsi).filter((l) => l.includes("src/"));
+		expect(rows).toEqual([
+			"   40.00%  src/low.mjs  lines 40% | stmts 45% | fns 50% | branches Unknown%",
+			"  100.00%  src/partly.mjs  lines 100% | stmts 100% | fns 100% | branches Unknown%",
+			"  Unknown%  src/all-unknown.mjs  lines Unknown% | stmts Unknown% | fns Unknown% | branches Unknown%",
+			"  Unknown%  src/none.mjs  lines Unknown% | stmts Unknown% | fns Unknown% | branches Unknown%"
+		]);
+		const all = stripAnsi(logs.join("\n"));
+		expect(all).toContain("Coverage   50.00% lines |  50.00% statements |  50.00% functions | Unknown% branches");
+		// Files were measured, so there is no no-files note.
+		expect(all).not.toContain(NO_FILES_NOTE);
+		expect(result.noFilesMeasured).toBe(false);
+		expect(result.worstFilesTotal).toBe(4);
+	});
+
+	it("keeps the output of a normal, fully numeric run unchanged", async () => {
+		const summary = {
+			total: { lines: { pct: 76.5 }, statements: { pct: 80 }, functions: { pct: 70 }, branches: { pct: 60.25 } },
+			[path.join(PKG_ROOT, "src/a.mjs")]: {
+				lines: { pct: 90 },
+				statements: { pct: 88.5 },
+				functions: { pct: 85 },
+				branches: { pct: 70 }
+			},
+			[path.join(PKG_ROOT, "src/b.mjs")]: {
+				lines: { pct: 100 },
+				statements: { pct: 100 },
+				functions: { pct: 100 },
+				branches: { pct: 100 }
+			},
+			[path.join(PKG_ROOT, "src/c.mjs")]: {
+				lines: { pct: 40 },
+				statements: { pct: 45 },
+				functions: { pct: 50 },
+				branches: { pct: 55 }
+			}
+		};
+		await fs.writeFile(path.join(tmpDir, "coverage-summary.json"), JSON.stringify(summary));
+
+		let result;
+		const { logs } = await captureConsole(async () => {
+			result = await printCoverageSummary(PKG_ROOT, [`--coverage.reportsDirectory=${tmpDir}`], 10);
+		});
+		expect(logs.map(stripAnsi)).toEqual([
+			"\n📉 WORST COVERAGE FILES (lowest metric)",
+			"-".repeat(80),
+			"   40.00%  src/c.mjs  lines 40% | stmts 45% | fns 50% | branches 55%",
+			"   70.00%  src/a.mjs  lines 90% | stmts 89% | fns 85% | branches 70%",
+			"\n  Coverage   76.50% lines |  80.00% statements |  70.00% functions |  60.25% branches"
+		]);
+		expect(result.worstFiles).toEqual([
+			{ file: "src/c.mjs", lines: 40, stmts: 45, fns: 50, branches: 55 },
+			{ file: "src/a.mjs", lines: 90, stmts: 88.5, fns: 85, branches: 70 }
+		]);
+		expect(result.worstFilesShown).toBe(2);
+		expect(result.worstFilesTotal).toBe(2);
 	});
 });
