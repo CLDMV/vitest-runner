@@ -15,13 +15,14 @@
  * @fileoverview Unit tests for src/utils/ansi.mjs
  */
 import { describe, it, expect } from "vitest";
-import { stripAnsi, colourPct } from "../../src/utils/ansi.mjs";
+import { stripAnsi, colourPct, formatPct, isKnownPct } from "../../src/utils/ansi.mjs";
 
 /** Minimal chalk stub: green/yellow/red just return the string unchanged */
 const chalk = {
 	green: (s) => `\x1B[32m${s}\x1B[0m`,
 	yellow: (s) => `\x1B[33m${s}\x1B[0m`,
-	red: (s) => `\x1B[31m${s}\x1B[0m`
+	red: (s) => `\x1B[31m${s}\x1B[0m`,
+	dim: (s) => `\x1B[2m${s}\x1B[22m`
 };
 
 describe("stripAnsi", () => {
@@ -85,5 +86,42 @@ describe("colourPct", () => {
 		const result = stripAnsi(colourPct(chalk, 5));
 		expect(result.length).toBe(6);
 		expect(result.trimStart()).toBe("5.00");
+	});
+});
+
+// Istanbul reports a metric's pct as the string "Unknown" when 0 files were measured.
+describe("colourPct — non-numeric percentages", () => {
+	it("renders istanbul's 'Unknown' as a dim 'Unknown' instead of throwing", () => {
+		const result = colourPct(chalk, "Unknown");
+		expect(result).toContain("\x1B[2m"); // dim
+		expect(stripAnsi(result)).toBe("Unknown");
+	});
+
+	it.each([[null], [undefined], [NaN], [Infinity], ["85"]])("renders %s as 'Unknown'", (value) => {
+		expect(stripAnsi(colourPct(chalk, value))).toBe("Unknown");
+	});
+});
+
+describe("isKnownPct", () => {
+	it("is true for finite numbers", () => {
+		expect(isKnownPct(0)).toBe(true);
+		expect(isKnownPct(75.5)).toBe(true);
+		expect(isKnownPct(100)).toBe(true);
+	});
+
+	it.each([["Unknown"], ["85"], [null], [undefined], [NaN], [Infinity]])("is false for %s", (value) => {
+		expect(isKnownPct(value)).toBe(false);
+	});
+});
+
+describe("formatPct", () => {
+	it("formats a number with the requested decimals", () => {
+		expect(formatPct(75.5, 0)).toBe("76");
+		expect(formatPct(75.5, 2)).toBe("75.50");
+	});
+
+	it("returns 'Unknown' for a non-numeric value", () => {
+		expect(formatPct("Unknown", 0)).toBe("Unknown");
+		expect(formatPct(undefined, 2)).toBe("Unknown");
 	});
 });

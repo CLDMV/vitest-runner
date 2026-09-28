@@ -25,6 +25,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "../../src/runner.mjs";
+import { stripAnsi } from "../../src/utils/ansi.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** The vitest-runner package root — vitest is installed here. */
@@ -267,6 +268,91 @@ describe("run() — coverage mode (--coverage)", () => {
 			vitestArgs: ["--coverage", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`]
 		});
 		expect(code).toBe(0);
+	});
+});
+
+// Issue #55: a coverage `include` that matches no files makes istanbul report every
+// pct as the string "Unknown"; the summary must print it instead of throwing.
+describe("run() — coverage mode with no files measured", () => {
+	/** A coverage include that matches nothing, like a scaffold repo with no src/. */
+	const NO_SOURCE_INCLUDE = "--coverage.include=tests/fixtures/no-such-source/**";
+
+	/**
+	 * Run the passing fixtures under coverage with console output captured. The
+	 * json-summary reporter is on (as in a scaffold repo's config), so the summary is
+	 * read from istanbul's own coverage-summary.json with its "Unknown" totals.
+	 * @param {string} name - Reports directory name under tmp/.
+	 * @param {string[]} extraArgs - Extra vitest args.
+	 * @returns {Promise<{code: number, output: string}>}
+	 */
+	async function runNoSourceCoverage(name, extraArgs = []) {
+		const coverageDir = path.join(CWD, "tmp", name);
+		const logs = [];
+		const spyLog = vi.spyOn(console, "log").mockImplementation((...args) => logs.push(args.join(" ")));
+		const spyErr = vi.spyOn(console, "error").mockImplementation((...args) => logs.push(args.join(" ")));
+		let code;
+		try {
+			code = await run({
+				cwd: CWD,
+				testDir: path.join(FIXTURES, "passing"),
+				coverageQuiet: true,
+				vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
+				vitestArgs: [
+					"--coverage",
+					"--coverage.provider=v8",
+					`--coverage.reportsDirectory=${coverageDir}`,
+					"--coverage.reporter=text",
+					"--coverage.reporter=json-summary",
+					NO_SOURCE_INCLUDE,
+					...extraArgs
+				]
+			});
+		} finally {
+			spyLog.mockRestore();
+			spyErr.mockRestore();
+			await fs.rm(coverageDir, { recursive: true, force: true });
+		}
+		return { code, output: stripAnsi(logs.join("\n")) };
+	}
+
+	it("exits 0 and prints Unknown when no thresholds are configured", async () => {
+		const { code, output } = await runNoSourceCoverage("test-coverage-no-source");
+		expect(output).toContain("Coverage  Unknown% lines | Unknown% statements | Unknown% functions | Unknown% branches");
+		expect(output).toContain("No files were measured");
+		expect(code).toBe(0);
+	});
+
+	it("skips configured thresholds with a note and exits 0", async () => {
+		const { code, output } = await runNoSourceCoverage("test-coverage-no-source-thresholds", [
+			"--coverage.thresholds.lines=80",
+			"--coverage.thresholds.statements=80",
+			"--coverage.thresholds.functions=80",
+			"--coverage.thresholds.branches=80"
+		]);
+		expect(output).toContain("Unknown% lines");
+		expect(output).toContain("coverage thresholds are skipped");
+		expect(output).not.toContain("does not meet");
+		expect(code).toBe(0);
+	});
+
+	it("reports Unknown and noFilesMeasured in the JSON report when only coverage-final.json is written", async () => {
+		// Default reporters write coverage-final.json but no coverage-summary.json, so the
+		// summary is computed by computeSummaryFromFinal from an empty coverage map.
+		const coverageDir = path.join(CWD, "tmp", "test-coverage-no-source-json");
+		try {
+			const report = await run({
+				cwd: CWD,
+				testDir: path.join(FIXTURES, "passing"),
+				json: true,
+				vitestConfig: path.join(FIXTURES, "vitest.config.mjs"),
+				vitestArgs: ["--coverage", "--coverage.provider=v8", `--coverage.reportsDirectory=${coverageDir}`, NO_SOURCE_INCLUDE]
+			});
+			expect(report.exitCode).toBe(0);
+			expect(report.coverageSummary.noFilesMeasured).toBe(true);
+			expect(report.coverageSummary.total.lines.pct).toBe("Unknown");
+		} finally {
+			await fs.rm(coverageDir, { recursive: true, force: true });
+		}
 	});
 });
 
