@@ -1,7 +1,7 @@
 #	@Project: @cldmv/vitest-runner
 #	@Filename: /.github/workflows/release-merge.yml
 #	@Date: 2026-09-27T08:35:16-07:00 (1790523316)
-#	@Author: Shinrai <CLDMV>
+#	@Author: Nate Corcoran <CLDMV>
 #	@Email: <Shinrai@users.noreply.github.com>
 #	-----
 #	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
@@ -60,6 +60,7 @@ on:
             - "🧪 CI Tests & Build"
             - "🔍 CodeQL"
             - "🔒 Dependency Review"
+            - "📊 Bundle Size"
             - "🚀 Next Release (v4)"
             - "🚑 Hotfixes Release (v4)"
             - "🌿 Branch Retention"
