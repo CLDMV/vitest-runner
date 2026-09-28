@@ -17,18 +17,18 @@ Sequential Vitest runner that spawns each test file in its own child process to 
 
 ## ✨ What's New
 
-### Latest: v1.4.3 (September 2026)
+### Latest: v1.4.4 (September 2026)
 
-- **The published build is actually minified now** — `dist/index.mjs` drops from ~50KB to ~25KB and `bin/vitest-runner.mjs` from ~58KB to ~30KB; sourcemaps stay generated for local debugging regardless.
-- **`dist/index.cjs` is a thin shim instead of a duplicate bundle** — it used to contain a full second copy of the module's logic (27.5KB); it's now a 912-byte `require(esm)` wrapper around the real ESM build, matching `@cldmv/uuid`'s `index.cjs` pattern, and it can't drift from `runner.mjs`'s actual exports.
-- [View full v1.4.3 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.3.md)
+- **Dropped the `prepack` workaround** — the underlying gap (CI's publish job invoking lifecycle scripts against a bare, already-built artifact directory) is now fixed upstream in `CLDMV/.github`, so `prepack` goes back to a plain `npm run build`.
+- **Fixed a release-automation gap** — the release-merge gate now re-evaluates after every check-producing workflow finishes, not just CI, so an approval landing before a slower check (CodeQL and similar) can't leave a release PR stuck approved and green with nothing re-triggering the merge.
+- [View full v1.4.4 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.4.md)
 
 ### Recent Releases
 
+- **v1.4.3** (September 2026) — The published build is actually minified now, and `dist/index.cjs` is a thin shim instead of a duplicate bundle ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.3.md))
 - **v1.4.2** (September 2026) — Fixed npm publish rejecting every release over missing `repository`/`bugs`/`homepage` fields ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.2.md))
 - **v1.4.1** (September 2026) — Completed the vitest 5 upgrade, fixed the README npm badges, and fixed a `prepack` bug crashing every publish job ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.1.md))
 - **v1.4.0** (September 2026) — Real bundled `dist/`/`bin/` build, a working CLI, and a runner-owned scratch-directory lifecycle ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.0.md))
-- **v1.3.3** (September 2026) — Dependency bump (`brace-expansion`, `postcss`) via Dependabot.
 
 ---
 
@@ -298,6 +298,12 @@ This avoids the OOM crash that occurs when a single vitest process holds coverag
 `--coverage-quiet` / `coverageQuiet: true` suppresses all per-file output and renders a live progress bar instead. On completion it prints the coverage table and any failures verbosely. When running in this mode, output is also mirrored to `coverage/coverage-run.log` (CLI only) with ANSI colour codes stripped so the file is human-readable in any editor.
 
 The log file path can be overridden with `--log-file <path>`. Passing `--log-file` by itself only enables log mirroring (it does not enable coverage mode).
+
+### When no files are measured
+
+If the coverage `include` matches no files (for example, a scaffold repo with a test but no source yet), istanbul reports every percentage as `Unknown` rather than a number. The runner prints those metrics as `Unknown` — `Coverage  Unknown% lines | Unknown% statements | …` — adds a note that no files were measured, and exits `0` if the tests passed. The same applies to any individual non-numeric percentage in the worst-coverage table.
+
+Coverage thresholds are skipped in this case, because there is nothing to measure: vitest's own threshold check does not fail on an `Unknown` percentage, and the runner does not add a check of its own. Thresholds apply again as soon as at least one file is measured. The JSON report's `coverageSummary.noFilesMeasured` is `true` for such a run.
 
 ### Producing blobs for an external merge
 

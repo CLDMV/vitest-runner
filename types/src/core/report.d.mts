@@ -25,6 +25,10 @@ export function printMergeOutput(exitCode: number, output: string): void;
 /**
  * Compute a coverage-summary-style object from a raw V8/Istanbul `coverage-final.json`.
  *
+ * Matches istanbul's own summary: a file with no entries for a metric counts as
+ * 100% for that metric, and when there are no files at all every total `pct` is
+ * the string `"Unknown"`.
+ *
  * @param {Record<string, object>} finalData - Parsed `coverage-final.json` contents.
  * @returns {{ total: object, [filePath: string]: object }} Istanbul coverage-summary format.
  */
@@ -39,6 +43,11 @@ export function computeSummaryFromFinal(finalData: Record<string, object>): {
  * Tries `coverage-summary.json` first; falls back to computing from
  * `coverage-final.json` if that is not present.
  *
+ * A non-numeric `pct` (istanbul reports `"Unknown"` when the coverage `include`
+ * matched no files) is printed as `Unknown` and never throws. When no files were
+ * measured at all, a note says so: there is nothing for a coverage threshold to
+ * measure, and vitest's own threshold check does not fail on an `Unknown` value.
+ *
  * @param {string} cwd - Project root (used to make absolute file paths relative).
  * @param {string[]} extraCoverageArgs - Passthrough `--coverage.*` args (checked for `reportsDirectory`).
  * @param {number} [worstCount=10] - Number of worst-coverage files to show (0 = skip table).
@@ -46,7 +55,8 @@ export function computeSummaryFromFinal(finalData: Record<string, object>): {
  * @returns {Promise<{
  *  coverageDir: string,
  *  total: object,
- *  worstFiles: Array<{file: string, lines: number, stmts: number, fns: number, branches: number}>,
+ *  noFilesMeasured: boolean,
+ *  worstFiles: Array<{file: string, lines: number|string, stmts: number|string, fns: number|string, branches: number|string}>,
  *  worstFilesShown: number,
  *  worstFilesTotal: number,
  *  summary: object
@@ -57,12 +67,13 @@ export function printCoverageSummary(cwd: string, extraCoverageArgs: string[], w
 }): Promise<{
     coverageDir: string;
     total: object;
+    noFilesMeasured: boolean;
     worstFiles: Array<{
         file: string;
-        lines: number;
-        stmts: number;
-        fns: number;
-        branches: number;
+        lines: number | string;
+        stmts: number | string;
+        fns: number | string;
+        branches: number | string;
     }>;
     worstFilesShown: number;
     worstFilesTotal: number;
