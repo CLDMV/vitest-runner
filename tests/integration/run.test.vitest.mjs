@@ -129,6 +129,19 @@ describe("run() — earlyRunPatterns (solo phase)", () => {
 	});
 });
 
+describe("run() — exclude", () => {
+	it("prunes an excluded directory out of a default scan that would otherwise fail", async () => {
+		// Without exclude this returns 1 (fixtures/failing is discovered alongside fixtures/passing).
+		const code = await run({
+			...QUIET_BASE,
+			testDir: FIXTURES,
+			testPatterns: [path.join(FIXTURES, "passing"), path.join(FIXTURES, "failing")],
+			exclude: ["tests/fixtures/failing/**"]
+		});
+		expect(code).toBe(0);
+	});
+});
+
 describe("run() — same-basename files in different directories", () => {
 	it("does not let Vitest's substring filter merge a root-level file with a same-basename nested file", async () => {
 		const report = await run({

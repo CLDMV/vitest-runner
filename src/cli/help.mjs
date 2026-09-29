@@ -37,6 +37,7 @@ ${chalk.bold("SPECIAL FLAGS:")}
   --file-pattern <regex>  Override the file discovery regex (default: \\.test\\.vitest\\.(?:js|mjs|cjs)$)
   --workers <n>           Number of parallel workers (default: 4 or VITEST_WORKERS)
   --solo-pattern <pat>    Run files matching this path substring solo first (repeatable)
+  --exclude <glob>        Directory / file glob discovery never enters, relative to cwd (repeatable)
   --no-error-details      Hide detailed error output (show only counts)
   --coverage-quiet        Implies --coverage; show progress bar + final summaries only
   --log-file <path>       Path for mirrored runner output (default: coverage/coverage-run.log with --coverage-quiet)
@@ -91,6 +92,9 @@ ${chalk.bold("ENVIRONMENT VARIABLES:")}
 
   # Run files matching a pattern solo first, then the rest in parallel
   vitest-runner --solo-pattern listener-cleanup/ --solo-pattern heavy/
+
+  # Skip scratch worktrees when discovery walks the repo root
+  vitest-runner --exclude 'tmp/**' --exclude 'dist/**'
 
   # Hide detailed errors
   vitest-runner --no-error-details

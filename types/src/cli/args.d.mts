@@ -66,6 +66,10 @@ export type ParsedArgs = {
      */
     soloPatterns: string[];
     /**
+     * - Directory / file globs from `--exclude <glob>` (repeatable), relative to `cwd`, that discovery never enters.
+     */
+    exclude: string[];
+    /**
      * - Compiled regex from `--file-pattern <regex>`, or undefined.
      */
     testFilePattern: RegExp | undefined;

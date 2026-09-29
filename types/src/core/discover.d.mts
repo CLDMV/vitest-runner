@@ -1,15 +1,34 @@
 /**
+ * Test whether a cwd-relative path matches any of the given exclude globs.
+ * Callers checking a directory should also test the path with a trailing
+ * slash appended, so a pattern like `tmp/**` prunes the `tmp` directory
+ * itself rather than only the files found inside it.
+ *
+ * @param {string} relPath - Path relative to `cwd`, forward-slash-normalised.
+ * @param {string[]} excludePatterns - Glob patterns relative to `cwd`.
+ * @returns {boolean}
+ * @example
+ * isExcluded("tmp/worktree/a.test.vitest.mjs", ["tmp/**"]); // true
+ * isExcluded("tmp/", ["tmp/**"]); // true — prunes the directory itself
+ */
+export function isExcluded(relPath: string, excludePatterns: string[]): boolean;
+/**
  * Recursively discover all Vitest test files under a directory.
- * Skips `node_modules` and hidden directories (names starting with `.`).
+ * Skips `node_modules` and hidden directories (names starting with `.`),
+ * plus any directory or file matching an `exclude` glob.
  *
  * @param {string} dir - Absolute path of the directory to scan.
  * @param {string} cwd - Project root used to compute relative paths.
  * @param {RegExp} [pattern=DEFAULT_TEST_FILE_PATTERN] - Regex tested against the file name.
+ * @param {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters.
  * @returns {Promise<string[]>} Paths relative to `cwd`.
  * @example
  * const files = await discoverFilesInDir('/project/src/tests', '/project');
+ * @example
+ * // Skip scratch worktrees carrying their own copy of the suite
+ * const files = await discoverFilesInDir('/project', '/project', DEFAULT_TEST_FILE_PATTERN, ['tmp/**']);
  */
-export function discoverFilesInDir(dir: string, cwd: string, pattern?: RegExp): Promise<string[]>;
+export function discoverFilesInDir(dir: string, cwd: string, pattern?: RegExp, exclude?: string[]): Promise<string[]>;
 /**
  * Sort test files alphabetically while hoisting files matching `earlyRunPatterns`
  * to the front (in pattern-declaration order, then alphabetically within each group).
@@ -52,6 +71,7 @@ export function computeFilterConflicts(files: string[]): Map<string, string[]>;
  * @property {string} [testListFile] - Path to a JSON array of test file paths to run instead of scanning.
  * @property {RegExp} [testFilePattern] - Regex to match file names (default: `DEFAULT_TEST_FILE_PATTERN`).
  * @property {string[]} [earlyRunPatterns=[]] - Path substrings for files that must run solo first.
+ * @property {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters. Applies to both the default scan and partial-path pattern resolution.
  */
 /**
  * Discover Vitest test files according to the provided options.
@@ -95,4 +115,8 @@ export type DiscoverOptions = {
      * - Path substrings for files that must run solo first.
      */
     earlyRunPatterns?: string[];
+    /**
+     * - Directory / file globs, relative to `cwd`, that discovery never enters. Applies to both the default scan and partial-path pattern resolution.
+     */
+    exclude?: string[];
 };
