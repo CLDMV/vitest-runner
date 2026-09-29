@@ -68,6 +68,7 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--file-pattern <regex>`   | Override the file discovery regex (default: `\.test\.vitest\.(?:js\|mjs\|cjs)$`)                                                         |
 | `--workers <n>`            | Number of parallel workers (default: `4` or `VITEST_WORKERS`)                                                                            |
 | `--solo-pattern <pat>`     | Run files matching this path substring solo (one at a time) before the worker pool; repeatable                                           |
+| `--exclude <glob>`         | Directory / file glob, relative to `cwd`, that discovery never enters (e.g. `tmp/**`); repeatable                                        |
 | `--no-error-details`       | Hide inline error blocks — show only counts in the summary                                                                               |
 | `--coverage-quiet`         | Implies `--coverage`; suppress per-file output and show only a live progress bar and final summaries                                     |
 | `--log-file <path>`        | Write a clean (ANSI-stripped) copy of all output to this file. Defaults to `coverage/coverage-run.log` when `--coverage-quiet` is active |
@@ -148,6 +149,9 @@ vitest-runner --file-pattern '\.spec\.ts$'
 # Run 2 workers, with certain files running solo first
 vitest-runner --workers 2 --solo-pattern heavy/ --solo-pattern listener-cleanup/
 
+# Skip scratch worktrees / build output when discovery walks the repo root
+vitest-runner --exclude 'tmp/**' --exclude 'dist/**'
+
 # Custom heap and worker count
 VITEST_HEAP_MB=8192 vitest-runner --workers 2 src/tests/heavy
 
@@ -196,6 +200,7 @@ process.exit(code);
 | `testPatterns`         | `string[]`              | `[]`                           | File / folder patterns to filter — empty means all files in `testDir`                                                                                                                                                                                    |
 | `testListFile`         | `string`                | `undefined`                    | Path to a JSON array of test file paths; when set, scanning is skipped entirely                                                                                                                                                                          |
 | `testFilePattern`      | `RegExp`                | `DEFAULT_TEST_FILE_PATTERN`    | Regex matched against file names during discovery (`*.test.vitest.{js,mjs,cjs}` by default)                                                                                                                                                              |
+| `exclude`              | `string[]`              | `[]`                           | Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution                                                                                         |
 | `vitestArgs`           | `string[]`              | `[]`                           | Extra CLI args forwarded verbatim to every vitest invocation                                                                                                                                                                                             |
 | `showErrorDetails`     | `boolean`               | `true`                         | Print inline error blocks under each failed file in the summary                                                                                                                                                                                          |
 | `coverageQuiet`        | `boolean`               | `false`                        | Suppress per-file output; show only the progress bar and final summaries                                                                                                                                                                                 |

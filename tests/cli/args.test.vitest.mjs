@@ -31,6 +31,7 @@ describe("parseArguments", () => {
 		expect(result.help).toBe(false);
 		expect(result.workers).toBeUndefined();
 		expect(result.soloPatterns).toEqual([]);
+		expect(result.exclude).toEqual([]);
 		expect(result.testFilePattern).toBeUndefined();
 		expect(result.vitestPassthroughArgs).toEqual([]);
 		expect(result.testPatterns).toEqual([]);
@@ -99,6 +100,28 @@ describe("parseArguments", () => {
 	it("accumulates multiple --solo-pattern values", () => {
 		const result = parseArguments(["--solo-pattern", "heavy/", "--solo-pattern", "listener/"]);
 		expect(result.soloPatterns).toEqual(["heavy/", "listener/"]);
+	});
+
+	// ── --exclude ─────────────────────────────────────────────────────────────
+
+	it("parses --exclude <glob> (space-separated)", () => {
+		const result = parseArguments(["--exclude", "tmp/**"]);
+		expect(result.exclude).toEqual(["tmp/**"]);
+	});
+
+	it("parses --exclude=<glob> (equals form)", () => {
+		const result = parseArguments(["--exclude=dist/**"]);
+		expect(result.exclude).toEqual(["dist/**"]);
+	});
+
+	it("accumulates multiple --exclude values", () => {
+		const result = parseArguments(["--exclude", "tmp/**", "--exclude", "dist/**"]);
+		expect(result.exclude).toEqual(["tmp/**", "dist/**"]);
+	});
+
+	it("does not forward --exclude to vitest passthrough args", () => {
+		const result = parseArguments(["--exclude", "tmp/**", "--reporter", "verbose"]);
+		expect(result.vitestPassthroughArgs).toEqual(["--reporter", "verbose"]);
 	});
 
 	// ── --file-pattern ────────────────────────────────────────────────────────

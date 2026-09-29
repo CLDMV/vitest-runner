@@ -23,7 +23,8 @@ import {
 	discoverFilesInDir,
 	discoverVitestFiles,
 	sortWithPriority,
-	computeFilterConflicts
+	computeFilterConflicts,
+	isExcluded
 } from "../../src/core/discover.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -135,11 +136,71 @@ describe("computeFilterConflicts", () => {
 	});
 });
 
+// ─── isExcluded ─────────────────────────────────────────────────────────────
+
+describe("isExcluded", () => {
+	it("returns false when excludePatterns is empty or omitted", () => {
+		expect(isExcluded("tmp/a.mjs", [])).toBe(false);
+		expect(isExcluded("tmp/a.mjs", undefined)).toBe(false);
+	});
+
+	it("matches a literal path exactly", () => {
+		expect(isExcluded("tmp", ["tmp"])).toBe(true);
+		expect(isExcluded("tmp2", ["tmp"])).toBe(false);
+	});
+
+	it("matches `**` across path separators", () => {
+		expect(isExcluded("tmp/worktree/a.test.vitest.mjs", ["tmp/**"])).toBe(true);
+		expect(isExcluded("tmp/", ["tmp/**"])).toBe(true); // prunes the directory itself
+		expect(isExcluded("other/a.test.vitest.mjs", ["tmp/**"])).toBe(false);
+	});
+
+	it("matches `*` within a single path segment only", () => {
+		expect(isExcluded("dist/index.mjs", ["dist/*.mjs"])).toBe(true);
+		expect(isExcluded("dist/nested/index.mjs", ["dist/*.mjs"])).toBe(false);
+	});
+
+	it("matches `?` as a single character", () => {
+		expect(isExcluded("a.mjs", ["?.mjs"])).toBe(true);
+		expect(isExcluded("ab.mjs", ["?.mjs"])).toBe(false);
+	});
+
+	it("escapes regex metacharacters in the literal portion of a pattern", () => {
+		expect(isExcluded("a.mjs", ["a.mjs"])).toBe(true);
+		expect(isExcluded("aXmjs", ["a.mjs"])).toBe(false); // "." must be literal, not "any char"
+	});
+
+	it("matches when any of several patterns matches", () => {
+		expect(isExcluded("dist/x.mjs", ["tmp/**", "dist/**"])).toBe(true);
+		expect(isExcluded("src/x.mjs", ["tmp/**", "dist/**"])).toBe(false);
+	});
+});
+
 describe("discoverFilesInDir", () => {
 	it("discovers .mjs fixture files under tests/fixtures/passing", async () => {
 		const files = await discoverFilesInDir(path.join(FIXTURES_DIR, "passing"), PKG_ROOT);
 		expect(files.length).toBeGreaterThanOrEqual(2);
 		expect(files.every((f) => f.endsWith(".mjs"))).toBe(true);
+	});
+
+	it("prunes a directory matching an exclude glob (never descends into it)", async () => {
+		const files = await discoverFilesInDir(FIXTURES_DIR, PKG_ROOT, DEFAULT_TEST_FILE_PATTERN, ["tests/fixtures/passing/**"]);
+		expect(files.some((f) => f.includes("fixtures/passing/"))).toBe(false);
+		// sibling fixture directories are unaffected
+		expect(files.some((f) => f.includes("fixtures/failing/"))).toBe(true);
+	});
+
+	it("excludes an individual file matching an exclude glob", async () => {
+		const files = await discoverFilesInDir(path.join(FIXTURES_DIR, "passing"), PKG_ROOT, DEFAULT_TEST_FILE_PATTERN, [
+			"tests/fixtures/passing/a.test.vitest.mjs"
+		]);
+		expect(files.some((f) => f.endsWith("a.test.vitest.mjs"))).toBe(false);
+		expect(files.some((f) => f.endsWith("b.test.vitest.mjs"))).toBe(true);
+	});
+
+	it("returns all files when exclude is omitted (default)", async () => {
+		const files = await discoverFilesInDir(path.join(FIXTURES_DIR, "passing"), PKG_ROOT);
+		expect(files.length).toBeGreaterThanOrEqual(2);
 	});
 
 	it("returns paths relative to cwd", async () => {
@@ -286,5 +347,48 @@ describe("discoverVitestFiles — testPatterns", () => {
 			testFilePattern: /\.json$/i
 		});
 		expect(files.every((f) => f.endsWith(".json"))).toBe(true);
+	});
+});
+
+// ─── discoverVitestFiles — exclude ───────────────────────────────────────────
+
+describe("discoverVitestFiles — exclude", () => {
+	it("applies exclude to the default scan (no testPatterns)", async () => {
+		const files = await discoverVitestFiles({
+			cwd: PKG_ROOT,
+			testDir: FIXTURES_DIR,
+			exclude: ["tests/fixtures/passing/**"]
+		});
+		expect(files.some((f) => f.includes("fixtures/passing/"))).toBe(false);
+		expect(files.some((f) => f.includes("fixtures/failing/"))).toBe(true);
+	});
+
+	it("applies exclude to partial-path pattern resolution", async () => {
+		const files = await discoverVitestFiles({
+			cwd: PKG_ROOT,
+			testDir: FIXTURES_DIR,
+			testPatterns: ["a.test.vitest.mjs"],
+			exclude: ["tests/fixtures/passing/**"]
+		});
+		expect(files).toEqual([]);
+	});
+
+	it("applies exclude when a testPattern resolves to a directory", async () => {
+		const files = await discoverVitestFiles({
+			cwd: PKG_ROOT,
+			testDir: FIXTURES_DIR,
+			testPatterns: [path.join(FIXTURES_DIR, "basename-collision")],
+			exclude: ["tests/fixtures/basename-collision/packages/**"]
+		});
+		expect(files.some((f) => f.includes("basename-collision/packages/"))).toBe(false);
+		expect(files.some((f) => f.includes("basename-collision/tests/"))).toBe(true);
+	});
+
+	it("defaults to no exclusions when omitted", async () => {
+		const files = await discoverVitestFiles({
+			cwd: PKG_ROOT,
+			testDir: path.join(FIXTURES_DIR, "passing")
+		});
+		expect(files.length).toBeGreaterThanOrEqual(2);
 	});
 });
