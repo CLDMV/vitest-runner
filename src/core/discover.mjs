@@ -23,17 +23,67 @@ import path from "node:path";
 export const DEFAULT_TEST_FILE_PATTERN = /\.test\.vitest\.(?:js|mjs|cjs)$/i;
 
 /**
+ * Compile a reduced glob pattern (`*`, `**`, `?`) into an anchored RegExp.
+ * No brace expansion, character classes, or extglob syntax — just enough to
+ * express directory/file excludes like `tmp/**` or `**\/*.snap`.
+ *
+ * @param {string} pattern - Glob pattern, matched against forward-slash-normalised paths.
+ * @returns {RegExp}
+ */
+function globToRegExp(pattern) {
+	const normalized = pattern.replace(/\\/g, "/");
+	let out = "";
+	for (let i = 0; i < normalized.length; i++) {
+		const c = normalized[i];
+		if (c === "*" && normalized[i + 1] === "*") {
+			out += ".*";
+			i++;
+		} else if (c === "*") {
+			out += "[^/]*";
+		} else if (c === "?") {
+			out += "[^/]";
+		} else {
+			out += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+		}
+	}
+	return new RegExp(`^${out}$`);
+}
+
+/**
+ * Test whether a cwd-relative path matches any of the given exclude globs.
+ * Callers checking a directory should also test the path with a trailing
+ * slash appended, so a pattern like `tmp/**` prunes the `tmp` directory
+ * itself rather than only the files found inside it.
+ *
+ * @param {string} relPath - Path relative to `cwd`, forward-slash-normalised.
+ * @param {string[]} excludePatterns - Glob patterns relative to `cwd`.
+ * @returns {boolean}
+ * @example
+ * isExcluded("tmp/worktree/a.test.vitest.mjs", ["tmp/**"]); // true
+ * isExcluded("tmp/", ["tmp/**"]); // true — prunes the directory itself
+ */
+export function isExcluded(relPath, excludePatterns) {
+	if (!excludePatterns || excludePatterns.length === 0) return false;
+	return excludePatterns.some((pattern) => globToRegExp(pattern).test(relPath));
+}
+
+/**
  * Recursively discover all Vitest test files under a directory.
- * Skips `node_modules` and hidden directories (names starting with `.`).
+ * Skips `node_modules` and hidden directories (names starting with `.`),
+ * plus any directory or file matching an `exclude` glob.
  *
  * @param {string} dir - Absolute path of the directory to scan.
  * @param {string} cwd - Project root used to compute relative paths.
  * @param {RegExp} [pattern=DEFAULT_TEST_FILE_PATTERN] - Regex tested against the file name.
+ * @param {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters.
  * @returns {Promise<string[]>} Paths relative to `cwd`.
  * @example
  * const files = await discoverFilesInDir('/project/src/tests', '/project');
+ * @example
+ * // Skip scratch worktrees carrying their own copy of the suite
+ * const files = await discoverFilesInDir('/project', '/project', DEFAULT_TEST_FILE_PATTERN, ['tmp/**']);
  */
-export async function discoverFilesInDir(dir, cwd, pattern = DEFAULT_TEST_FILE_PATTERN) {
+export async function discoverFilesInDir(dir, cwd, pattern = DEFAULT_TEST_FILE_PATTERN, exclude = []) {
 	const queue = [dir];
 	const files = [];
 
@@ -47,13 +97,17 @@ export async function discoverFilesInDir(dir, cwd, pattern = DEFAULT_TEST_FILE_P
 		}
 
 		for (const entry of entries) {
+			const relPath = path.relative(cwd, path.join(current, entry.name)).replace(/\\/g, "/");
+
 			if (entry.isDirectory()) {
 				if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+				if (isExcluded(relPath, exclude) || isExcluded(`${relPath}/`, exclude)) continue;
 				queue.push(path.join(current, entry.name));
 				continue;
 			}
 
 			if (entry.isFile() && pattern.test(entry.name)) {
+				if (isExcluded(relPath, exclude)) continue;
 				files.push(path.relative(cwd, path.join(current, entry.name)));
 			}
 		}
@@ -138,6 +192,7 @@ export function computeFilterConflicts(files) {
  * @property {string} [testListFile] - Path to a JSON array of test file paths to run instead of scanning.
  * @property {RegExp} [testFilePattern] - Regex to match file names (default: `DEFAULT_TEST_FILE_PATTERN`).
  * @property {string[]} [earlyRunPatterns=[]] - Path substrings for files that must run solo first.
+ * @property {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters. Applies to both the default scan and partial-path pattern resolution.
  */
 
 /**
@@ -155,7 +210,15 @@ export function computeFilterConflicts(files) {
  * const files = await discoverVitestFiles({ cwd: '/project', testDir: '/project/src/tests' });
  */
 export async function discoverVitestFiles(opts) {
-	const { cwd, testDir, testPatterns = [], testListFile, testFilePattern = DEFAULT_TEST_FILE_PATTERN, earlyRunPatterns = [] } = opts;
+	const {
+		cwd,
+		testDir,
+		testPatterns = [],
+		testListFile,
+		testFilePattern = DEFAULT_TEST_FILE_PATTERN,
+		earlyRunPatterns = [],
+		exclude = []
+	} = opts;
 
 	const resolvedTestDir = testDir ? (path.isAbsolute(testDir) ? testDir : path.resolve(cwd, testDir)) : cwd;
 
@@ -179,7 +242,7 @@ export async function discoverVitestFiles(opts) {
 	}
 
 	if (testPatterns.length === 0) {
-		const files = await discoverFilesInDir(resolvedTestDir, cwd, testFilePattern);
+		const files = await discoverFilesInDir(resolvedTestDir, cwd, testFilePattern, exclude);
 		return sortWithPriority(files, earlyRunPatterns);
 	}
 
@@ -200,10 +263,10 @@ export async function discoverVitestFiles(opts) {
 				files.push(path.relative(cwd, absPath));
 			}
 		} else if (stat?.isDirectory()) {
-			files.push(...(await discoverFilesInDir(absPath, cwd, testFilePattern)));
+			files.push(...(await discoverFilesInDir(absPath, cwd, testFilePattern, exclude)));
 		} else {
 			// Partial-path matching against all files in testDir
-			const allFiles = await discoverFilesInDir(resolvedTestDir, cwd, testFilePattern);
+			const allFiles = await discoverFilesInDir(resolvedTestDir, cwd, testFilePattern, exclude);
 			const matched = allFiles.filter((f) => f.replace(/\\/g, "/").includes(pattern.replace(/\\/g, "/")));
 
 			if (matched.length > 0) {

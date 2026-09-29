@@ -103,6 +103,10 @@ export type RunOptions = {
      */
     earlyRunPatterns?: string[];
     /**
+     * - Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution.
+     */
+    exclude?: string[];
+    /**
      * - Per-file minimum heap overrides.
      */
     perFileHeapOverrides?: PerFileHeapOverride[];

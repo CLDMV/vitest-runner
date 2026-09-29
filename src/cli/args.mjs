@@ -31,6 +31,7 @@
  * @property {boolean} help - Whether `--help` / `-h` was passed.
  * @property {number|undefined} workers - Worker count from `--workers <n>`, or undefined.
  * @property {string[]} soloPatterns - Path substrings from `--solo-pattern <pattern>` (repeatable).
+ * @property {string[]} exclude - Directory / file globs from `--exclude <glob>` (repeatable), relative to `cwd`, that discovery never enters.
  * @property {RegExp|undefined} testFilePattern - Compiled regex from `--file-pattern <regex>`, or undefined.
  * @property {string[]} vitestPassthroughArgs - Flags forwarded verbatim to vitest.
  * @property {string[]} testPatterns - Non-flag positional arguments (file / folder patterns).
@@ -52,6 +53,7 @@ const RUNNER_FLAGS = new Set([
 	"--no-merge-reports",
 	"--workers",
 	"--solo-pattern",
+	"--exclude",
 	"--file-pattern",
 	"--keep-tmp",
 	"--scratch-dir",
@@ -76,6 +78,7 @@ export function parseArguments(args) {
 	const vitestPassthroughArgs = [];
 	const testPatterns = [];
 	const soloPatterns = [];
+	const exclude = [];
 	let testListFile;
 	let showErrorDetails = true;
 	let coverageQuiet = false;
@@ -128,6 +131,10 @@ export function parseArguments(args) {
 			soloPatterns.push(args[++i]);
 		} else if (arg.startsWith("--solo-pattern=")) {
 			soloPatterns.push(arg.slice("--solo-pattern=".length));
+		} else if (arg === "--exclude") {
+			exclude.push(args[++i]);
+		} else if (arg.startsWith("--exclude=")) {
+			exclude.push(arg.slice("--exclude=".length));
 		} else if (arg === "--file-pattern") {
 			testFilePattern = new RegExp(args[++i], "i");
 		} else if (arg.startsWith("--file-pattern=")) {
@@ -166,6 +173,7 @@ export function parseArguments(args) {
 		help,
 		workers,
 		soloPatterns,
+		exclude,
 		testFilePattern,
 		vitestPassthroughArgs,
 		testPatterns,

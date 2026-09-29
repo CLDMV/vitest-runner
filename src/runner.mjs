@@ -84,6 +84,7 @@ import {
  * @property {boolean} [mergeReports=true] - When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted at the end. When `false`, the run stops after producing blobs: no merge, no summary, and `blobsDir` is left populated for an external merge step.
  * @property {number} [maxOldSpaceMb] - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
  * @property {string[]} [earlyRunPatterns=[]] - Path substrings — matching files run solo before the worker pool.
+ * @property {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution.
  * @property {PerFileHeapOverride[]} [perFileHeapOverrides=[]] - Per-file minimum heap overrides.
  * @property {string[]} [conditions=[]] - Additional `--conditions` Node flags forwarded to children.
  * @property {string} [nodeEnv='development'] - Value for `NODE_ENV` in child processes.
@@ -183,6 +184,7 @@ async function runImpl(opts, scratchRoot) {
 		blobsDir: blobsDirOpt,
 		mergeReports = true,
 		earlyRunPatterns = [],
+		exclude = [],
 		perFileHeapOverrides = [],
 		conditions = [],
 		nodeEnv = "development",
@@ -222,7 +224,15 @@ async function runImpl(opts, scratchRoot) {
 		await Promise.all([fs.rm(blobsDir, { recursive: true, force: true }), fs.rm(coverageTmpBase, { recursive: true, force: true })]);
 		await Promise.all([fs.mkdir(blobsDir, { recursive: true }), fs.mkdir(coverageTmpBase, { recursive: true })]);
 
-		const allTestFiles = await discoverVitestFiles({ cwd, testDir, testPatterns, testListFile, testFilePattern, earlyRunPatterns });
+		const allTestFiles = await discoverVitestFiles({
+			cwd,
+			testDir,
+			testPatterns,
+			testListFile,
+			testFilePattern,
+			earlyRunPatterns,
+			exclude
+		});
 		const filterConflicts = computeFilterConflicts(allTestFiles);
 
 		if (allTestFiles.length === 0) {
@@ -478,7 +488,7 @@ async function runImpl(opts, scratchRoot) {
 	}
 
 	// ─── STANDARD (NON-COVERAGE) MODE ────────────────────────────────────────────
-	const testFiles = await discoverVitestFiles({ cwd, testDir, testPatterns, testListFile, testFilePattern, earlyRunPatterns });
+	const testFiles = await discoverVitestFiles({ cwd, testDir, testPatterns, testListFile, testFilePattern, earlyRunPatterns, exclude });
 	const filterConflicts = computeFilterConflicts(testFiles);
 
 	if (testFiles.length === 0) {
