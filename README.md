@@ -17,18 +17,17 @@ Sequential Vitest runner that spawns each test file in its own child process to 
 
 ## ✨ What's New
 
-### Latest: v1.4.4 (September 2026)
+### Latest: v1.5.1 (September 2026)
 
-- **Dropped the `prepack` workaround** — the underlying gap (CI's publish job invoking lifecycle scripts against a bare, already-built artifact directory) is now fixed upstream in `CLDMV/.github`, so `prepack` goes back to a plain `npm run build`.
-- **Fixed a release-automation gap** — the release-merge gate now re-evaluates after every check-producing workflow finishes, not just CI, so an approval landing before a slower check (CodeQL and similar) can't leave a release PR stuck approved and green with nothing re-triggering the merge.
-- [View full v1.4.4 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.4.md)
+- **Backfilled the v1.5.0 changelog** — v1.5.0 (the `exclude` discovery option) shipped through the automated release gate before its changelog and this section had landed on `next`, so it released with a raw auto-generated notes dump. This release adds the curated v1.5.0 changelog and promotes this section; no code changed.
+- [View full v1.5.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.1.md)
 
 ### Recent Releases
 
+- **v1.5.0** (September 2026) — Added an `exclude` option (API + repeatable `--exclude <glob>` CLI flag) so discovery can skip directories/files like `tmp/**` worktrees or `dist/**` build output ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.0.md))
+- **v1.4.4** (September 2026) — Dropped the `prepack` tsup-availability workaround now that the underlying gap is fixed upstream, and re-armed the release-merge gate for every check-producing workflow ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.4.md))
 - **v1.4.3** (September 2026) — The published build is actually minified now, and `dist/index.cjs` is a thin shim instead of a duplicate bundle ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.3.md))
 - **v1.4.2** (September 2026) — Fixed npm publish rejecting every release over missing `repository`/`bugs`/`homepage` fields ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.2.md))
-- **v1.4.1** (September 2026) — Completed the vitest 5 upgrade, fixed the README npm badges, and fixed a `prepack` bug crashing every publish job ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.1.md))
-- **v1.4.0** (September 2026) — Real bundled `dist/`/`bin/` build, a working CLI, and a runner-owned scratch-directory lifecycle ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.0.md))
 
 ---
 
