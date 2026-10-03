@@ -1,4 +1,19 @@
 /**
+ *
+ *	@Project: @cldmv/vitest-runner
+ *	@Filename: /src/cjs-shim.cjs
+ *	@Date: 2026-09-27T23:05:10+00:00 (1790550310)
+ *	@Author: Nate Corcoran <CLDMV>
+ *	@Email: <Shinrai@users.noreply.github.com>
+ *	-----
+ *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-10-02T15:35:18-07:00 (1790980518)
+ *	-----
+ *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ *
+ */
+
+/**
  * CommonJS entry point — a thin, synchronous re-export of the real ESM build.
  *
  * Node's `require()` can load an ES module synchronously and get back its

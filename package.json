@@ -1,6 +1,6 @@
 {
 	"name": "@cldmv/vitest-runner",
-	"version": "1.5.1",
+	"version": "1.5.2",
 	"description": "Sequential Vitest runner to avoid OOM issues with large test suites",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -40,7 +40,7 @@
 		"build": "tsup",
 		"build:ci": "npm run lint && npm run format:check && npm run types:build && npm run build",
 		"prepack": "npm run build",
-		"fix:headers": "node tools/fix-headers.mjs"
+		"fix:headers": "fix-headers --config .configs/fix-headers.json"
 	},
 	"keywords": [
 		"vitest",
@@ -49,11 +49,12 @@
 		"oom"
 	],
 	"devDependencies": {
-		"@cldmv/fix-headers": "^1.3.12",
+		"@cldmv/configs": "^1.2.1",
+		"@cldmv/fix-headers": "^2.1.2",
 		"@eslint/js": "^10.0.1",
 		"@eslint/json": "^2.0.0",
 		"@eslint/markdown": "^8.0.2",
-		"@types/node": "^25.3.0",
+		"@types/node": "^26.6.3",
 		"@vitest/coverage-v8": "^5.0.2",
 		"eslint": "^10.5.0",
 		"globals": "^17.6.0",
@@ -63,7 +64,7 @@
 		"vitest": "^5.0.1"
 	},
 	"dependencies": {
-		"chalk": "^5.4.1"
+		"chalk": "^6.0.1"
 	},
 	"peerDependencies": {
 		"vitest": ">=1.0.0"

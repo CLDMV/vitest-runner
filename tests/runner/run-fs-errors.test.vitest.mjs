@@ -1,14 +1,16 @@
 /**
+ *
  *	@Project: @cldmv/vitest-runner
  *	@Filename: /tests/runner/run-fs-errors.test.vitest.mjs
  *	@Date: 2026-02-25T14:20:44-08:00 (1772058044)
- *	@Author: Shinrai <CLDMV>
+ *	@Author: Nate Corcoran <CLDMV>
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
- *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-09-27 08:51:32 -07:00 (1790524292)
+ *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-10-02T15:35:37-07:00 (1790980537)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ *
  */
 
 /**
