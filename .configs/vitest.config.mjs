@@ -1,14 +1,16 @@
 /**
+ *
  *	@Project: @cldmv/vitest-runner
  *	@Filename: /.configs/vitest.config.mjs
  *	@Date: 2026-02-25T15:22:09-08:00 (1772061729)
- *	@Author: Shinrai <CLDMV>
+ *	@Author: Nate Corcoran <CLDMV>
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
- *	@Last modified by: Shinrai <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-09-27 08:51:26 -07:00 (1790524286)
+ *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
+ *	@Last modified time: 2026-10-02T15:35:06-07:00 (1790980506)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
+ *
  */
 
 import { defineConfig } from "vitest/config";
