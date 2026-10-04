@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:18-07:00 (1790980518)
+ *	@Last modified time: 2026-10-03T10:36:56-07:00 (1791049016)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -21,7 +21,14 @@
  * side) as long as the target module doesn't itself use top-level await —
  * `src/runner.mjs` doesn't. This mirrors @cldmv/uuid's index.cjs pattern
  * instead of tsup bundling a second, independent copy of the whole module
- * for the CJS format.
+ * for the CJS format. In a .cjs file `require` already exists, so a plain
+ * `require("./index.mjs")` is used — `createRequire` is unnecessary here and
+ * breaks bundling by tools (esbuild/webpack) that need a static `require()`
+ * call to detect the dependency.
+ *
+ * Node.js versions without require(esm) (before 20.19 / 22.12) would fail with
+ * a bare ERR_REQUIRE_ESM, so the check below fails early with a message that
+ * says what to do instead.
  *
  * This file is copied verbatim into dist/index.cjs by tsup's onSuccess hook
  * (see tsup.config.mjs) — it never passes through esbuild itself, so it
@@ -30,7 +37,13 @@
  * @module @cldmv/vitest-runner
  */
 "use strict";
-const { createRequire } = require("node:module");
-const requireESM = createRequire(__filename);
 
-module.exports = requireESM("./index.mjs");
+if (!process.features?.require_module) {
+	const error = new Error(
+		`@cldmv/vitest-runner: require() needs Node.js ^20.19.0 or >=22.12.0 (this is ${process.version}). On older Node.js, load the package with import() instead.`
+	);
+	error.code = "ERR_REQUIRE_ESM";
+	throw error;
+}
+
+module.exports = require("./index.mjs");

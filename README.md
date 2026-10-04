@@ -1,13 +1,10 @@
-# vitest-runner
+# @cldmv/vitest-runner
 
-Sequential Vitest runner that spawns each test file in its own child process to avoid out-of-memory crashes in large test suites.
+**@cldmv/vitest-runner** is a sequential [Vitest](https://vitest.dev/) runner that spawns each test file in its own child process, so a large test suite never has to fit in one Vitest process's memory. It runs files one at a time or in a parallel worker pool, gives heavy files their own heap ceiling or a solo slot, and prints one combined summary of results, memory use and duration at the end.
 
-- Runs files one-at-a-time or in a configurable parallel worker pool
-- Supports full coverage mode via blob-per-file + `--mergeReports` (no OOM)
-- Auto-detects your vitest config; accepts an explicit path if needed
-- All standard Vitest CLI flags are forwarded unchanged
-- Usable as a **CLI binary** or as a **programmatic Node.js API**
-- Pure ESM source, bundled to a real CJS build for `require()` compatibility
+Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a single `vitest --mergeReports` step combines them into one report, with a worst-coverage table after it. The runner auto-detects your Vitest config, forwards every standard Vitest flag unchanged, and works as a `vitest-runner` CLI or as a programmatic `run()` API from ESM and CommonJS.
+
+> _Big suites, small processes: every test file gets its own Vitest, and the results come back as one run._
 
 [![npm version]][npm_version_url] [![npm downloads]][npm_downloads_url] <!-- [![GitHub release]][github_release_url] -->[![GitHub downloads]][github_downloads_url] [![Last commit]][last_commit_url] <!-- [![Release date]][release_date_url] -->[![npm last update]][npm_last_update_url] [![Coverage]][coverage_url]
 
@@ -17,43 +14,87 @@ Sequential Vitest runner that spawns each test file in its own child process to 
 
 ## ✨ What's New
 
-### Latest: v1.5.1 (September 2026)
+### Latest: v1.5.3 (October 2026)
 
-- **Backfilled the v1.5.0 changelog** — v1.5.0 (the `exclude` discovery option) shipped through the automated release gate before its changelog and this section had landed on `next`, so it released with a raw auto-generated notes dump. This release adds the curated v1.5.0 changelog and promotes this section; no code changed.
-- [View full v1.5.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.1.md)
+- **A bundler-friendly CommonJS entry that fails clearly on old Node.js** — `dist/index.cjs` now loads the ES module build with a plain `require("./index.mjs")` instead of going through `createRequire`, so bundlers such as esbuild and webpack can see the dependency. On a Node.js version without synchronous `require(esm)` it throws an `ERR_REQUIRE_ESM` error that names the package, the versions `require()` needs (^20.19.0 or >=22.12.0) and the running version, and points at `import()` ([#69](https://github.com/CLDMV/vitest-runner/pull/69)). New `node:test` checks run the built CommonJS entry on every test and coverage run.
+- **Node.js 22.12 or later** — `engines.node` moves from `>=20.19.0` to `>=22.12.0` ([#73](https://github.com/CLDMV/vitest-runner/pull/73)). The `chalk` 6 dependency and the `vitest` 5 peer already needed it, so Node.js 20 had stopped installing cleanly in v1.5.2; the declared floor now matches.
+- [View full v1.5.3 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md)
 
 ### Recent Releases
 
+- **v1.5.2** (October 2026) — `chalk` moves to 6.0.1, a skipped PR run can no longer satisfy `✅ Required PR Check`, and the repository adopts the shared CLDMV fix-headers config ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.2.md))
+- **v1.5.1** (September 2026) — Documentation-only release that backfilled the missing v1.5.0 changelog ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.1.md))
 - **v1.5.0** (September 2026) — Added an `exclude` option (API + repeatable `--exclude <glob>` CLI flag) so discovery can skip directories/files like `tmp/**` worktrees or `dist/**` build output ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.0.md))
 - **v1.4.4** (September 2026) — Dropped the `prepack` tsup-availability workaround now that the underlying gap is fixed upstream, and re-armed the release-merge gate for every check-producing workflow ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.4.md))
-- **v1.4.3** (September 2026) — The published build is actually minified now, and `dist/index.cjs` is a thin shim instead of a duplicate bundle ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.3.md))
-- **v1.4.2** (September 2026) — Fixed npm publish rejecting every release over missing `repository`/`bugs`/`homepage` fields ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.2.md))
+
+📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
 ---
 
-## Requirements
+## 🚀 Key Features
 
-- Node.js ≥ 18
+- Runs every test file in its own child process, one at a time or in a configurable parallel worker pool
+- Solo slots for heavy files (`--solo-pattern`) and per-file heap ceilings (`perFileHeapOverrides`)
+- Full coverage mode via blob-per-file + `--mergeReports` (no OOM), with a worst-coverage table
+- Auto-detects your vitest config; accepts an explicit path if needed
+- All standard Vitest CLI flags are forwarded unchanged
+- Usable as a **CLI binary** or as a **programmatic Node.js API**, with an optional JSON run report
+- A per-run scratch directory for every test file (`VITEST_RUNNER_TMP` / `makeRunTmpDir`), cleaned up on exit
+- ES module build with a thin CommonJS entry for `require()`
+
+---
+
+## 📦 Installation
+
+### Requirements
+
+- **Node.js 22.12.0 or later** (`engines.node` is `>=22.12.0`, matching the `chalk` 6 dependency, the `vitest` 5 peer and the CI matrix). Node.js 20 is not supported from v1.5.3; stay on v1.5.1 there.
+- The package is an ES module and loads with `import`. `require("@cldmv/vitest-runner")` loads the ES module build synchronously, which needs Node.js ^20.19.0 or >=22.12.0; on older Node.js, use `import()` instead.
 - `vitest` ≥ 1.0 (peer dependency, installed in your project)
 - `chalk` (bundled dependency — no action needed)
 
----
-
-## Installation
+### Install
 
 ```sh
-npm install --save-dev vitest-runner
+npm install --save-dev @cldmv/vitest-runner
 ```
 
 Or to use the CLI globally:
 
 ```sh
-npm install -g vitest-runner
+npm install -g @cldmv/vitest-runner
 ```
 
 ---
 
-## CLI usage
+## 🚀 Quick Start
+
+Run every discovered `*.test.vitest.{js,mjs,cjs}` file, each in its own process:
+
+```sh
+npx vitest-runner
+```
+
+Run with OOM-safe coverage and a live progress bar:
+
+```sh
+npx vitest-runner --coverage-quiet
+```
+
+From code:
+
+```js
+import { run } from "@cldmv/vitest-runner";
+
+const code = await run({ testDir: "src/tests" });
+process.exit(code);
+```
+
+The full flag list is under [CLI usage](#-cli-usage) and every option under [Programmatic API](#-programmatic-api).
+
+---
+
+## 💻 CLI usage
 
 ```sh
 vitest-runner [OPTIONS] [PATTERNS...]
@@ -166,21 +207,25 @@ vitest-runner --json --no-top-summary
 
 ---
 
-## Programmatic API
+## 🔧 Programmatic API
 
 ```js
-import { run } from "vitest-runner";
+import { run } from "@cldmv/vitest-runner";
 
 // CommonJS
-const { run } = require("vitest-runner");
+const { run } = require("@cldmv/vitest-runner");
 ```
+
+`require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js ^20.19.0 or >=22.12.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
+
+When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/runner.mjs`) instead of the built `dist/`.
 
 ### `run(options)` → `Promise<number | object>`
 
 Runs the test suite and resolves with an exit code (`0` = all passed, `1` = any failure) by default. When `json: true` is passed, it returns a structured JSON report object (including `exitCode`) instead of printing runner text output.
 
 ```js
-import { run } from "vitest-runner";
+import { run } from "@cldmv/vitest-runner";
 
 const code = await run({
 	testDir: "src/tests"
@@ -194,7 +239,7 @@ process.exit(code);
 | Option                 | Type                    | Default                        | Description                                                                                                                                                                                                                                              |
 | ---------------------- | ----------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `cwd`                  | `string`                | `process.cwd()`                | Absolute project root directory                                                                                                                                                                                                                          |
-| `testDir`              | `string`                | `cwd`                          | Directory (absolute or relative to `cwd`) to scan for `*.test.vitest.{js,mjs}` files                                                                                                                                                                     |
+| `testDir`              | `string`                | `cwd`                          | Directory (absolute or relative to `cwd`) to scan for `*.test.vitest.{js,mjs,cjs}` files                                                                                                                                                                 |
 | `vitestConfig`         | `string`                | auto-detect                    | Explicit vitest config path; when omitted the runner walks standard config names (`vitest.config.ts`, `vite.config.ts`, etc.) relative to `cwd`                                                                                                          |
 | `testPatterns`         | `string[]`              | `[]`                           | File / folder patterns to filter — empty means all files in `testDir`                                                                                                                                                                                    |
 | `testListFile`         | `string`                | `undefined`                    | Path to a JSON array of test file paths; when set, scanning is skipped entirely                                                                                                                                                                          |
@@ -226,12 +271,12 @@ Every run gets its own scratch root (`<scratchDir>/<pid>-<timestamp>/`), created
 From a test file, use `makeRunTmpDir(label)` to get a fresh, uniquely-named subdirectory instead of managing your own `mkdtemp` base:
 
 ```js
-import { makeRunTmpDir } from "vitest-runner";
+import { makeRunTmpDir } from "@cldmv/vitest-runner";
 
 const dir = makeRunTmpDir("my-fixture"); // a fresh directory under VITEST_RUNNER_TMP
 ```
 
-CLI flags: `--scratch-dir <path>` and `--keep-tmp` (see [Runner flags](#runner-flags) below).
+CLI flags: `--scratch-dir <path>` and `--keep-tmp` (see [Runner flags](#runner-flags) above).
 
 #### `PerFileHeapOverride`
 
@@ -287,7 +332,7 @@ await run({
 
 ---
 
-## Coverage mode
+## 📊 Coverage mode
 
 When `--coverage` (or `coverageQuiet: true`) is passed, the runner uses a blob-per-file strategy:
 
@@ -333,7 +378,7 @@ The exit code still reflects test pass/fail; there is just no coverage-merge res
 
 ---
 
-## Test list files
+## 📋 Test list files
 
 A test list file is a plain JSON array of test file paths (relative to `cwd`):
 
@@ -345,7 +390,7 @@ Pass `--test-list <file>` (CLI) or `testListFile: 'path/to/list.json'` (API) to 
 
 ---
 
-## Test file naming
+## 🔍 Test file naming
 
 By default, the runner discovers files matching:
 
@@ -370,16 +415,17 @@ await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 
 ---
 
-## Source layout
+## 📁 Source layout
 
 ```text
 dist/                  ← built library entry (npm run build / tsup) — generated, not committed
   index.mjs            ← bundled ESM entry
-  index.cjs            ← bundled CJS entry (real sync require, generated from the same source)
+  index.cjs            ← thin CJS entry, copied verbatim from src/cjs-shim.cjs; require()s index.mjs
 bin/                   ← built CLI binary (npm run build / tsup) — generated, not committed
   vitest-runner.mjs    ← bundled CLI, from src/bin/vitest-runner.mjs (shebang preserved)
 src/
   runner.mjs           ← main run() API + re-exports
+  cjs-shim.cjs         ← CommonJS entry source (copied to dist/index.cjs by the build)
   bin/
     vitest-runner.mjs  ← CLI entry SOURCE — run this directly for source-level dev/testing
   utils/
@@ -399,13 +445,42 @@ src/
     help.mjs           ← showHelp
 ```
 
-`src/` is not published — only `dist/`, `bin/`, and `types/` ship (see [Programmatic API](#programmatic-api) for the `vitest-runner-dev` export condition, used when developing against a workspace/local checkout instead of the published package). All sub-module utilities are re-exported from the root entry point, so deep imports are optional.
+`src/` is not published — only `dist/`, `bin/`, and `types/` ship (see [Programmatic API](#-programmatic-api) for the `vitest-runner-dev` export condition, used when developing against a workspace/local checkout instead of the published package). All sub-module utilities are re-exported from the root entry point, so deep imports are optional.
 
 ---
 
-## License
+## 📚 Documentation
 
-MIT
+- **[Changelog](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/)** — release notes for every version
+- **[Release notes on GitHub](https://github.com/CLDMV/vitest-runner/releases)** — the same notes attached to each release tag
+
+[![CodeFactor]][codefactor_url] [![OpenSSF Scorecard]][ossf_scorecard_url] [![npms.io score]][npms_url] [![npm unpacked size]][npm_size_url] [![Repo size]][repo_size_url]
+
+---
+
+## 🤝 Contributing
+
+Bug reports and pull requests are welcome on [GitHub](https://github.com/CLDMV/vitest-runner/issues). Pull requests target the `next` branch; releases ship from `next` to `master`.
+
+[![Contributors]][contributors_url] [![Sponsor shinrai]][sponsor_url]
+
+---
+
+## 🔗 Links
+
+- **npm**: [@cldmv/vitest-runner](https://www.npmjs.com/package/@cldmv/vitest-runner)
+- **GitHub**: [CLDMV/vitest-runner](https://github.com/CLDMV/vitest-runner)
+- **Issues**: [GitHub Issues](https://github.com/CLDMV/vitest-runner/issues)
+- **Changelog**: [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/)
+- **Releases**: [GitHub Releases](https://github.com/CLDMV/vitest-runner/releases)
+
+---
+
+## 📄 License
+
+[![npm license]][npm_license_url]
+
+Apache-2.0 © Shinrai / CLDMV. See [LICENSE](https://github.com/CLDMV/vitest-runner/blob/master/LICENSE) for the full text.
 
 <!-- Badge definitions -->
 <!-- [github release]: https://img.shields.io/github/v/release/CLDMV/vitest-runner?style=for-the-badge&logo=github&logoColor=white&labelColor=181717 -->
@@ -429,3 +504,15 @@ MIT
 [contributors_url]: https://github.com/CLDMV/vitest-runner/graphs/contributors
 [sponsor shinrai]: https://img.shields.io/github/sponsors/shinrai?style=for-the-badge&logo=githubsponsors&logoColor=white&labelColor=EA4AAA&label=Sponsor
 [sponsor_url]: https://github.com/sponsors/shinrai
+[codefactor]: https://img.shields.io/codefactor/grade/github/CLDMV/vitest-runner?style=for-the-badge&logo=codefactor&logoColor=white&labelColor=F44A6A
+[codefactor_url]: https://www.codefactor.io/repository/github/cldmv/vitest-runner
+[openssf scorecard]: https://img.shields.io/ossf-scorecard/github.com/CLDMV/vitest-runner?style=for-the-badge&label=OpenSSF%20Scorecard
+[ossf_scorecard_url]: https://scorecard.dev/viewer/?uri=github.com/CLDMV/vitest-runner
+[npms.io score]: https://img.shields.io/npms-io/final-score/%40cldmv%2Fvitest-runner?style=for-the-badge&logo=npms&logoColor=white&labelColor=0B5D57
+[npms_url]: https://npms.io/search?q=%40cldmv%2Fvitest-runner
+[npm unpacked size]: https://img.shields.io/npm/unpacked-size/%40cldmv%2Fvitest-runner.svg?style=for-the-badge&logo=npm&logoColor=white&labelColor=CB3837
+[npm_size_url]: https://www.npmjs.com/package/@cldmv/vitest-runner
+[repo size]: https://img.shields.io/github/repo-size/CLDMV/vitest-runner?style=for-the-badge&logo=github&logoColor=white&labelColor=181717
+[repo_size_url]: https://github.com/CLDMV/vitest-runner
+[npm license]: https://img.shields.io/npm/l/%40cldmv%2Fvitest-runner.svg?style=for-the-badge&logo=npm&logoColor=white&labelColor=CB3837
+[npm_license_url]: https://www.npmjs.com/package/@cldmv/vitest-runner
