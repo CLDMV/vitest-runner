@@ -479,7 +479,7 @@ Bug reports and pull requests are welcome on [GitHub](https://github.com/CLDMV/v
 
 [![npm license]][npm_license_url]
 
-MIT © Shinrai / CLDMV
+Apache-2.0 © Shinrai / CLDMV. See [LICENSE](https://github.com/CLDMV/vitest-runner/blob/master/LICENSE) for the full text.
 
 <!-- Badge definitions -->
 <!-- [github release]: https://img.shields.io/github/v/release/CLDMV/vitest-runner?style=for-the-badge&logo=github&logoColor=white&labelColor=181717 -->
