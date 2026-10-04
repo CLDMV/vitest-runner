@@ -17,6 +17,7 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 ### Latest: v1.5.3 (October 2026)
 
 - **A bundler-friendly CommonJS entry that fails clearly on old Node.js** — `dist/index.cjs` now loads the ES module build with a plain `require("./index.mjs")` instead of going through `createRequire`, so bundlers such as esbuild and webpack can see the dependency. On a Node.js version without synchronous `require(esm)` it throws an `ERR_REQUIRE_ESM` error that names the package, the versions `require()` needs (^20.19.0 or >=22.12.0) and the running version, and points at `import()` ([#69](https://github.com/CLDMV/vitest-runner/pull/69)). New `node:test` checks run the built CommonJS entry on every test and coverage run.
+- **Node.js 22.12 or later** — `engines.node` moves from `>=20.19.0` to `>=22.12.0` ([#73](https://github.com/CLDMV/vitest-runner/pull/73)). The `chalk` 6 dependency and the `vitest` 5 peer already needed it, so Node.js 20 had stopped installing cleanly in v1.5.2; the declared floor now matches.
 - [View full v1.5.3 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md)
 
 ### Recent Releases
@@ -47,7 +48,7 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ### Requirements
 
-- **Node.js 20.19.0 or later** (`engines.node` is `>=20.19.0`). CI tests Node.js 22.12 and later, and the `chalk` 6 dependency declares Node.js 22 or later, so Node.js 22.12+ is the tested range.
+- **Node.js 22.12.0 or later** (`engines.node` is `>=22.12.0`, matching the `chalk` 6 dependency, the `vitest` 5 peer and the CI matrix). Node.js 20 is not supported from v1.5.3; stay on v1.5.1 there.
 - The package is an ES module and loads with `import`. `require("@cldmv/vitest-runner")` loads the ES module build synchronously, which needs Node.js ^20.19.0 or >=22.12.0; on older Node.js, use `import()` instead.
 - `vitest` ≥ 1.0 (peer dependency, installed in your project)
 - `chalk` (bundled dependency — no action needed)
