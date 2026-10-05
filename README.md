@@ -14,18 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.5.3 (October 2026)
+### Latest: v1.5.4 (October 2026)
 
-- **A bundler-friendly CommonJS entry that fails clearly on old Node.js** — `dist/index.cjs` now loads the ES module build with a plain `require("./index.mjs")` instead of going through `createRequire`, so bundlers such as esbuild and webpack can see the dependency. On a Node.js version without synchronous `require(esm)` it throws an `ERR_REQUIRE_ESM` error that names the package, the versions `require()` needs (^20.19.0 or >=22.12.0) and the running version, and points at `import()` ([#69](https://github.com/CLDMV/vitest-runner/pull/69)). New `node:test` checks run the built CommonJS entry on every test and coverage run.
-- **Node.js 22.12 or later** — `engines.node` moves from `>=20.19.0` to `>=22.12.0` ([#73](https://github.com/CLDMV/vitest-runner/pull/73)). The `chalk` 6 dependency and the `vitest` 5 peer already needed it, so Node.js 20 had stopped installing cleanly in v1.5.2; the declared floor now matches.
-- [View full v1.5.3 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md)
+- **Dev-tooling dependency update, nothing new in the package** — `@cldmv/fix-headers` moves to 2.2.0 ([#74](https://github.com/CLDMV/vitest-runner/pull/74), [#78](https://github.com/CLDMV/vitest-runner/pull/78)), `@cldmv/configs` to 1.2.4 ([#78](https://github.com/CLDMV/vitest-runner/pull/78)) and the dev-only `brace-expansion` to 5.0.12 ([#76](https://github.com/CLDMV/vitest-runner/pull/76)). What the package ships is identical to v1.5.3.
+- [View full v1.5.4 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md)
 
 ### Recent Releases
 
+- **v1.5.3** (October 2026) — A bundler-friendly CommonJS entry that fails clearly on Node.js without `require(esm)`, and `engines.node` raised to `>=22.12.0` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md))
 - **v1.5.2** (October 2026) — `chalk` moves to 6.0.1, a skipped PR run can no longer satisfy `✅ Required PR Check`, and the repository adopts the shared CLDMV fix-headers config ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.2.md))
 - **v1.5.1** (September 2026) — Documentation-only release that backfilled the missing v1.5.0 changelog ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.1.md))
 - **v1.5.0** (September 2026) — Added an `exclude` option (API + repeatable `--exclude <glob>` CLI flag) so discovery can skip directories/files like `tmp/**` worktrees or `dist/**` build output ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.0.md))
-- **v1.4.4** (September 2026) — Dropped the `prepack` tsup-availability workaround now that the underlying gap is fixed upstream, and re-armed the release-merge gate for every check-producing workflow ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.4.4.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
