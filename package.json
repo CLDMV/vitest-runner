@@ -50,7 +50,7 @@
 		"oom"
 	],
 	"devDependencies": {
-		"@cldmv/configs": "^1.2.1",
+		"@cldmv/configs": "^1.2.4",
 		"@cldmv/fix-headers": "^2.2.0",
 		"@eslint/js": "^10.0.1",
 		"@eslint/json": "^2.0.0",
