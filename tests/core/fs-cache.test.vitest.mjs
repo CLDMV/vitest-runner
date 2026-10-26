@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
+ *	@Last modified time: 2026-10-26T10:14:22-07:00 (1793034862)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -19,8 +19,9 @@
  * planFsModuleCache() and warmFsModuleCache() are called in-process with this
  * repo's own `vitest/node` against small config files written per test. They
  * resolve from `process.cwd()` like the workers do, so these calls pass `--root`.
- * prepareFsModuleCache() and run() start the real helper process. The installed
- * vitest has `fsModuleCache` off by default, so the configs turn it on.
+ * prepareFsModuleCache() and run() start the real helper process. The default
+ * for `fsModuleCache` differs between Vitest 5 releases (off in 5.0.3, on in
+ * 5.0.5), so every config sets it explicitly.
  */
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
 import fs from "node:fs/promises";
@@ -41,6 +42,7 @@ const TMP_ROOT = path.join(PKG_ROOT, "tmp", "fs-cache-tests");
 
 const STALE_METADATA = JSON.stringify({ lockfileHash: "stale000" });
 const ENABLED = "export default { test: { fsModuleCache: true } };\n";
+const DISABLED = "export default { test: { fsModuleCache: false } };\n";
 
 /**
  * Write a file, creating its directory.
@@ -116,7 +118,7 @@ describe("planFsModuleCache()", () => {
 	});
 
 	it("adds nothing when the cache is off", async () => {
-		expect(await planFor("export default { test: {} };\n")).toEqual({ cacheEnabled: false, cacheArgs: [] });
+		expect(await planFor(DISABLED)).toEqual({ cacheEnabled: false, cacheArgs: [] });
 		expect(await planFor(ENABLED, { args: ["--fsModuleCache=false"] })).toEqual({ cacheEnabled: false, cacheArgs: [] });
 	});
 
@@ -230,7 +232,7 @@ describe("prepareFsModuleCache()", () => {
 	});
 
 	it("doesn't warm when the cache is off", async () => {
-		const vitestConfig = await write(path.join(tmp, "vitest.config.mjs"), "export default { test: {} };\n");
+		const vitestConfig = await write(path.join(tmp, "vitest.config.mjs"), DISABLED);
 		expect(await prepareFsModuleCache({ cwd: tmp, vitestConfig, warm: true })).toEqual({
 			cacheEnabled: false,
 			cacheArgs: [],
