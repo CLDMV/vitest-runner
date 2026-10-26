@@ -51,18 +51,18 @@
 	],
 	"devDependencies": {
 		"@cldmv/configs": "^1.2.4",
-		"@cldmv/fix-headers": "^2.2.0",
+		"@cldmv/fix-headers": "^2.2.2",
 		"@eslint/js": "^10.0.1",
-		"@eslint/json": "^2.0.0",
+		"@eslint/json": "^2.1.1",
 		"@eslint/markdown": "^8.0.2",
-		"@types/node": "^26.6.3",
-		"@vitest/coverage-v8": "^5.0.2",
+		"@types/node": "^26.6.5",
+		"@vitest/coverage-v8": "^5.0.5",
 		"eslint": "^10.5.0",
 		"globals": "^17.6.0",
 		"prettier": "^3.8.4",
-		"tsup": "^8.5.1",
+		"tsup": "^9.0.0",
 		"typescript": "^5.9.3",
-		"vitest": "^5.0.1"
+		"vitest": "^5.0.5"
 	},
 	"dependencies": {
 		"chalk": "^6.0.1"
@@ -84,5 +84,8 @@
 		"url": "https://github.com/CLDMV/vitest-runner/issues"
 	},
 	"homepage": "https://github.com/CLDMV/vitest-runner#readme",
-	"license": "Apache-2.0"
+	"license": "Apache-2.0",
+	"overrides": {
+		"katex": ">=0.18.2"
+	}
 }
