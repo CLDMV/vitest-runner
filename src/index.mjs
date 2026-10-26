@@ -1,7 +1,7 @@
 /**
  *
  *	@Project: @cldmv/vitest-runner
- *	@Filename: /src/runner.mjs
+ *	@Filename: /src/index.mjs
  *	@Date: 2026-02-24T22:33:55-08:00 (1772001235)
  *	@Author: Nate Corcoran <CLDMV>
  *	@Email: <Shinrai@users.noreply.github.com>

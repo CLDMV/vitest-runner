@@ -7,30 +7,30 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:38-07:00 (1790980538)
+ *	@Last modified time: 2026-10-26T07:43:53-07:00 (1793025833)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
  */
 
 /**
- * @fileoverview Tests for runner.mjs error-handling .catch() paths.
+ * @fileoverview Tests for index.mjs error-handling .catch() paths.
  *
  * Uses vi.mock to make runSingleFile() reject so that the .catch() handlers
  * in run()'s solo and parallel phases are exercised in both standard and
  * coverage modes.
  *
  * Covered lines:
- *   runner.mjs:340-342  — solo phase catch (standard mode)
- *   runner.mjs:358      — parallel phase catch (standard mode)
- *   runner.mjs:226      — solo phase catch (coverage mode)
- *   runner.mjs:237      — parallel phase catch (coverage mode)
- *   runner.mjs:247-249  — "no blobs generated" guard (coverage mode)
+ *   index.mjs:340-342  — solo phase catch (standard mode)
+ *   index.mjs:358      — parallel phase catch (standard mode)
+ *   index.mjs:226      — solo phase catch (coverage mode)
+ *   index.mjs:237      — parallel phase catch (coverage mode)
+ *   index.mjs:247-249  — "no blobs generated" guard (coverage mode)
  */
 import { vi, describe, it, expect, afterEach } from "vitest";
 import fs from "node:fs/promises";
 
-// vi.mock is hoisted by vitest — this mock applies to runner.mjs's own import
+// vi.mock is hoisted by vitest — this mock applies to index.mjs's own import
 // of spawn.mjs as well as this test file's direct import.
 vi.mock("../../src/core/spawn.mjs", async (importOriginal) => {
 	const orig = await importOriginal();
@@ -43,7 +43,7 @@ vi.mock("../../src/core/spawn.mjs", async (importOriginal) => {
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "../../src/runner.mjs";
+import { run } from "../../src/index.mjs";
 import { runSingleFile, runMergeReports } from "../../src/core/spawn.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -89,7 +89,7 @@ describe("run() — spawn catch handlers: standard mode", () => {
 		vi.resetAllMocks();
 	});
 
-	it("catches solo + parallel phase rejections and returns 0 with empty results (runner.mjs:340-342, 358)", async () => {
+	it("catches solo + parallel phase rejections and returns 0 with empty results (index.mjs:340-342, 358)", async () => {
 		// Both a.test (solo) and b.test (parallel) will fail via the .catch() handlers.
 		// With no successes, the final report returns 0 ("All 0 test files passed").
 		vi.mocked(runSingleFile).mockRejectedValue(new Error("simulated spawn rejection"));
@@ -139,7 +139,7 @@ describe("run() — spawn catch handlers: coverage mode", () => {
 		vi.resetAllMocks();
 	});
 
-	it("catches solo + parallel coverage rejections; no blobs → returns 1 (runner.mjs:226, 237, 247-249)", async () => {
+	it("catches solo + parallel coverage rejections; no blobs → returns 1 (index.mjs:226, 237, 247-249)", async () => {
 		// runCoverageFile() awaits runSingleFile(); when that rejects, runCoverageFile
 		// throws and is caught by the .catch() at lines 226 / 237.
 		// Since no blobs land in blobsDir the "no blobs" guard fires → return 1.
