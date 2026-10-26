@@ -1,59 +1,83 @@
 /**
- * Work out the `--fsModuleCachePath` argument for every vitest child.
+ * Decide the `--fsModuleCachePath` argument for every vitest child.
  *
- * Returns `[]` (leaving vitest's own setting alone) when:
- * - `fsModuleCachePath` is `false`,
- * - the passthrough args already include `--fsModuleCachePath`, or
- * - the vitest config file sets `fsModuleCachePath`.
+ * Order of precedence:
+ * 1. a `--fsModuleCachePath` passthrough arg — left alone, no arg added;
+ * 2. the runner's `fsModuleCachePath` option — `false` adds nothing, a path is used for every child;
+ * 3. `fsModuleCachePath` set anywhere in the resolved config (root or any project) — left alone;
+ * 4. otherwise, when the cache is on, `<cwd>/node_modules/.vitest-cache`.
  *
- * Otherwise points the cache at `fsModuleCachePath` (resolved against `cwd`),
- * or at `<cwd>/node_modules/.vitest-cache` by default.
- *
+ * @param {any} vitestNode - The consumer's `vitest/node` module (needs `parseCLI` and `resolveConfig`).
  * @param {Object} opts
  * @param {string} opts.cwd - Project root.
- * @param {string[]} [opts.vitestArgs=[]] - Vitest passthrough args.
- * @param {string|undefined} [opts.vitestConfig] - Absolute vitest config path.
- * @param {string|false|undefined} [opts.fsModuleCachePath] - Runner option.
- * @returns {Promise<string[]>}
- * @example
- * await resolveFsModuleCacheArgs({ cwd: '/repo/packages/a' });
- * // ['--fsModuleCachePath=/repo/packages/a/node_modules/.vitest-cache']
+ * @param {string[]} [opts.args=[]] - Args the workers get after `vitest run` (config + passthrough).
+ * @param {string|false} [opts.fsModuleCachePath] - Runner option.
+ * @returns {Promise<FsModuleCachePlan>}
  */
-export function resolveFsModuleCacheArgs({ cwd, vitestArgs, vitestConfig, fsModuleCachePath }: {
+export function planFsModuleCache(vitestNode: any, { cwd, args, fsModuleCachePath }: {
     cwd: string;
-    vitestArgs?: string[];
-    vitestConfig?: string | undefined;
-    fsModuleCachePath?: string | false | undefined;
-}): Promise<string[]>;
+    args?: string[];
+    fsModuleCachePath?: string | false;
+}): Promise<FsModuleCachePlan>;
 /**
- * Run one short vitest process so the fs module cache matches the lockfile
- * before the parallel workers start.
+ * Start Vitest once with the workers' args and close it again.
  *
- * Runs `vitest list --filesOnly <file>`. Vitest's startup does the lockfile
- * check (and clears a stale cache) before it lists anything, and listing with
- * `--filesOnly` doesn't transform test files. The exit code is ignored: a real
- * problem (bad config, missing file) surfaces in the actual test runs.
+ * Creating the Vitest instance runs its startup lockfile check, which clears a
+ * stale fs module cache. No tests run.
+ *
+ * @param {any} vitestNode - The consumer's `vitest/node` module (needs `parseCLI` and `createVitest`).
+ * @param {Object} opts
+ * @param {string} opts.cwd
+ * @param {string[]} [opts.args=[]] - Args the workers get after `vitest run`.
+ * @param {string[]} [opts.cacheArgs=[]] - From {@link planFsModuleCache}.
+ * @returns {Promise<void>}
+ */
+export function warmFsModuleCache(vitestNode: any, { cwd, args, cacheArgs }: {
+    cwd: string;
+    args?: string[];
+    cacheArgs?: string[];
+}): Promise<void>;
+/**
+ * Plan the fs module cache for a run, and optionally do the lockfile check once,
+ * in a helper process (fs-cache-helper.mjs).
+ *
+ * Does nothing on vitest < 5, which has no top-level `fsModuleCachePath`. When
+ * the helper fails or times out, the run goes ahead as if this didn't exist:
+ * no args are added.
  *
  * @param {Object} opts
  * @param {string} opts.cwd
- * @param {string} opts.vitestBin
- * @param {string|undefined} opts.vitestConfig
- * @param {string} opts.filePath - A test file to list (keeps the run cheap and non-empty).
- * @param {string[]} [opts.vitestArgs=[]] - Passthrough args; only the cache-related ones are used.
- * @param {string[]} [opts.cacheArgs=[]] - Output of {@link resolveFsModuleCacheArgs}.
+ * @param {string|undefined} opts.vitestConfig - Absolute vitest config path, if any.
+ * @param {string[]} [opts.vitestArgs=[]] - Passthrough args.
+ * @param {string|false} [opts.fsModuleCachePath] - Runner option.
+ * @param {boolean} [opts.warm=false] - Also do the lockfile check once.
  * @param {string[]} [opts.conditions=[]]
  * @param {string} [opts.nodeEnv='development']
- * @returns {Promise<number>} The warm-up process's exit code.
+ * @param {number} [opts.timeoutMs=60000] - Kill the helper after this long.
+ * @returns {Promise<FsModuleCachePlan & { warmed: boolean, error?: string }>}
  */
-export function warmFsModuleCache({ cwd, vitestBin, vitestConfig, filePath, vitestArgs, cacheArgs, conditions, nodeEnv }: {
+export function prepareFsModuleCache({ cwd, vitestConfig, vitestArgs, fsModuleCachePath, warm, conditions, nodeEnv, timeoutMs }: {
     cwd: string;
-    vitestBin: string;
     vitestConfig: string | undefined;
-    filePath: string;
     vitestArgs?: string[];
-    cacheArgs?: string[];
+    fsModuleCachePath?: string | false;
+    warm?: boolean;
     conditions?: string[];
     nodeEnv?: string;
-}): Promise<number>;
+    timeoutMs?: number;
+}): Promise<FsModuleCachePlan & {
+    warmed: boolean;
+    error?: string;
+}>;
 /** Cache directory, relative to `cwd`, used when nothing else sets one. */
 export const DEFAULT_FS_MODULE_CACHE_DIR: "node_modules/.vitest-cache";
+export type FsModuleCachePlan = {
+    /**
+     * - Args to add to every vitest child (`[]` or one `--fsModuleCachePath=…`).
+     */
+    cacheArgs: string[];
+    /**
+     * - Whether the root or any project has `fsModuleCache` on.
+     */
+    cacheEnabled: boolean;
+};

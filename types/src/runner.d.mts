@@ -127,7 +127,7 @@ export type RunOptions = {
      */
     keepTmp?: boolean;
     /**
-     * - Vitest `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Defaults to `<cwd>/node_modules/.vitest-cache` so packages in one workspace don't share (and clear) one cache. Not applied when the vitest config or the passthrough args set `fsModuleCachePath`; `false` leaves vitest's own default in place.
+     * - Vitest 5+ `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Takes precedence over `fsModuleCachePath` in the vitest config; a `--fsModuleCachePath` passthrough arg takes precedence over this. When unset, children use `<cwd>/node_modules/.vitest-cache` unless the resolved config (root or any project) sets a path. `false` adds nothing and leaves vitest's own setting in place.
      */
     fsModuleCachePath?: string | false;
     /**
@@ -142,4 +142,4 @@ export { runSingleFile, runVitestDirect, runMergeReports } from "./core/spawn.mj
 export { createCoverageProgressTracker, noopProgressTracker } from "./core/progress.mjs";
 export { printCoverageSummary, printMergeOutput, printQuietCoverageFailureDetails } from "./core/report.mjs";
 export { stripAnsi, colourPct } from "./utils/ansi.mjs";
-export { resolveFsModuleCacheArgs, warmFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
+export { prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";

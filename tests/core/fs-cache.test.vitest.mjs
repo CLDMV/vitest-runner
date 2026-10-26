@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:12:07-07:00 (1793023927)
+ *	@Last modified time: 2026-10-26T07:59:47-07:00 (1793026787)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -16,17 +16,18 @@
 /**
  * @fileoverview Tests for core/fs-cache.mjs and its use in run().
  *
- * The warm-up and run() tests spawn real vitest processes with `--fsModuleCache`
- * on and the cache pointed into a throwaway directory, then plant stale
- * metadata (a lockfile hash that can't match) to simulate a lockfile change.
+ * planFsModuleCache() and warmFsModuleCache() are called in-process with this
+ * repo's own `vitest/node` against small config files written per test.
+ * prepareFsModuleCache() and run() start the real helper process. The installed
+ * vitest has `fsModuleCache` off by default, so the configs turn it on.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from "vitest";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { resolveFsModuleCacheArgs, warmFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "../../src/core/fs-cache.mjs";
-import { resolveBin } from "../../src/utils/resolve.mjs";
+import * as vitestNode from "vitest/node";
+import { planFsModuleCache, warmFsModuleCache, prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "../../src/core/fs-cache.mjs";
 import { run } from "../../src/runner.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,21 +35,30 @@ const PKG_ROOT = path.resolve(__dirname, "../..");
 const FIXTURES = path.join(PKG_ROOT, "tests", "fixtures");
 const FIXTURE_CONFIG = path.join(FIXTURES, "vitest.config.mjs");
 const CACHE_FIXTURES = path.join(FIXTURES, "fs-cache");
-const VITEST_BIN = resolveBin(PKG_ROOT, "vitest");
 const PROBE = pathToFileURL(path.join(FIXTURES, "fs-cache-probe.mjs")).href;
 const TMP_ROOT = path.join(PKG_ROOT, "tmp", "fs-cache-tests");
 
+const STALE_METADATA = JSON.stringify({ lockfileHash: "stale000" });
+const ENABLED = "export default { test: { fsModuleCache: true } };\n";
+
 /**
- * Create a fresh scratch directory for one test.
- * @param {string} label
- * @returns {Promise<string>}
+ * Write a file, creating its directory.
+ * @param {string} file
+ * @param {string} content
+ * @returns {Promise<string>} The file path.
  */
-async function makeTmp(label) {
-	await fs.mkdir(TMP_ROOT, { recursive: true });
-	return fs.mkdtemp(path.join(TMP_ROOT, `${label}-`));
+async function write(file, content) {
+	await fs.mkdir(path.dirname(file), { recursive: true });
+	await fs.writeFile(file, content);
+	return file;
 }
 
-const STALE_METADATA = JSON.stringify({ lockfileHash: "stale000" });
+/**
+ * The default cache arg for a package directory.
+ * @param {string} cwd
+ * @returns {string[]}
+ */
+const defaultArgs = (cwd) => [`--fsModuleCachePath=${path.join(cwd, DEFAULT_FS_MODULE_CACHE_DIR)}`];
 
 /**
  * Create a cache directory that looks like it was written before a lockfile change.
@@ -58,182 +68,225 @@ const STALE_METADATA = JSON.stringify({ lockfileHash: "stale000" });
 async function plantStaleCache(cacheDir) {
 	await fs.mkdir(cacheDir, { recursive: true });
 	await fs.writeFile(path.join(cacheDir, "_metadata.json"), STALE_METADATA);
-	// A few entries so a concurrent recursive rm has something to race over.
+	// Enough entries that concurrent clears overlap, as with a real cache.
 	await Promise.all(Array.from({ length: 4000 }, (_, i) => fs.writeFile(path.join(cacheDir, `entry-${i}`), "x")));
 	const sentinel = path.join(cacheDir, "sentinel-from-before-the-lockfile-change");
 	await fs.writeFile(sentinel, "stale");
 	return sentinel;
 }
 
-describe("resolveFsModuleCacheArgs()", () => {
-	let tmp;
+let tmp;
 
-	beforeEach(async () => {
-		tmp = await makeTmp("args");
-	});
+beforeEach(async () => {
+	await fs.mkdir(TMP_ROOT, { recursive: true });
+	tmp = await fs.mkdtemp(path.join(TMP_ROOT, "case-"));
+});
 
-	afterEach(async () => {
-		await fs.rm(tmp, { recursive: true, force: true });
-	});
+afterEach(async () => {
+	vi.unstubAllEnvs();
+	await fs.rm(tmp, { recursive: true, force: true });
+});
 
-	it("defaults to <cwd>/node_modules/.vitest-cache", async () => {
-		const args = await resolveFsModuleCacheArgs({ cwd: tmp });
-		expect(args).toEqual([`--fsModuleCachePath=${path.join(tmp, DEFAULT_FS_MODULE_CACHE_DIR)}`]);
+afterAll(async () => {
+	await fs.rm(TMP_ROOT, { recursive: true, force: true });
+});
+
+describe("planFsModuleCache()", () => {
+	/**
+	 * Plan for a package directory containing the given vitest config.
+	 * @param {string} config - Config file source.
+	 * @param {Object} [opts]
+	 * @returns {Promise<import('../../src/core/fs-cache.mjs').FsModuleCachePlan>}
+	 */
+	const planFor = async (config, { dir = tmp, args = [], fsModuleCachePath } = {}) => {
+		const configFile = await write(path.join(dir, "vitest.config.mjs"), config);
+		return planFsModuleCache(vitestNode, { cwd: dir, args: ["--config", configFile, ...args], fsModuleCachePath });
+	};
+
+	it("points the cache at <cwd>/node_modules/.vitest-cache by default", async () => {
+		expect(await planFor(ENABLED)).toEqual({ cacheEnabled: true, cacheArgs: defaultArgs(tmp) });
 	});
 
 	it("gives sibling packages of one workspace separate cache directories", async () => {
-		const [a] = await resolveFsModuleCacheArgs({ cwd: path.join(tmp, "packages", "a") });
-		const [b] = await resolveFsModuleCacheArgs({ cwd: path.join(tmp, "packages", "b") });
-		expect(a).toBe(`--fsModuleCachePath=${path.join(tmp, "packages", "a", "node_modules", ".vitest-cache")}`);
-		expect(b).toBe(`--fsModuleCachePath=${path.join(tmp, "packages", "b", "node_modules", ".vitest-cache")}`);
+		const a = path.join(tmp, "packages", "a");
+		const b = path.join(tmp, "packages", "b");
+		expect((await planFor(ENABLED, { dir: a })).cacheArgs).toEqual(defaultArgs(a));
+		expect((await planFor(ENABLED, { dir: b })).cacheArgs).toEqual(defaultArgs(b));
 	});
 
-	it("resolves a relative fsModuleCachePath option against cwd", async () => {
-		const args = await resolveFsModuleCacheArgs({ cwd: tmp, fsModuleCachePath: ".cache/vitest" });
-		expect(args).toEqual([`--fsModuleCachePath=${path.join(tmp, ".cache", "vitest")}`]);
+	it("adds nothing when the cache is off", async () => {
+		expect(await planFor("export default { test: {} };\n")).toEqual({ cacheEnabled: false, cacheArgs: [] });
+		expect(await planFor(ENABLED, { args: ["--fsModuleCache=false"] })).toEqual({ cacheEnabled: false, cacheArgs: [] });
 	});
 
-	it("keeps an absolute fsModuleCachePath option as-is", async () => {
-		const abs = path.join(tmp, "elsewhere");
-		const args = await resolveFsModuleCacheArgs({ cwd: path.join(tmp, "pkg"), fsModuleCachePath: abs });
-		expect(args).toEqual([`--fsModuleCachePath=${abs}`]);
+	it("keeps a path set in the root config", async () => {
+		const plan = await planFor('export default { test: { fsModuleCache: true, fsModuleCachePath: ".my-cache" } };\n');
+		expect(plan).toEqual({ cacheEnabled: true, cacheArgs: [] });
 	});
 
-	it("adds nothing when fsModuleCachePath is false", async () => {
-		expect(await resolveFsModuleCacheArgs({ cwd: tmp, fsModuleCachePath: false })).toEqual([]);
+	it("keeps a path set in one project's own config", async () => {
+		await write(
+			path.join(tmp, "packages", "a", "vitest.config.mjs"),
+			'export default { test: { name: "a", fsModuleCache: true, fsModuleCachePath: ".a-cache" } };\n'
+		);
+		await write(path.join(tmp, "packages", "b", "vitest.config.mjs"), 'export default { test: { name: "b", fsModuleCache: true } };\n');
+		const plan = await planFor('export default { test: { projects: ["packages/*"] } };\n');
+		expect(plan).toEqual({ cacheEnabled: true, cacheArgs: [] });
 	});
 
-	it("adds nothing when the passthrough args set --fsModuleCachePath", async () => {
-		expect(await resolveFsModuleCacheArgs({ cwd: tmp, vitestArgs: ["--fsModuleCachePath", "x"] })).toEqual([]);
-		expect(await resolveFsModuleCacheArgs({ cwd: tmp, vitestArgs: ["--fsModuleCachePath=x"] })).toEqual([]);
-		// The passthrough wins over the runner option too.
-		expect(await resolveFsModuleCacheArgs({ cwd: tmp, vitestArgs: ["--fsModuleCachePath=x"], fsModuleCachePath: "y" })).toEqual([]);
+	it("keeps a path that the config pulls in from a shared file", async () => {
+		await write(path.join(tmp, "shared.mjs"), 'export default { test: { fsModuleCache: true, fsModuleCachePath: ".shared-cache" } };\n');
+		const plan = await planFor(
+			'import { mergeConfig } from "vitest/config";\nimport shared from "./shared.mjs";\nexport default mergeConfig(shared, { test: {} });\n'
+		);
+		expect(plan).toEqual({ cacheEnabled: true, cacheArgs: [] });
 	});
 
-	it("keeps a repo's own fsModuleCachePath from its vitest config", async () => {
-		const config = path.join(tmp, "vitest.config.mjs");
-		await fs.writeFile(config, 'export default { test: { fsModuleCachePath: ".my-cache" } };\n');
-		expect(await resolveFsModuleCacheArgs({ cwd: tmp, vitestConfig: config })).toEqual([]);
+	it("resolves the config with the passthrough args the workers get", async () => {
+		const config =
+			'export default ({ mode }) => ({ test: { fsModuleCache: true, ...(mode === "shared" && { fsModuleCachePath: ".x" }) } });\n';
+		expect((await planFor(config)).cacheArgs).toEqual(defaultArgs(tmp));
+		expect((await planFor(config, { args: ["--mode", "shared"] })).cacheArgs).toEqual([]);
 	});
 
-	it("still sets the path when the config doesn't mention fsModuleCachePath", async () => {
-		const config = path.join(tmp, "vitest.config.mjs");
-		await fs.writeFile(config, "export default { test: { fsModuleCache: true } };\n");
-		const args = await resolveFsModuleCacheArgs({ cwd: tmp, vitestConfig: config });
-		expect(args).toEqual([`--fsModuleCachePath=${path.join(tmp, DEFAULT_FS_MODULE_CACHE_DIR)}`]);
+	it("uses the fsModuleCachePath option over a path in the config", async () => {
+		const plan = await planFor('export default { test: { fsModuleCache: true, fsModuleCachePath: ".my-cache" } };\n', {
+			fsModuleCachePath: ".runner-cache"
+		});
+		expect(plan.cacheArgs).toEqual([`--fsModuleCachePath=${path.join(tmp, ".runner-cache")}`]);
 	});
 
-	it("treats an unreadable config path as not setting the path", async () => {
-		const args = await resolveFsModuleCacheArgs({ cwd: tmp, vitestConfig: path.join(tmp, "missing.config.mjs") });
-		expect(args).toEqual([`--fsModuleCachePath=${path.join(tmp, DEFAULT_FS_MODULE_CACHE_DIR)}`]);
+	it("adds nothing when the fsModuleCachePath option is false", async () => {
+		expect(await planFor(ENABLED, { fsModuleCachePath: false })).toEqual({ cacheEnabled: true, cacheArgs: [] });
+	});
+
+	it("leaves a --fsModuleCachePath passthrough arg alone, even over the option", async () => {
+		const elsewhere = path.join(tmp, "elsewhere");
+		expect((await planFor(ENABLED, { args: ["--fsModuleCachePath", elsewhere] })).cacheArgs).toEqual([]);
+		expect((await planFor(ENABLED, { args: [`--fsModuleCachePath=${elsewhere}`], fsModuleCachePath: "x" })).cacheArgs).toEqual([]);
+	});
+});
+
+describe("planFsModuleCache() — config shapes", () => {
+	it("works when the resolved config has no project list", async () => {
+		// A stand-in vitest/node whose resolveConfig returns only the root config.
+		const stub = {
+			parseCLI: () => ({ options: {} }),
+			resolveConfig: async () => ({ test: { fsModuleCache: true } })
+		};
+		expect(await planFsModuleCache(stub, { cwd: tmp })).toEqual({ cacheEnabled: true, cacheArgs: defaultArgs(tmp) });
 	});
 });
 
 describe("warmFsModuleCache()", () => {
-	let tmp;
-
-	beforeEach(async () => {
-		tmp = await makeTmp("warm");
-	});
-
-	afterEach(async () => {
-		await fs.rm(tmp, { recursive: true, force: true });
-	});
-
 	it("clears a cache whose lockfile hash is stale and records the current hash", async () => {
 		const cacheDir = path.join(tmp, "cache");
 		const sentinel = await plantStaleCache(cacheDir);
+		const configFile = await write(path.join(tmp, "vitest.config.mjs"), ENABLED);
 
-		const code = await warmFsModuleCache({
-			cwd: PKG_ROOT,
-			vitestBin: VITEST_BIN,
-			vitestConfig: FIXTURE_CONFIG,
-			filePath: path.join(CACHE_FIXTURES, "c1.test.vitest.mjs"),
-			vitestArgs: ["--reporter=verbose", "--fsModuleCache"],
-			cacheArgs: [`--fsModuleCachePath=${cacheDir}`],
-			conditions: ["vitest-runner-dev"]
-		});
+		await warmFsModuleCache(vitestNode, { cwd: tmp, args: ["--config", configFile], cacheArgs: [`--fsModuleCachePath=${cacheDir}`] });
 
-		expect(code).toBe(0);
 		expect(existsSync(sentinel)).toBe(false);
 		const metadata = JSON.parse(await fs.readFile(path.join(cacheDir, "_metadata.json"), "utf8"));
 		expect(metadata.lockfileHash).not.toBe("stale000");
 	});
+});
 
-	it("forwards a passthrough --fsModuleCachePath given as a separate value token", async () => {
-		const cacheDir = path.join(tmp, "passthrough-cache");
+describe("prepareFsModuleCache()", () => {
+	it("returns the helper's plan without warming when not asked to", async () => {
+		const vitestConfig = await write(path.join(tmp, "vitest.config.mjs"), ENABLED);
+		const result = await prepareFsModuleCache({ cwd: tmp, vitestConfig });
+		expect(result).toEqual({ cacheEnabled: true, cacheArgs: defaultArgs(tmp), warmed: false });
+	});
+
+	it("does the lockfile check once when asked to", async () => {
+		const cacheDir = path.join(tmp, "cache");
 		const sentinel = await plantStaleCache(cacheDir);
+		const vitestConfig = await write(path.join(tmp, "vitest.config.mjs"), ENABLED);
 
-		const code = await warmFsModuleCache({
-			cwd: PKG_ROOT,
-			vitestBin: VITEST_BIN,
-			vitestConfig: FIXTURE_CONFIG,
-			filePath: path.join(CACHE_FIXTURES, "c1.test.vitest.mjs"),
-			vitestArgs: ["--fsModuleCache", "--fsModuleCachePath", cacheDir]
-		});
+		const result = await prepareFsModuleCache({ cwd: tmp, vitestConfig, fsModuleCachePath: cacheDir, warm: true });
 
-		expect(code).toBe(0);
+		expect(result.warmed).toBe(true);
 		expect(existsSync(sentinel)).toBe(false);
 	});
 
-	it("sets NODE_ENV from nodeEnv when the parent has none", async () => {
-		// Stand-in vitest binary: exits 0 only if it was given the expected NODE_ENV.
-		const fakeBin = path.join(tmp, "node-env-check.mjs");
-		await fs.writeFile(fakeBin, 'process.exit(process.env.NODE_ENV === "production" ? 0 : 3);\n');
-		const saved = process.env.NODE_ENV;
-		delete process.env.NODE_ENV;
-		try {
-			const code = await warmFsModuleCache({ cwd: tmp, vitestBin: fakeBin, vitestConfig: undefined, filePath: "x", nodeEnv: "production" });
-			expect(code).toBe(0);
-		} finally {
-			process.env.NODE_ENV = saved;
-		}
+	it("doesn't warm when the cache is off", async () => {
+		const vitestConfig = await write(path.join(tmp, "vitest.config.mjs"), "export default { test: {} };\n");
+		expect(await prepareFsModuleCache({ cwd: tmp, vitestConfig, warm: true })).toEqual({
+			cacheEnabled: false,
+			cacheArgs: [],
+			warmed: false
+		});
 	});
 
-	it("resolves 1 when the process is killed by a signal", async () => {
-		const code = await warmFsModuleCache({
-			cwd: PKG_ROOT,
-			vitestBin: path.join(FIXTURES, "signal-exit", "signal-self.mjs"),
-			vitestConfig: undefined,
-			filePath: "x"
-		});
-		expect(code).toBe(1);
+	it("finishes when the config leaves a handle open", async () => {
+		const vitestConfig = await write(path.join(tmp, "vitest.config.mjs"), `setInterval(() => {}, 1000);\n${ENABLED}`);
+		const result = await prepareFsModuleCache({ cwd: tmp, vitestConfig, warm: true });
+		expect(result).toEqual({ cacheEnabled: true, cacheArgs: defaultArgs(tmp), warmed: true });
 	});
 
-	it("resolves 1 when the process cannot be spawned", async () => {
-		const code = await warmFsModuleCache({
-			cwd: path.join(tmp, "does-not-exist"),
-			vitestBin: VITEST_BIN,
-			vitestConfig: undefined,
-			filePath: "x.test.vitest.mjs"
+	it("passes NODE_ENV from nodeEnv to the helper when the parent has none", async () => {
+		vi.stubEnv("NODE_ENV", undefined);
+		const vitestConfig = await write(
+			path.join(tmp, "vitest.config.mjs"),
+			'export default { test: { fsModuleCache: process.env.NODE_ENV === "production" } };\n'
+		);
+		const result = await prepareFsModuleCache({ cwd: tmp, vitestConfig, nodeEnv: "production" });
+		expect(result.cacheEnabled).toBe(true);
+	});
+
+	it("adds nothing when the config fails to load", async () => {
+		const vitestConfig = await write(path.join(tmp, "vitest.config.mjs"), 'throw new Error("broken config");\n');
+		const result = await prepareFsModuleCache({ cwd: tmp, vitestConfig, warm: true });
+		expect(result).toMatchObject({ cacheArgs: [], warmed: false });
+		expect(result.error).toMatch(/broken config/);
+	});
+
+	it("kills the helper and adds nothing when it doesn't finish in time", async () => {
+		const vitestConfig = await write(
+			path.join(tmp, "vitest.config.mjs"),
+			`await new Promise(() => setInterval(() => {}, 1000));\n${ENABLED}`
+		);
+		const result = await prepareFsModuleCache({ cwd: tmp, vitestConfig, timeoutMs: 1500 });
+		expect(result).toMatchObject({ cacheArgs: [], warmed: false });
+		expect(result.error).toMatch(/without a result/);
+	});
+
+	it("adds nothing when the helper can't be started", async () => {
+		const result = await prepareFsModuleCache({ cwd: path.join(tmp, "does-not-exist"), vitestConfig: undefined });
+		expect(result).toMatchObject({ cacheArgs: [], warmed: false });
+		expect(result.error).toBeTruthy();
+	});
+
+	it("skips when the installed vitest can't be read", async () => {
+		await write(path.join(tmp, "node_modules", "vitest", "package.json"), "not json\n");
+		expect(await prepareFsModuleCache({ cwd: tmp, vitestConfig: undefined, warm: true })).toEqual({
+			cacheEnabled: false,
+			cacheArgs: [],
+			warmed: false
 		});
-		expect(code).toBe(1);
+	});
+
+	it("skips vitest older than 5 without starting the helper", async () => {
+		await write(path.join(tmp, "node_modules", "vitest", "package.json"), '{ "name": "vitest", "version": "4.1.0" }\n');
+		expect(await prepareFsModuleCache({ cwd: tmp, vitestConfig: undefined, warm: true })).toEqual({
+			cacheEnabled: false,
+			cacheArgs: [],
+			warmed: false
+		});
 	});
 });
 
 describe("run() — parallel workers after a lockfile change", () => {
-	let tmp;
-	let savedEnv;
-
-	beforeEach(async () => {
-		tmp = await makeTmp("run");
-		savedEnv = { ...process.env };
-	});
-
-	afterEach(async () => {
-		process.env = savedEnv;
-		await fs.rm(tmp, { recursive: true, force: true });
-	});
-
-	it("starts 4 workers without a startup error and clears the cache once, before they start", async () => {
+	it("starts 4 workers without a startup error, with one clear done by the helper", async () => {
 		const cacheDir = path.join(tmp, "cache");
 		const probeLog = path.join(tmp, "clears.log");
 		const sentinel = await plantStaleCache(cacheDir);
 
-		// Children inherit this env; the probe logs each process that clears cacheDir.
-		process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS ?? ""} --import=${PROBE}`.trim();
-		process.env.FS_CACHE_PROBE_DIR = cacheDir;
-		process.env.FS_CACHE_PROBE_LOG = probeLog;
+		// Children inherit these; the probe records each process that clears cacheDir.
+		vi.stubEnv("NODE_OPTIONS", `${process.env.NODE_OPTIONS ?? ""} --import=${PROBE}`.trim());
+		vi.stubEnv("FS_CACHE_PROBE_DIR", cacheDir);
+		vi.stubEnv("FS_CACHE_PROBE_LOG", probeLog);
 
 		const report = await run({
 			cwd: PKG_ROOT,
@@ -252,6 +305,6 @@ describe("run() — parallel workers after a lockfile change", () => {
 		}
 		expect(existsSync(sentinel)).toBe(false);
 		const clears = (await fs.readFile(probeLog, "utf8")).trim().split("\n");
-		expect(clears).toHaveLength(1);
+		expect(clears).toEqual(["fs-cache-helper.mjs"]);
 	}, 120_000);
 });

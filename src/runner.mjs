@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T06:46:31-07:00 (1793022391)
+ *	@Last modified time: 2026-10-26T07:59:45-07:00 (1793026785)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -47,7 +47,7 @@ import chalk from "chalk";
 import { resolveBin, resolveVitestConfig } from "./utils/resolve.mjs";
 import { discoverVitestFiles, computeFilterConflicts } from "./core/discover.mjs";
 import { runSingleFile, runMergeReports } from "./core/spawn.mjs";
-import { resolveFsModuleCacheArgs, warmFsModuleCache } from "./core/fs-cache.mjs";
+import { prepareFsModuleCache } from "./core/fs-cache.mjs";
 import { deduplicateErrors } from "./core/parse.mjs";
 import { createCoverageProgressTracker, noopProgressTracker } from "./core/progress.mjs";
 import { printQuietCoverageFailureDetails, printMergeOutput, printCoverageSummary } from "./core/report.mjs";
@@ -93,7 +93,7 @@ import {
  * @property {string} [nodeEnv='development'] - Value for `NODE_ENV` in child processes.
  * @property {string} [scratchDir='tmp/vitest-runner'] - Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`.
  * @property {boolean} [keepTmp=false] - Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM).
- * @property {string|false} [fsModuleCachePath] - Vitest `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Defaults to `<cwd>/node_modules/.vitest-cache` so packages in one workspace don't share (and clear) one cache. Not applied when the vitest config or the passthrough args set `fsModuleCachePath`; `false` leaves vitest's own default in place.
+ * @property {string|false} [fsModuleCachePath] - Vitest 5+ `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Takes precedence over `fsModuleCachePath` in the vitest config; a `--fsModuleCachePath` passthrough arg takes precedence over this. When unset, children use `<cwd>/node_modules/.vitest-cache` unless the resolved config (root or any project) sets a path. `false` adds nothing and leaves vitest's own setting in place.
  * @property {object[] | null} [_testResultsOverride=null] - @internal Inject pre-built results to bypass discovery and spawn (for testing final-report render paths).
  */
 
@@ -212,21 +212,22 @@ async function runImpl(opts, scratchRoot) {
 
 	const vitestArgs = [...rawVitestArgs];
 
-	// Per-package fsModuleCache directory — see core/fs-cache.mjs. Kept apart from
+	// fsModuleCache args for every child — see core/fs-cache.mjs. Kept apart from
 	// vitestArgs so reports and JSON output show only the caller's own args.
-	const cacheArgs = await resolveFsModuleCacheArgs({ cwd, vitestArgs, vitestConfig, fsModuleCachePath });
+	let cacheArgs = [];
 
 	/**
-	 * Before the worker pool starts, let one process do vitest's lockfile check
-	 * so parallel workers never clear the cache at the same time. Skipped when
-	 * a solo file already ran first or the pool never runs more than one file.
+	 * Decide the cache directory before any file runs and, when several files
+	 * will start at once, do vitest's lockfile check once so parallel workers
+	 * never clear the cache at the same time. The check is skipped when a solo
+	 * file runs first (it does the check alone) or files never run in parallel.
 	 * @param {string[]} soloFiles
 	 * @param {string[]} parallelFiles
 	 * @returns {Promise<void>}
 	 */
-	const warmCacheBeforePool = async (soloFiles, parallelFiles) => {
-		if (soloFiles.length > 0 || workers < 2 || parallelFiles.length < 2) return;
-		await warmFsModuleCache({ ...spawnBase, filePath: parallelFiles[0], vitestArgs, cacheArgs });
+	const prepareCache = async (soloFiles, parallelFiles) => {
+		const warm = soloFiles.length === 0 && workers >= 2 && parallelFiles.length >= 2;
+		({ cacheArgs } = await prepareFsModuleCache({ ...spawnBase, vitestArgs, fsModuleCachePath, warm }));
 	};
 
 	// --coverage-quiet implies --coverage
@@ -355,6 +356,8 @@ async function runImpl(opts, scratchRoot) {
 			}
 		};
 
+		await prepareCache(soloFiles, parallelFiles);
+
 		// Phase 1: solo files — one at a time
 		for (const filePath of soloFiles) {
 			await runCoverageFile(filePath).catch((err) => {
@@ -363,7 +366,6 @@ async function runImpl(opts, scratchRoot) {
 		}
 
 		// Phase 2: parallel files with worker pool
-		await warmCacheBeforePool(soloFiles, parallelFiles);
 		let coverageFileIndex = 0;
 		const coverageActivePromises = new Set();
 
@@ -598,6 +600,8 @@ async function runImpl(opts, scratchRoot) {
 	};
 
 	if (!_testResultsOverride) {
+		await prepareCache(soloFiles, parallelFiles);
+
 		// Phase 1: solo files
 		for (const filePath of soloFiles) {
 			const result = await runTestFile(filePath).catch((err) => {
@@ -608,7 +612,6 @@ async function runImpl(opts, scratchRoot) {
 		}
 
 		// Phase 2: parallel files with worker pool
-		await warmCacheBeforePool(soloFiles, parallelFiles);
 		let index = 0;
 		const activePromises = new Set();
 
@@ -816,4 +819,4 @@ export { formatDuration } from "./utils/duration.mjs";
 export { stripAnsi, colourPct } from "./utils/ansi.mjs";
 export { buildNodeOptions } from "./utils/env.mjs";
 export { makeRunTmpDir } from "./core/scratch.mjs";
-export { resolveFsModuleCacheArgs, warmFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
+export { prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
