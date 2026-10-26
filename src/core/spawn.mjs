@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:22-07:00 (1790980522)
+ *	@Last modified time: 2026-10-26T06:46:31-07:00 (1793022391)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -196,7 +196,7 @@ export function runVitestDirect(opts) {
  * using `vitest --mergeReports`.
  *
  * @param {string} blobsDir - Directory containing the `.blob` files to merge.
- * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], quietOutput?: boolean }} opts
+ * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], extraArgs?: string[], quietOutput?: boolean }} opts
  * @returns {Promise<{ exitCode: number, output: string }>}
  * @example
  * const { exitCode } = await runMergeReports('/project/.vitest-blobs', {
@@ -213,6 +213,8 @@ export function runMergeReports(blobsDir, opts) {
 		conditions = [],
 		nodeEnv = "development",
 		extraCoverageArgs = [],
+		// Non-coverage args for the merge process (e.g. --fsModuleCachePath — see core/fs-cache.mjs).
+		extraArgs = [],
 		quietOutput = false
 	} = opts;
 
@@ -220,7 +222,17 @@ export function runMergeReports(blobsDir, opts) {
 		const configArgs = vitestConfig ? ["--config", vitestConfig] : [];
 		const mergeReporterArgs = quietOutput ? ["--color"] : [];
 
-		const args = [vitestBin, ...configArgs, "--mergeReports", blobsDir, "--run", "--coverage", ...mergeReporterArgs, ...extraCoverageArgs];
+		const args = [
+			vitestBin,
+			...configArgs,
+			"--mergeReports",
+			blobsDir,
+			"--run",
+			"--coverage",
+			...mergeReporterArgs,
+			...extraCoverageArgs,
+			...extraArgs
+		];
 
 		const env = buildEnv({ maxOldSpaceMb, conditions, nodeEnv });
 		const child = spawn(process.execPath, args, {
