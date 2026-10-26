@@ -14,17 +14,18 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.5.4 (October 2026)
+### Latest: v1.5.5 (October 2026)
 
-- **Dev-tooling dependency update, nothing new in the package** — `@cldmv/fix-headers` moves to 2.2.0 ([#74](https://github.com/CLDMV/vitest-runner/pull/74), [#78](https://github.com/CLDMV/vitest-runner/pull/78)), `@cldmv/configs` to 1.2.4 ([#78](https://github.com/CLDMV/vitest-runner/pull/78)) and the dev-only `brace-expansion` to 5.0.12 ([#76](https://github.com/CLDMV/vitest-runner/pull/76)). What the package ships is identical to v1.5.3.
-- [View full v1.5.4 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md)
+- **No more `ENOTEMPTY` startup errors from Vitest 5's module cache** — after a lockfile change, parallel workers could all try to delete the shared `node_modules/.vitest-cache` at once and fail, and packages with their own lockfile kept clearing each other's cache. The runner now gives each package its own cache directory and does Vitest's lockfile check once, before the workers start. A new `fsModuleCachePath` option sets or turns off the per-package path ([#101](https://github.com/CLDMV/vitest-runner/pull/101)).
+- **Entry sources renamed** to `src/index.mjs` and `src/index.cjs`, so the CommonJS entry is tested from source. The published files are unchanged ([#102](https://github.com/CLDMV/vitest-runner/pull/102)).
+- [View full v1.5.5 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.5.md)
 
 ### Recent Releases
 
+- **v1.5.4** (October 2026) — Dev-tooling dependency update (`@cldmv/fix-headers` 2.2.0, `@cldmv/configs` 1.2.4); the published package is identical to v1.5.3 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md))
 - **v1.5.3** (October 2026) — A bundler-friendly CommonJS entry that fails clearly on Node.js without `require(esm)`, and `engines.node` raised to `>=22.12.0` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md))
 - **v1.5.2** (October 2026) — `chalk` moves to 6.0.1, a skipped PR run can no longer satisfy `✅ Required PR Check`, and the repository adopts the shared CLDMV fix-headers config ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.2.md))
 - **v1.5.1** (September 2026) — Documentation-only release that backfilled the missing v1.5.0 changelog ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.1.md))
-- **v1.5.0** (September 2026) — Added an `exclude` option (API + repeatable `--exclude <glob>` CLI flag) so discovery can skip directories/files like `tmp/**` worktrees or `dist/**` build output ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.0.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
@@ -217,7 +218,7 @@ const { run } = require("@cldmv/vitest-runner");
 
 `require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js ^20.19.0 or >=22.12.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
 
-When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/runner.mjs`) instead of the built `dist/`.
+When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) instead of the built `dist/`.
 
 ### `run(options)` → `Promise<number | object>`
 
@@ -235,47 +236,34 @@ process.exit(code);
 
 #### Options
 
-| Option                 | Type                    | Default                        | Description                                                                                                                                                                                                                                              |
-| ---------------------- | ----------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cwd`                  | `string`                | `process.cwd()`                | Absolute project root directory                                                                                                                                                                                                                          |
-| `testDir`              | `string`                | `cwd`                          | Directory (absolute or relative to `cwd`) to scan for `*.test.vitest.{js,mjs,cjs}` files                                                                                                                                                                 |
-| `vitestConfig`         | `string`                | auto-detect                    | Explicit vitest config path; when omitted the runner walks standard config names (`vitest.config.ts`, `vite.config.ts`, etc.) relative to `cwd`                                                                                                          |
-| `testPatterns`         | `string[]`              | `[]`                           | File / folder patterns to filter — empty means all files in `testDir`                                                                                                                                                                                    |
-| `testListFile`         | `string`                | `undefined`                    | Path to a JSON array of test file paths; when set, scanning is skipped entirely                                                                                                                                                                          |
-| `testFilePattern`      | `RegExp`                | `DEFAULT_TEST_FILE_PATTERN`    | Regex matched against file names during discovery (`*.test.vitest.{js,mjs,cjs}` by default)                                                                                                                                                              |
-| `exclude`              | `string[]`              | `[]`                           | Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution                                                                                         |
-| `vitestArgs`           | `string[]`              | `[]`                           | Extra CLI args forwarded verbatim to every vitest invocation                                                                                                                                                                                             |
-| `showErrorDetails`     | `boolean`               | `true`                         | Print inline error blocks under each failed file in the summary                                                                                                                                                                                          |
-| `coverageQuiet`        | `boolean`               | `false`                        | Suppress per-file output; show only the progress bar and final summaries                                                                                                                                                                                 |
-| `suppressFileOutput`   | `boolean`               | `false`                        | Suppress per-file runner output blocks in all modes                                                                                                                                                                                                      |
-| `suppressPassingFiles` | `boolean`               | `false`                        | Hide passed-file rows in the final summary                                                                                                                                                                                                               |
-| `topSummary`           | `boolean`               | `true`                         | Show or hide top memory/duration summary sections (and JSON arrays)                                                                                                                                                                                      |
-| `json`                 | `boolean`               | `false`                        | Return a JSON report object instead of printing text output                                                                                                                                                                                              |
-| `workers`              | `number`                | `4`                            | Maximum parallel worker slots (overrides `VITEST_WORKERS`)                                                                                                                                                                                               |
-| `worstCoverageCount`   | `number`                | `10`                           | Rows in the worst-coverage table after a coverage run (`0` disables it)                                                                                                                                                                                  |
-| `blobsDir`             | `string`                | `<cwd>/.vitest-coverage-blobs` | Directory for per-file coverage blobs. Relative paths resolve against `cwd`. Always cleared at the start of a coverage run                                                                                                                               |
-| `mergeReports`         | `boolean`               | `true`                         | When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted. When `false`, the run stops after producing blobs — no merge, no summary — and `blobsDir` is left populated for an external merge |
-| `maxOldSpaceMb`        | `number`                | `undefined`                    | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`)                                                                                                                                                                                 |
-| `earlyRunPatterns`     | `string[]`              | `[]`                           | Path substrings — matching files run solo (one at a time) before the parallel worker pool starts                                                                                                                                                         |
-| `perFileHeapOverrides` | `PerFileHeapOverride[]` | `[]`                           | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins                                                                                                                                                                             |
-| `conditions`           | `string[]`              | `[]`                           | Additional `--conditions` Node flags forwarded to children                                                                                                                                                                                               |
-| `nodeEnv`              | `string`                | `'development'`                | Value written to `NODE_ENV` in child processes                                                                                                                                                                                                           |
-| `scratchDir`           | `string`                | `'tmp/vitest-runner'`          | Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`                                                                                                           |
-| `keepTmp`              | `boolean`               | `false`                        | Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM)                                                                                                                                               |
-
-### Scratch directories (`VITEST_RUNNER_TMP` / `makeRunTmpDir`)
-
-Every run gets its own scratch root (`<scratchDir>/<pid>-<timestamp>/`), created before any file runs and removed once the run completes — on success, on failure, and on SIGINT/SIGTERM — unless `keepTmp` is set. Each file invocation gets its own subdirectory under that root, exposed to the child as `process.env.VITEST_RUNNER_TMP`. Stale roots left by a crashed prior run (dead PID) are swept at the start of the next run.
-
-From a test file, use `makeRunTmpDir(label)` to get a fresh, uniquely-named subdirectory instead of managing your own `mkdtemp` base:
-
-```js
-import { makeRunTmpDir } from "@cldmv/vitest-runner";
-
-const dir = makeRunTmpDir("my-fixture"); // a fresh directory under VITEST_RUNNER_TMP
-```
-
-CLI flags: `--scratch-dir <path>` and `--keep-tmp` (see [Runner flags](#runner-flags) above).
+| Option                 | Type                    | Default                            | Description                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | ----------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cwd`                  | `string`                | `process.cwd()`                    | Absolute project root directory                                                                                                                                                                                                                                                                                                                               |
+| `testDir`              | `string`                | `cwd`                              | Directory (absolute or relative to `cwd`) to scan for `*.test.vitest.{js,mjs,cjs}` files                                                                                                                                                                                                                                                                      |
+| `vitestConfig`         | `string`                | auto-detect                        | Explicit vitest config path; when omitted the runner walks standard config names (`vitest.config.ts`, `vite.config.ts`, etc.) relative to `cwd`                                                                                                                                                                                                               |
+| `testPatterns`         | `string[]`              | `[]`                               | File / folder patterns to filter — empty means all files in `testDir`                                                                                                                                                                                                                                                                                         |
+| `testListFile`         | `string`                | `undefined`                        | Path to a JSON array of test file paths; when set, scanning is skipped entirely                                                                                                                                                                                                                                                                               |
+| `testFilePattern`      | `RegExp`                | `DEFAULT_TEST_FILE_PATTERN`        | Regex matched against file names during discovery (`*.test.vitest.{js,mjs,cjs}` by default)                                                                                                                                                                                                                                                                   |
+| `exclude`              | `string[]`              | `[]`                               | Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution                                                                                                                                                                                              |
+| `vitestArgs`           | `string[]`              | `[]`                               | Extra CLI args forwarded verbatim to every vitest invocation                                                                                                                                                                                                                                                                                                  |
+| `showErrorDetails`     | `boolean`               | `true`                             | Print inline error blocks under each failed file in the summary                                                                                                                                                                                                                                                                                               |
+| `coverageQuiet`        | `boolean`               | `false`                            | Suppress per-file output; show only the progress bar and final summaries                                                                                                                                                                                                                                                                                      |
+| `suppressFileOutput`   | `boolean`               | `false`                            | Suppress per-file runner output blocks in all modes                                                                                                                                                                                                                                                                                                           |
+| `suppressPassingFiles` | `boolean`               | `false`                            | Hide passed-file rows in the final summary                                                                                                                                                                                                                                                                                                                    |
+| `topSummary`           | `boolean`               | `true`                             | Show or hide top memory/duration summary sections (and JSON arrays)                                                                                                                                                                                                                                                                                           |
+| `json`                 | `boolean`               | `false`                            | Return a JSON report object instead of printing text output                                                                                                                                                                                                                                                                                                   |
+| `workers`              | `number`                | `4`                                | Maximum parallel worker slots (overrides `VITEST_WORKERS`)                                                                                                                                                                                                                                                                                                    |
+| `worstCoverageCount`   | `number`                | `10`                               | Rows in the worst-coverage table after a coverage run (`0` disables it)                                                                                                                                                                                                                                                                                       |
+| `blobsDir`             | `string`                | `<cwd>/.vitest-coverage-blobs`     | Directory for per-file coverage blobs. Relative paths resolve against `cwd`. Always cleared at the start of a coverage run                                                                                                                                                                                                                                    |
+| `mergeReports`         | `boolean`               | `true`                             | When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted. When `false`, the run stops after producing blobs — no merge, no summary — and `blobsDir` is left populated for an external merge                                                                                                      |
+| `maxOldSpaceMb`        | `number`                | `undefined`                        | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`)                                                                                                                                                                                                                                                                                      |
+| `earlyRunPatterns`     | `string[]`              | `[]`                               | Path substrings — matching files run solo (one at a time) before the parallel worker pool starts                                                                                                                                                                                                                                                              |
+| `perFileHeapOverrides` | `PerFileHeapOverride[]` | `[]`                               | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins                                                                                                                                                                                                                                                                                  |
+| `conditions`           | `string[]`              | `[]`                               | Additional `--conditions` Node flags forwarded to children                                                                                                                                                                                                                                                                                                    |
+| `nodeEnv`              | `string`                | `'development'`                    | Value written to `NODE_ENV` in child processes                                                                                                                                                                                                                                                                                                                |
+| `scratchDir`           | `string`                | `'tmp/vitest-runner'`              | Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`                                                                                                                                                                                                                |
+| `keepTmp`              | `boolean`               | `false`                            | Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM)                                                                                                                                                                                                                                                    |
+| `fsModuleCachePath`    | `string \| false`       | `<cwd>/node_modules/.vitest-cache` | Vitest 5+ `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Overrides a path in the vitest config; a `--fsModuleCachePath` passthrough arg overrides this. When unset, the default applies only if the resolved config (root or any project) sets no path. `false` adds nothing. See [Vitest's module cache](#vitests-module-cache) |
 
 #### `PerFileHeapOverride`
 
@@ -330,6 +318,38 @@ await run({
 ```
 
 ---
+
+### Scratch directories (`VITEST_RUNNER_TMP` / `makeRunTmpDir`)
+
+Every run gets its own scratch root (`<scratchDir>/<pid>-<timestamp>/`), created before any file runs and removed once the run completes — on success, on failure, and on SIGINT/SIGTERM — unless `keepTmp` is set. Each file invocation gets its own subdirectory under that root, exposed to the child as `process.env.VITEST_RUNNER_TMP`. Stale roots left by a crashed prior run (dead PID) are swept at the start of the next run.
+
+From a test file, use `makeRunTmpDir(label)` to get a fresh, uniquely-named subdirectory instead of managing your own `mkdtemp` base:
+
+```js
+import { makeRunTmpDir } from "@cldmv/vitest-runner";
+
+const dir = makeRunTmpDir("my-fixture"); // a fresh directory under VITEST_RUNNER_TMP
+```
+
+CLI flags: `--scratch-dir <path>` and `--keep-tmp` (see [Runner flags](#runner-flags) above).
+
+### Vitest's module cache
+
+Vitest 5 caches transformed modules on disk (`fsModuleCache`, on by default from 5.0.5). Its default location is `node_modules/.vitest-cache` at the **workspace root**, shared by every package in the workspace, and each vitest process deletes the whole directory on startup when the lockfile differs from the one the cache was written for. Several processes starting at once after a lockfile change all try to delete it, and some fail with `ENOTEMPTY`. Packages in one workspace that have their own lockfile also keep clearing each other's cache.
+
+Before any file runs, the runner starts one short helper process that loads the project's Vitest config (the root and every project) the way the workers will, and:
+
+- **picks a cache per package**: when the cache is on and nothing sets a path, every child gets `--fsModuleCachePath=<cwd>/node_modules/.vitest-cache`, so one package's run never clears another's cache;
+- **checks the lockfile once**: it starts Vitest once with the workers' args, which clears a stale cache, and exits. The workers then start on a cache that matches the lockfile. This step is skipped when solo files run first (the first solo file does the same job), when files never run in parallel, or when the cache is off.
+
+The cache path is chosen in this order:
+
+1. a `--fsModuleCachePath` passthrough arg;
+2. the `fsModuleCachePath` option (`false` adds nothing and leaves Vitest's own setting in place);
+3. `fsModuleCachePath` set anywhere in the resolved config, including a project's own config;
+4. `<cwd>/node_modules/.vitest-cache`.
+
+None of this applies to Vitest before 5, and if the helper fails or takes longer than a minute, the run goes ahead without it. To turn the cache off, pass `--fsModuleCache=false` or set `fsModuleCache: false` in the vitest config.
 
 ## 📊 Coverage mode
 
@@ -419,18 +439,18 @@ await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 ```text
 dist/                  ← built library entry (npm run build / tsup) — generated, not committed
   index.mjs            ← bundled ESM entry
-  index.cjs            ← thin CJS entry, copied verbatim from src/cjs-shim.cjs; require()s index.mjs
+  index.cjs            ← thin CJS entry, copied verbatim from src/index.cjs; require()s index.mjs
 bin/                   ← built CLI binary (npm run build / tsup) — generated, not committed
   vitest-runner.mjs    ← bundled CLI, from src/bin/vitest-runner.mjs (shebang preserved)
 src/
-  runner.mjs           ← main run() API + re-exports
-  cjs-shim.cjs         ← CommonJS entry source (copied to dist/index.cjs by the build)
+  index.mjs            ← main run() API + re-exports
+  index.cjs            ← CommonJS entry source (copied to dist/index.cjs by the build)
   bin/
     vitest-runner.mjs  ← CLI entry SOURCE — run this directly for source-level dev/testing
   utils/
     ansi.mjs           ← stripAnsi, colourPct
     duration.mjs       ← formatDuration
-    env.mjs            ← buildNodeOptions
+    env.mjs            ← buildNodeOptions, buildEnv
     resolve.mjs        ← resolveBin, resolveVitestConfig
   core/
     discover.mjs       ← discoverVitestFiles, sortWithPriority, computeFilterConflicts
@@ -439,6 +459,8 @@ src/
     report.mjs         ← printCoverageSummary, printMergeOutput
     progress.mjs       ← createCoverageProgressTracker
     scratch.mjs        ← makeRunTmpDir + the scratch-directory lifecycle
+    fs-cache.mjs       ← prepareFsModuleCache: Vitest module cache path + one-time lockfile check
+    fs-cache-helper.mjs ← helper process started by fs-cache.mjs (built to dist/ and bin/)
   cli/
     args.mjs           ← parseArguments
     help.mjs           ← showHelp

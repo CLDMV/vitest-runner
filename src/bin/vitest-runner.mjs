@@ -8,7 +8,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:17-07:00 (1790980517)
+ *	@Last modified time: 2026-10-26T07:43:49-07:00 (1793025829)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -19,7 +19,7 @@
  * @module vitest-runner/src/bin/vitest-runner
  *
  * Mirrors its own output to a log file when --coverage-quiet or --log-file is set, then
- * delegates all logic to `runner.mjs` via the programmatic `run()` API.
+ * delegates all logic to `index.mjs` via the programmatic `run()` API.
  *
  * This is the SOURCE — `npm run build` bundles it (with its src/cli/* dependencies
  * inlined) into the published bin/vitest-runner.mjs. bin/ is a build artifact, not
@@ -30,7 +30,7 @@ import { createWriteStream, mkdirSync } from "node:fs";
 import path from "node:path";
 import { parseArguments } from "../cli/args.mjs";
 import { showHelp } from "../cli/help.mjs";
-import { run } from "../runner.mjs";
+import { run } from "../index.mjs";
 import { stripAnsi } from "../utils/ansi.mjs";
 
 const args = parseArguments(process.argv.slice(2));

@@ -51,7 +51,7 @@ export function runVitestDirect(opts: SpawnBaseOptions & {
  * using `vitest --mergeReports`.
  *
  * @param {string} blobsDir - Directory containing the `.blob` files to merge.
- * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], quietOutput?: boolean }} opts
+ * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], extraArgs?: string[], quietOutput?: boolean }} opts
  * @returns {Promise<{ exitCode: number, output: string }>}
  * @example
  * const { exitCode } = await runMergeReports('/project/.vitest-blobs', {
@@ -61,6 +61,7 @@ export function runVitestDirect(opts: SpawnBaseOptions & {
  */
 export function runMergeReports(blobsDir: string, opts: SpawnBaseOptions & {
     extraCoverageArgs?: string[];
+    extraArgs?: string[];
     quietOutput?: boolean;
 }): Promise<{
     exitCode: number;

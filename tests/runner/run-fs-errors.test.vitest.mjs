@@ -7,22 +7,22 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:37-07:00 (1790980537)
+ *	@Last modified time: 2026-10-26T07:43:53-07:00 (1793025833)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
  */
 
 /**
- * @fileoverview Tests for runner.mjs defensive fs error-suppression catch() callbacks.
+ * @fileoverview Tests for index.mjs defensive fs error-suppression catch() callbacks.
  *
  * Uses vi.mock("node:fs/promises") with a factory to make specific fs operations
  * reject, triggering the normally-unreachable .catch() callbacks in run().
  *
  * Covered:
- *   runner.mjs:246  — `fs.readdir(blobsDir).catch(() => [])` fallback
- *   runner.mjs:273  — first  `fs.rm(...).catch(() => {})` cleanup callback
- *   runner.mjs:274  — second `fs.rm(...).catch(() => {})` cleanup callback
+ *   index.mjs:246  — `fs.readdir(blobsDir).catch(() => [])` fallback
+ *   index.mjs:273  — first  `fs.rm(...).catch(() => {})` cleanup callback
+ *   index.mjs:274  — second `fs.rm(...).catch(() => {})` cleanup callback
  */
 import { vi, describe, it, expect, afterEach } from "vitest";
 
@@ -63,7 +63,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "../../src/runner.mjs";
+import { run } from "../../src/index.mjs";
 import { runSingleFile } from "../../src/core/spawn.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -86,7 +86,7 @@ afterEach(() => {
 });
 
 // ─── fs.readdir error → () => [] fallback ────────────────────────────────────
-describe("run() — fs.readdir().catch() fallback (runner.mjs:246)", () => {
+describe("run() — fs.readdir().catch() fallback (index.mjs:246)", () => {
 	it("catches readdir rejection and falls back to [], triggering the no-blobs guard", async () => {
 		// Get the real readdir so discovery continues to work normally.
 		const { readdir: realReaddir } = /** @type {any} */ (await vi.importActual("node:fs/promises"));
@@ -107,7 +107,7 @@ describe("run() — fs.readdir().catch() fallback (runner.mjs:246)", () => {
 			rawOutput: ""
 		});
 
-		// Intercept readdir only for the blobsDir check (runner.mjs:246) so that the
+		// Intercept readdir only for the blobsDir check (index.mjs:246) so that the
 		// `.catch(() => [])` callback fires.  All other readdir calls (discoverVitestFiles)
 		// continue to use the real implementation.
 		vi.mocked(fs.readdir).mockImplementation(async (dir, opts) => {
@@ -124,7 +124,7 @@ describe("run() — fs.readdir().catch() fallback (runner.mjs:246)", () => {
 });
 
 // ─── fs.rm error → () => {} suppression callbacks ────────────────────────────
-describe("run() — fs.rm().catch() suppression callbacks (runner.mjs:273-274)", () => {
+describe("run() — fs.rm().catch() suppression callbacks (index.mjs:273-274)", () => {
 	it("swallows rm rejections during cleanup and continues to a numeric exit code", async () => {
 		// Get the real fs implementations so we can delegate for non-target calls.
 		const { readdir: realReaddir, rm: realRm } = /** @type {any} */ (await vi.importActual("node:fs/promises"));
@@ -144,7 +144,7 @@ describe("run() — fs.rm().catch() suppression callbacks (runner.mjs:273-274)",
 		});
 
 		// Mock readdir conditionally: return a fake blob only for the blobsDir check at
-		// runner.mjs:246; all other readdir calls (e.g. discoverVitestFiles) use the real
+		// index.mjs:246; all other readdir calls (e.g. discoverVitestFiles) use the real
 		// implementation so directory traversal continues to work normally.
 		vi.mocked(fs.readdir).mockImplementation(async (dir, opts) => {
 			if (String(dir).includes(".vitest-coverage-blobs")) {

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:37-07:00 (1790980537)
+ *	@Last modified time: 2026-10-26T07:43:53-07:00 (1793025833)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -26,7 +26,7 @@ import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "../../src/runner.mjs";
+import { run } from "../../src/index.mjs";
 import { stripAnsi } from "../../src/utils/ansi.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -186,7 +186,7 @@ describe("run() — testFilePattern", () => {
 	});
 
 	it("returns 1 (no tests found) when pattern matches nothing", async () => {
-		// Pattern that will never match — runner.mjs returns 1 when no files found
+		// Pattern that will never match — index.mjs returns 1 when no files found
 		const code = await run({
 			...QUIET_BASE,
 			testDir: path.join(FIXTURES, "passing"),
@@ -423,7 +423,7 @@ describe("run() — _testResultsOverride (final-report render paths)", () => {
 		};
 	}
 
-	it("renders 🧠 TOP MEMORY USERS when any result has heapMb set (runner.mjs:376-382)", async () => {
+	it("renders 🧠 TOP MEMORY USERS when any result has heapMb set (index.mjs:376-382)", async () => {
 		// heapMb !== null → withHeap has entries → TOP MEMORY USERS block executes
 		const code = await run({
 			...QUIET_BASE,
@@ -433,7 +433,7 @@ describe("run() — _testResultsOverride (final-report render paths)", () => {
 		expect(code).toBe(0);
 	});
 
-	it("renders max/avg heap in summary when heapMb is set (runner.mjs:473-475)", async () => {
+	it("renders max/avg heap in summary when heapMb is set (index.mjs:473-475)", async () => {
 		// Same condition re-checked at the bottom summary; both paths run together
 		const code = await run({
 			...QUIET_BASE,
@@ -443,7 +443,7 @@ describe("run() — _testResultsOverride (final-report render paths)", () => {
 		expect(code).toBe(0);
 	});
 
-	it("omits test-count suffix in passed-file row when testsPass === 0 (runner.mjs:412 false)", async () => {
+	it("omits test-count suffix in passed-file row when testsPass === 0 (index.mjs:412 false)", async () => {
 		// r.testsPass === 0 → `r.testsPass > 0 ?` is FALSE → testInfo = "" (no count suffix)
 		const code = await run({
 			...QUIET_BASE,
@@ -453,7 +453,7 @@ describe("run() — _testResultsOverride (final-report render paths)", () => {
 		expect(code).toBe(0);
 	});
 
-	it("omits testsFail/testsPass counts and renders empty countStr for failed file (runner.mjs:427/428/432 false branches)", async () => {
+	it("omits testsFail/testsPass counts and renders empty countStr for failed file (index.mjs:427/428/432 false branches)", async () => {
 		// testsFail=0 → line 427 FALSE (no "N failed" entry)
 		// testsPass=0 → line 428 FALSE (no "N passed" entry)
 		// testsSkip=0 → line 429 FALSE (no "N skipped" entry – already covered)
@@ -466,7 +466,7 @@ describe("run() — _testResultsOverride (final-report render paths)", () => {
 		expect(code).toBe(1);
 	});
 
-	it("renders skipped-tests count for failed file and in summary (runner.mjs:429 true + 431 true heapMb + 465 totalSkip>0)", async () => {
+	it("renders skipped-tests count for failed file and in summary (index.mjs:429 true + 431 true heapMb + 465 totalSkip>0)", async () => {
 		// testsSkip=3  → line 429 TRUE  (adds "3 skipped" to testCounts)
 		// heapMb=256   → line 431 TRUE  (adds heapMb to statsInfo in failed file row)
 		// totalTestsSkip = 3 > 0 → line 465 TRUE (adds skipped part to summary Tests line)
@@ -478,7 +478,7 @@ describe("run() — _testResultsOverride (final-report render paths)", () => {
 		expect(code).toBe(1);
 	});
 
-	it("renders error details block for failed file when showErrorDetails is true (runner.mjs:435 true)", async () => {
+	it("renders error details block for failed file when showErrorDetails is true (index.mjs:435 true)", async () => {
 		// showErrorDetails: true + r.errors.length > 0 → the indented error-details block renders
 		const code = await run({
 			...QUIET_BASE,
@@ -591,7 +591,7 @@ describe("run() — coverage json topSummary", () => {
 });
 
 describe("run() — standard mode no-files / vitestArgs passthrough", () => {
-	it("logs testPatterns in no-files message when testPatterns is non-empty (runner.mjs:289 true)", async () => {
+	it("logs testPatterns in no-files message when testPatterns is non-empty (index.mjs:289 true)", async () => {
 		// testPatterns provided but no file matches → 'No Vitest test files found matching: …'
 		// covers the TRUE branch of the testPatterns.length > 0 ternary on line 289.
 		const code = await run({
@@ -602,7 +602,7 @@ describe("run() — standard mode no-files / vitestArgs passthrough", () => {
 		expect(code).toBe(1);
 	});
 
-	it("logs vitestArgs passthrough when vitestArgs is non-empty (runner.mjs:307 true)", async () => {
+	it("logs vitestArgs passthrough when vitestArgs is non-empty (index.mjs:307 true)", async () => {
 		// vitestArgs.length > 0 → line 307 console.log('🔧 Vitest args') is executed.
 		const code = await run({
 			...QUIET_BASE,
@@ -614,7 +614,7 @@ describe("run() — standard mode no-files / vitestArgs passthrough", () => {
 });
 
 describe("run() — per-file heapMb display (real spawn)", () => {
-	it("shows heap info in per-file PASSED line in standard mode (runner.mjs:330 true)", async () => {
+	it("shows heap info in per-file PASSED line in standard mode (index.mjs:330 true)", async () => {
 		// The heap-output fixture emits '512 MB heap used' so parseVitestOutput returns
 		// heapMb=512.  This covers the truthy branch of `result.heapMb ?` in runTestFile.
 		const code = await run({
@@ -624,7 +624,7 @@ describe("run() — per-file heapMb display (real spawn)", () => {
 		expect(code).toBe(0);
 	});
 
-	it("shows heap info in per-file PASSED line in coverage mode (runner.mjs:217 true)", async () => {
+	it("shows heap info in per-file PASSED line in coverage mode (index.mjs:217 true)", async () => {
 		// Same fixture, but run through coverage (blob) mode with coverageQuiet:false so the
 		// per-file display block executes.  heapMb non-null covers line 217 truthy branch.
 		const coverageDir = path.join(CWD, "tmp", "test-coverage-heap-display");
@@ -639,7 +639,7 @@ describe("run() — per-file heapMb display (real spawn)", () => {
 	});
 });
 
-describe("run() — coverage mode testPatterns no-files message (runner.mjs:154)", () => {
+describe("run() — coverage mode testPatterns no-files message (index.mjs:154)", () => {
 	it("logs testPatterns in no-files message when coverage mode + no matching files", async () => {
 		// hasCoverage=true, testPatterns provided but no matches
 		// → the TRUE branch of testPatterns.length > 0 ternary on line 154.
@@ -655,7 +655,7 @@ describe("run() — coverage mode testPatterns no-files message (runner.mjs:154)
 	});
 });
 
-describe("run() — coverageQuiet + --coverage already in vitestArgs (runner.mjs:134/138)", () => {
+describe("run() — coverageQuiet + --coverage already in vitestArgs (index.mjs:134/138)", () => {
 	it("skips unshift when coverageQuiet is true and --coverage is already in vitestArgs", async () => {
 		// coverageQuiet:true && some(a => a==='--coverage') is TRUE
 		// → !some(...) = FALSE → the unshift is skipped (line 134 binary-expr false branch)
@@ -671,7 +671,7 @@ describe("run() — coverageQuiet + --coverage already in vitestArgs (runner.mjs
 		expect(code).toBe(0);
 	});
 
-	it("skips unshift when coverageQuiet is true and vitestArgs has only a dotted --coverage.* arg (runner.mjs:134 startsWith branch)", async () => {
+	it("skips unshift when coverageQuiet is true and vitestArgs has only a dotted --coverage.* arg (index.mjs:134 startsWith branch)", async () => {
 		// coverageQuiet:true + vitestArgs has --coverage.enabled=true but NOT plain --coverage
 		// → some() checks: a==="--coverage" (false) then a.startsWith("--coverage.") (TRUE)
 		// → !some() = false → unshift is skipped; the startsWith("--coverage.") branch is hit
@@ -687,10 +687,10 @@ describe("run() — coverageQuiet + --coverage already in vitestArgs (runner.mjs
 	});
 });
 
-describe("run() — VITEST_HEAP_MB environment variable (runner.mjs:122)", () => {
+describe("run() — VITEST_HEAP_MB environment variable (index.mjs:122)", () => {
 	it("picks up maxOldSpaceMb from VITEST_HEAP_MB when opts.maxOldSpaceMb is not set", async () => {
 		// opts.maxOldSpaceMb is undefined → ?? evaluates right side
-		// process.env.VITEST_HEAP_MB is truthy → parseInt branch is taken (runner.mjs:122)
+		// process.env.VITEST_HEAP_MB is truthy → parseInt branch is taken (index.mjs:122)
 		const saved = process.env.VITEST_HEAP_MB;
 		process.env.VITEST_HEAP_MB = "2048";
 		try {

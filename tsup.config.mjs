@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:40-07:00 (1790980540)
+ *	@Last modified time: 2026-10-26T07:59:54-07:00 (1793026794)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -18,14 +18,14 @@
  *
  * Two entries, two different jobs:
  *  - `index`  → dist/index.mjs (real esbuild bundle) + dist/index.cjs (a thin, hand-written
- *    shim — see src/cjs-shim.cjs — copied in verbatim by onSuccess below, never bundled by
+ *    shim — see src/index.cjs — copied in verbatim by onSuccess below, never bundled by
  *    esbuild). Node's `require()` can load an ES module synchronously and read its exports
- *    directly as long as the module has no top-level await, which src/runner.mjs doesn't —
+ *    directly as long as the module has no top-level await, which src/index.mjs doesn't —
  *    so the shim can just `require("./index.mjs")` instead of esbuild compiling a second,
  *    independent copy of the whole module for the CJS format. Matches @cldmv/uuid's
  *    index.cjs pattern.
  *  - `cli`    → bin/vitest-runner.mjs — the CLI binary, ESM only, bundled from
- *    src/bin/vitest-runner.mjs (with its src/cli/* + runner.mjs dependencies inlined).
+ *    src/bin/vitest-runner.mjs (with its src/cli/* + index.mjs dependencies inlined).
  *    bin/ is the STABLE PUBLISHED PATH (package.json "bin" never changes) but is a
  *    build artifact like dist/ — not tracked in git, overwritten on every build.
  *    src/ is not shipped, so without bundling, the source file's relative imports into
@@ -54,19 +54,21 @@ const shared = {
 export default defineConfig([
 	{
 		...shared,
-		entry: { index: "src/runner.mjs" },
+		// fs-cache-helper is started as its own process by core/fs-cache.mjs, which
+		// finds it next to the bundle that imports it (see the cli entry too).
+		entry: { index: "src/index.mjs", "fs-cache-helper": "src/core/fs-cache-helper.mjs" },
 		format: ["esm"],
 		clean: true,
 		outExtension() {
 			return { js: ".mjs" };
 		},
 		onSuccess() {
-			copyFileSync("src/cjs-shim.cjs", "dist/index.cjs");
+			copyFileSync("src/index.cjs", "dist/index.cjs");
 		}
 	},
 	{
 		...shared,
-		entry: { "vitest-runner": "src/bin/vitest-runner.mjs" },
+		entry: { "vitest-runner": "src/bin/vitest-runner.mjs", "fs-cache-helper": "src/core/fs-cache-helper.mjs" },
 		format: ["esm"],
 		outDir: "bin",
 		clean: false,
