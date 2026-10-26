@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T06:46:33-07:00 (1793022393)
+ *	@Last modified time: 2026-10-26T07:12:07-07:00 (1793023927)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -174,6 +174,30 @@ describe("warmFsModuleCache()", () => {
 
 		expect(code).toBe(0);
 		expect(existsSync(sentinel)).toBe(false);
+	});
+
+	it("sets NODE_ENV from nodeEnv when the parent has none", async () => {
+		// Stand-in vitest binary: exits 0 only if it was given the expected NODE_ENV.
+		const fakeBin = path.join(tmp, "node-env-check.mjs");
+		await fs.writeFile(fakeBin, 'process.exit(process.env.NODE_ENV === "production" ? 0 : 3);\n');
+		const saved = process.env.NODE_ENV;
+		delete process.env.NODE_ENV;
+		try {
+			const code = await warmFsModuleCache({ cwd: tmp, vitestBin: fakeBin, vitestConfig: undefined, filePath: "x", nodeEnv: "production" });
+			expect(code).toBe(0);
+		} finally {
+			process.env.NODE_ENV = saved;
+		}
+	});
+
+	it("resolves 1 when the process is killed by a signal", async () => {
+		const code = await warmFsModuleCache({
+			cwd: PKG_ROOT,
+			vitestBin: path.join(FIXTURES, "signal-exit", "signal-self.mjs"),
+			vitestConfig: undefined,
+			filePath: "x"
+		});
+		expect(code).toBe(1);
 	});
 
 	it("resolves 1 when the process cannot be spawned", async () => {
