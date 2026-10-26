@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:22-07:00 (1790980522)
+ *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -20,7 +20,7 @@
 
 import { spawn } from "node:child_process";
 import { parseVitestOutput } from "./parse.mjs";
-import { buildNodeOptions } from "../utils/env.mjs";
+import { buildEnv } from "../utils/env.mjs";
 
 /**
  * @typedef {Object} SpawnBaseOptions
@@ -31,23 +31,6 @@ import { buildNodeOptions } from "../utils/env.mjs";
  * @property {string[]} [conditions=[]] - Additional `--conditions` flags.
  * @property {string} [nodeEnv='development'] - Value for `NODE_ENV`.
  */
-
-/**
- * Build the environment object for a vitest child process.
- * @param {Pick<SpawnBaseOptions, 'maxOldSpaceMb'|'conditions'|'nodeEnv'> & { extraEnv?: NodeJS.ProcessEnv }} opts
- * @returns {NodeJS.ProcessEnv}
- */
-function buildEnv({ maxOldSpaceMb, conditions = [], nodeEnv = "development", extraEnv = {} }) {
-	const env = { ...process.env };
-	if (!env.NODE_ENV) env.NODE_ENV = nodeEnv;
-
-	const nodeOptions = buildNodeOptions({ maxOldSpaceMb, conditions, base: env.NODE_OPTIONS ?? "" });
-	if (nodeOptions) env.NODE_OPTIONS = nodeOptions;
-
-	Object.assign(env, extraEnv);
-
-	return env;
-}
 
 /**
  * Build the base argument list `[vitestBin, ...configArgs, 'run']`.
@@ -196,7 +179,7 @@ export function runVitestDirect(opts) {
  * using `vitest --mergeReports`.
  *
  * @param {string} blobsDir - Directory containing the `.blob` files to merge.
- * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], quietOutput?: boolean }} opts
+ * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], extraArgs?: string[], quietOutput?: boolean }} opts
  * @returns {Promise<{ exitCode: number, output: string }>}
  * @example
  * const { exitCode } = await runMergeReports('/project/.vitest-blobs', {
@@ -213,6 +196,8 @@ export function runMergeReports(blobsDir, opts) {
 		conditions = [],
 		nodeEnv = "development",
 		extraCoverageArgs = [],
+		// Non-coverage args for the merge process (e.g. --fsModuleCachePath — see core/fs-cache.mjs).
+		extraArgs = [],
 		quietOutput = false
 	} = opts;
 
@@ -220,7 +205,17 @@ export function runMergeReports(blobsDir, opts) {
 		const configArgs = vitestConfig ? ["--config", vitestConfig] : [];
 		const mergeReporterArgs = quietOutput ? ["--color"] : [];
 
-		const args = [vitestBin, ...configArgs, "--mergeReports", blobsDir, "--run", "--coverage", ...mergeReporterArgs, ...extraCoverageArgs];
+		const args = [
+			vitestBin,
+			...configArgs,
+			"--mergeReports",
+			blobsDir,
+			"--run",
+			"--coverage",
+			...mergeReporterArgs,
+			...extraCoverageArgs,
+			...extraArgs
+		];
 
 		const env = buildEnv({ maxOldSpaceMb, conditions, nodeEnv });
 		const child = spawn(process.execPath, args, {

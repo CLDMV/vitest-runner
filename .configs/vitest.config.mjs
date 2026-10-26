@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:06-07:00 (1790980506)
+ *	@Last modified time: 2026-10-26T07:59:34-07:00 (1793026774)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -26,7 +26,10 @@ export default defineConfig({
 			// only via spawnSync into a SEPARATE node process — v8's in-process coverage
 			// collector can't attribute execution across that boundary. Real coverage tool
 			// gap, not untested code; excluded here rather than reported as permanently 0%.
-			exclude: ["src/bin/**"],
+			// src/core/fs-cache-helper.mjs is the same case: it only ever runs as its own
+			// process (started by core/fs-cache.mjs). Its logic lives in fs-cache.mjs,
+			// which tests/core/fs-cache.test.vitest.mjs calls in-process.
+			exclude: ["src/bin/**", "src/core/fs-cache-helper.mjs"],
 			reporter: ["text", "json", "json-summary"]
 		},
 		// Integration tests spawn child processes and can be slow

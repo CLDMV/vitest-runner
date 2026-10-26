@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:24-07:00 (1790980524)
+ *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -37,3 +37,15 @@ export function buildNodeOptions({ maxOldSpaceMb, conditions, base }: {
     conditions?: string[];
     base?: string;
 }): string;
+/**
+ * Build the environment object for a vitest child process (or the fs module
+ * cache helper, which must resolve the config the same way).
+ * @param {{ maxOldSpaceMb?: number, conditions?: string[], nodeEnv?: string, extraEnv?: NodeJS.ProcessEnv }} opts
+ * @returns {NodeJS.ProcessEnv}
+ */
+export function buildEnv({ maxOldSpaceMb, conditions, nodeEnv, extraEnv }: {
+    maxOldSpaceMb?: number;
+    conditions?: string[];
+    nodeEnv?: string;
+    extraEnv?: NodeJS.ProcessEnv;
+}): NodeJS.ProcessEnv;

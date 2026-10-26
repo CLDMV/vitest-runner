@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:40-07:00 (1790980540)
+ *	@Last modified time: 2026-10-26T07:59:54-07:00 (1793026794)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -54,7 +54,9 @@ const shared = {
 export default defineConfig([
 	{
 		...shared,
-		entry: { index: "src/runner.mjs" },
+		// fs-cache-helper is started as its own process by core/fs-cache.mjs, which
+		// finds it next to the bundle that imports it (see the cli entry too).
+		entry: { index: "src/runner.mjs", "fs-cache-helper": "src/core/fs-cache-helper.mjs" },
 		format: ["esm"],
 		clean: true,
 		outExtension() {
@@ -66,7 +68,7 @@ export default defineConfig([
 	},
 	{
 		...shared,
-		entry: { "vitest-runner": "src/bin/vitest-runner.mjs" },
+		entry: { "vitest-runner": "src/bin/vitest-runner.mjs", "fs-cache-helper": "src/core/fs-cache-helper.mjs" },
 		format: ["esm"],
 		outDir: "bin",
 		clean: false,
