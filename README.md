@@ -14,17 +14,18 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.5.4 (October 2026)
+### Latest: v1.5.5 (October 2026)
 
-- **Dev-tooling dependency update, nothing new in the package** — `@cldmv/fix-headers` moves to 2.2.0 ([#74](https://github.com/CLDMV/vitest-runner/pull/74), [#78](https://github.com/CLDMV/vitest-runner/pull/78)), `@cldmv/configs` to 1.2.4 ([#78](https://github.com/CLDMV/vitest-runner/pull/78)) and the dev-only `brace-expansion` to 5.0.12 ([#76](https://github.com/CLDMV/vitest-runner/pull/76)). What the package ships is identical to v1.5.3.
-- [View full v1.5.4 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md)
+- **No more `ENOTEMPTY` startup errors from Vitest 5's module cache** — after a lockfile change, parallel workers could all try to delete the shared `node_modules/.vitest-cache` at once and fail, and packages with their own lockfile kept clearing each other's cache. The runner now gives each package its own cache directory and does Vitest's lockfile check once, before the workers start. A new `fsModuleCachePath` option sets or turns off the per-package path ([#101](https://github.com/CLDMV/vitest-runner/pull/101)).
+- **Entry sources renamed** to `src/index.mjs` and `src/index.cjs`, so the CommonJS entry is tested from source. The published files are unchanged ([#102](https://github.com/CLDMV/vitest-runner/pull/102)).
+- [View full v1.5.5 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.5.md)
 
 ### Recent Releases
 
+- **v1.5.4** (October 2026) — Dev-tooling dependency update (`@cldmv/fix-headers` 2.2.0, `@cldmv/configs` 1.2.4); the published package is identical to v1.5.3 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md))
 - **v1.5.3** (October 2026) — A bundler-friendly CommonJS entry that fails clearly on Node.js without `require(esm)`, and `engines.node` raised to `>=22.12.0` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md))
 - **v1.5.2** (October 2026) — `chalk` moves to 6.0.1, a skipped PR run can no longer satisfy `✅ Required PR Check`, and the repository adopts the shared CLDMV fix-headers config ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.2.md))
 - **v1.5.1** (September 2026) — Documentation-only release that backfilled the missing v1.5.0 changelog ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.1.md))
-- **v1.5.0** (September 2026) — Added an `exclude` option (API + repeatable `--exclude <glob>` CLI flag) so discovery can skip directories/files like `tmp/**` worktrees or `dist/**` build output ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.0.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
