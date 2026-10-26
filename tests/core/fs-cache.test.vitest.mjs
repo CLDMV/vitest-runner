@@ -29,7 +29,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as vitestNode from "vitest/node";
 import { planFsModuleCache, warmFsModuleCache, prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "../../src/core/fs-cache.mjs";
-import { run } from "../../src/runner.mjs";
+import { run } from "../../src/index.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, "../..");

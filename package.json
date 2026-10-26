@@ -10,7 +10,7 @@
 		".": {
 			"vitest-runner-dev": {
 				"types": "./types/index.d.mts",
-				"import": "./src/runner.mjs"
+				"import": "./src/index.mjs"
 			},
 			"types": "./types/index.d.mts",
 			"import": "./dist/index.mjs",

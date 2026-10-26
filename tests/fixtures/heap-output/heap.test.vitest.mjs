@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:32-07:00 (1790980532)
+ *	@Last modified time: 2026-10-26T07:43:52-07:00 (1793025832)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -18,7 +18,7 @@
  * parseVitestOutput() returns a non-null heapMb field.
  *
  * Used by integration tests to exercise the per-file heapInfo display paths
- * in runner.mjs (lines 217 and 330) without requiring a real
+ * in index.mjs (lines 217 and 330) without requiring a real
  * --max-old-space-size measurement from vitest.
  */
 import { it, expect } from "vitest";

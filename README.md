@@ -217,7 +217,7 @@ const { run } = require("@cldmv/vitest-runner");
 
 `require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js ^20.19.0 or >=22.12.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
 
-When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/runner.mjs`) instead of the built `dist/`.
+When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) instead of the built `dist/`.
 
 ### `run(options)` → `Promise<number | object>`
 
@@ -438,18 +438,18 @@ await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 ```text
 dist/                  ← built library entry (npm run build / tsup) — generated, not committed
   index.mjs            ← bundled ESM entry
-  index.cjs            ← thin CJS entry, copied verbatim from src/cjs-shim.cjs; require()s index.mjs
+  index.cjs            ← thin CJS entry, copied verbatim from src/index.cjs; require()s index.mjs
 bin/                   ← built CLI binary (npm run build / tsup) — generated, not committed
   vitest-runner.mjs    ← bundled CLI, from src/bin/vitest-runner.mjs (shebang preserved)
 src/
-  runner.mjs           ← main run() API + re-exports
-  cjs-shim.cjs         ← CommonJS entry source (copied to dist/index.cjs by the build)
+  index.mjs            ← main run() API + re-exports
+  index.cjs            ← CommonJS entry source (copied to dist/index.cjs by the build)
   bin/
     vitest-runner.mjs  ← CLI entry SOURCE — run this directly for source-level dev/testing
   utils/
     ansi.mjs           ← stripAnsi, colourPct
     duration.mjs       ← formatDuration
-    env.mjs            ← buildNodeOptions
+    env.mjs            ← buildNodeOptions, buildEnv
     resolve.mjs        ← resolveBin, resolveVitestConfig
   core/
     discover.mjs       ← discoverVitestFiles, sortWithPriority, computeFilterConflicts
