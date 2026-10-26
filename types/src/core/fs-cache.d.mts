@@ -8,8 +8,11 @@
  * 4. otherwise, when the cache is on, `<cwd>/node_modules/.vitest-cache`.
  *
  * @param {any} vitestNode - The consumer's `vitest/node` module (needs `parseCLI` and `resolveConfig`).
+ * Like the workers, the config is resolved from `process.cwd()` unless the args
+ * set `--root`.
+ *
  * @param {Object} opts
- * @param {string} opts.cwd - Project root.
+ * @param {string} opts.cwd - Project root; relative cache paths resolve against it.
  * @param {string[]} [opts.args=[]] - Args the workers get after `vitest run` (config + passthrough).
  * @param {string|false} [opts.fsModuleCachePath] - Runner option.
  * @returns {Promise<FsModuleCachePlan>}
@@ -27,13 +30,11 @@ export function planFsModuleCache(vitestNode: any, { cwd, args, fsModuleCachePat
  *
  * @param {any} vitestNode - The consumer's `vitest/node` module (needs `parseCLI` and `createVitest`).
  * @param {Object} opts
- * @param {string} opts.cwd
  * @param {string[]} [opts.args=[]] - Args the workers get after `vitest run`.
  * @param {string[]} [opts.cacheArgs=[]] - From {@link planFsModuleCache}.
  * @returns {Promise<void>}
  */
-export function warmFsModuleCache(vitestNode: any, { cwd, args, cacheArgs }: {
-    cwd: string;
+export function warmFsModuleCache(vitestNode: any, { args, cacheArgs }: {
     args?: string[];
     cacheArgs?: string[];
 }): Promise<void>;

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T06:46:31-07:00 (1793022391)
+ *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -20,7 +20,7 @@
 
 import { spawn } from "node:child_process";
 import { parseVitestOutput } from "./parse.mjs";
-import { buildNodeOptions } from "../utils/env.mjs";
+import { buildEnv } from "../utils/env.mjs";
 
 /**
  * @typedef {Object} SpawnBaseOptions
@@ -31,23 +31,6 @@ import { buildNodeOptions } from "../utils/env.mjs";
  * @property {string[]} [conditions=[]] - Additional `--conditions` flags.
  * @property {string} [nodeEnv='development'] - Value for `NODE_ENV`.
  */
-
-/**
- * Build the environment object for a vitest child process.
- * @param {Pick<SpawnBaseOptions, 'maxOldSpaceMb'|'conditions'|'nodeEnv'> & { extraEnv?: NodeJS.ProcessEnv }} opts
- * @returns {NodeJS.ProcessEnv}
- */
-function buildEnv({ maxOldSpaceMb, conditions = [], nodeEnv = "development", extraEnv = {} }) {
-	const env = { ...process.env };
-	if (!env.NODE_ENV) env.NODE_ENV = nodeEnv;
-
-	const nodeOptions = buildNodeOptions({ maxOldSpaceMb, conditions, base: env.NODE_OPTIONS ?? "" });
-	if (nodeOptions) env.NODE_OPTIONS = nodeOptions;
-
-	Object.assign(env, extraEnv);
-
-	return env;
-}
 
 /**
  * Build the base argument list `[vitestBin, ...configArgs, 'run']`.

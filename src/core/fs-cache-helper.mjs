@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T00:00:00-07:00 (1792998000)
+ *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -36,7 +36,7 @@ try {
 
 	const plan = await planFsModuleCache(vitestNode, { cwd, args, fsModuleCachePath });
 	const warmed = Boolean(warm && plan.cacheEnabled);
-	if (warmed) await warmFsModuleCache(vitestNode, { cwd, args, cacheArgs: plan.cacheArgs });
+	if (warmed) await warmFsModuleCache(vitestNode, { args, cacheArgs: plan.cacheArgs });
 
 	process.stdout.write(`\n${JSON.stringify({ ...plan, warmed })}\n`);
 	process.exit(0);

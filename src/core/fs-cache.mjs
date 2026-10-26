@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:59:44-07:00 (1793026784)
+ *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -39,7 +39,7 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildNodeOptions } from "../utils/env.mjs";
+import { buildEnv } from "../utils/env.mjs";
 
 /** Cache directory, relative to `cwd`, used when nothing else sets one. */
 export const DEFAULT_FS_MODULE_CACHE_DIR = "node_modules/.vitest-cache";
@@ -65,13 +65,13 @@ function argsSetCachePath(vitestArgs) {
 /**
  * Parse vitest CLI args the way the vitest binary does for `vitest run`.
  * @param {any} vitestNode - The consumer's `vitest/node` module.
- * @param {string} cwd
  * @param {string[]} args - Args after `vitest run` (config, passthrough, cache args).
  * @returns {object} Options for `resolveConfig` / `createVitest`.
  */
-function parseRunArgs(vitestNode, cwd, args) {
-	const { options } = vitestNode.parseCLI(["vitest", "run", ...args]);
-	return { ...options, root: path.resolve(cwd, options.root ?? ".") };
+function parseRunArgs(vitestNode, args) {
+	// `root` is left unset unless the args set it, exactly as for the workers: a
+	// CLI root overrides `root` in the config, and the helper runs in their cwd.
+	return vitestNode.parseCLI(["vitest", "run", ...args]).options;
 }
 
 /**
@@ -84,14 +84,17 @@ function parseRunArgs(vitestNode, cwd, args) {
  * 4. otherwise, when the cache is on, `<cwd>/node_modules/.vitest-cache`.
  *
  * @param {any} vitestNode - The consumer's `vitest/node` module (needs `parseCLI` and `resolveConfig`).
+ * Like the workers, the config is resolved from `process.cwd()` unless the args
+ * set `--root`.
+ *
  * @param {Object} opts
- * @param {string} opts.cwd - Project root.
+ * @param {string} opts.cwd - Project root; relative cache paths resolve against it.
  * @param {string[]} [opts.args=[]] - Args the workers get after `vitest run` (config + passthrough).
  * @param {string|false} [opts.fsModuleCachePath] - Runner option.
  * @returns {Promise<FsModuleCachePlan>}
  */
 export async function planFsModuleCache(vitestNode, { cwd, args = [], fsModuleCachePath }) {
-	const viteConfig = await vitestNode.resolveConfig(parseRunArgs(vitestNode, cwd, args));
+	const viteConfig = await vitestNode.resolveConfig(parseRunArgs(vitestNode, args));
 	const configs = [viteConfig.test, ...(viteConfig.test.resolvedProjects ?? []).map((entry) => entry.projectConfig)];
 	const cacheEnabled = configs.some((config) => config?.fsModuleCache === true);
 
@@ -115,13 +118,12 @@ export async function planFsModuleCache(vitestNode, { cwd, args = [], fsModuleCa
  *
  * @param {any} vitestNode - The consumer's `vitest/node` module (needs `parseCLI` and `createVitest`).
  * @param {Object} opts
- * @param {string} opts.cwd
  * @param {string[]} [opts.args=[]] - Args the workers get after `vitest run`.
  * @param {string[]} [opts.cacheArgs=[]] - From {@link planFsModuleCache}.
  * @returns {Promise<void>}
  */
-export async function warmFsModuleCache(vitestNode, { cwd, args = [], cacheArgs = [] }) {
-	const options = parseRunArgs(vitestNode, cwd, [...args, ...cacheArgs]);
+export async function warmFsModuleCache(vitestNode, { args = [], cacheArgs = [] }) {
+	const options = parseRunArgs(vitestNode, [...args, ...cacheArgs]);
 	const vitest = await vitestNode.createVitest("test", { ...options, watch: false, run: true });
 	await vitest.close();
 }
@@ -177,10 +179,7 @@ export function prepareFsModuleCache({
 		const payload = JSON.stringify({ cwd, args, fsModuleCachePath, warm });
 		const helper = fileURLToPath(new URL("./fs-cache-helper.mjs", import.meta.url));
 
-		const env = { ...process.env };
-		if (!env.NODE_ENV) env.NODE_ENV = nodeEnv;
-		const nodeOptions = buildNodeOptions({ maxOldSpaceMb: undefined, conditions, base: env.NODE_OPTIONS ?? "" });
-		if (nodeOptions) env.NODE_OPTIONS = nodeOptions;
+		const env = buildEnv({ conditions, nodeEnv });
 
 		const child = spawn(process.execPath, [helper, payload], { cwd, stdio: ["ignore", "pipe", "ignore"], env });
 

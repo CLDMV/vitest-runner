@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:59:45-07:00 (1793026785)
+ *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -227,7 +227,12 @@ async function runImpl(opts, scratchRoot) {
 	 */
 	const prepareCache = async (soloFiles, parallelFiles) => {
 		const warm = soloFiles.length === 0 && workers >= 2 && parallelFiles.length >= 2;
-		({ cacheArgs } = await prepareFsModuleCache({ ...spawnBase, vitestArgs, fsModuleCachePath, warm }));
+		const prepared = await prepareFsModuleCache({ ...spawnBase, vitestArgs, fsModuleCachePath, warm });
+		cacheArgs = prepared.cacheArgs;
+		// Without the helper the run still works, but parallel workers may race on the cache again.
+		if (prepared.error && emitTextOutput) {
+			console.warn(chalk.yellow(`⚠️  Vitest module cache setup skipped (${prepared.error}); running without it.`));
+		}
 	};
 
 	// --coverage-quiet implies --coverage

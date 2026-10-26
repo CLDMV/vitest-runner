@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:59:47-07:00 (1793026787)
+ *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -17,7 +17,8 @@
  * @fileoverview Tests for core/fs-cache.mjs and its use in run().
  *
  * planFsModuleCache() and warmFsModuleCache() are called in-process with this
- * repo's own `vitest/node` against small config files written per test.
+ * repo's own `vitest/node` against small config files written per test. They
+ * resolve from `process.cwd()` like the workers do, so these calls pass `--root`.
  * prepareFsModuleCache() and run() start the real helper process. The installed
  * vitest has `fsModuleCache` off by default, so the configs turn it on.
  */
@@ -100,7 +101,7 @@ describe("planFsModuleCache()", () => {
 	 */
 	const planFor = async (config, { dir = tmp, args = [], fsModuleCachePath } = {}) => {
 		const configFile = await write(path.join(dir, "vitest.config.mjs"), config);
-		return planFsModuleCache(vitestNode, { cwd: dir, args: ["--config", configFile, ...args], fsModuleCachePath });
+		return planFsModuleCache(vitestNode, { cwd: dir, args: ["--root", dir, "--config", configFile, ...args], fsModuleCachePath });
 	};
 
 	it("points the cache at <cwd>/node_modules/.vitest-cache by default", async () => {
@@ -184,7 +185,10 @@ describe("warmFsModuleCache()", () => {
 		const sentinel = await plantStaleCache(cacheDir);
 		const configFile = await write(path.join(tmp, "vitest.config.mjs"), ENABLED);
 
-		await warmFsModuleCache(vitestNode, { cwd: tmp, args: ["--config", configFile], cacheArgs: [`--fsModuleCachePath=${cacheDir}`] });
+		await warmFsModuleCache(vitestNode, {
+			args: ["--root", tmp, "--config", configFile],
+			cacheArgs: [`--fsModuleCachePath=${cacheDir}`]
+		});
 
 		expect(existsSync(sentinel)).toBe(false);
 		const metadata = JSON.parse(await fs.readFile(path.join(cacheDir, "_metadata.json"), "utf8"));
@@ -208,6 +212,21 @@ describe("prepareFsModuleCache()", () => {
 
 		expect(result.warmed).toBe(true);
 		expect(existsSync(sentinel)).toBe(false);
+	});
+
+	it("checks the cache directory the workers use when the config sets its own root", async () => {
+		const cacheDir = path.join(tmp, "sub", ".cache");
+		const sentinel = await plantStaleCache(cacheDir);
+		const vitestConfig = await write(
+			path.join(tmp, "vitest.config.mjs"),
+			'export default { root: "sub", test: { fsModuleCache: true, fsModuleCachePath: ".cache" } };\n'
+		);
+
+		const result = await prepareFsModuleCache({ cwd: tmp, vitestConfig, warm: true });
+
+		expect(result).toEqual({ cacheEnabled: true, cacheArgs: [], warmed: true });
+		expect(existsSync(sentinel)).toBe(false);
+		expect(existsSync(path.join(tmp, ".cache"))).toBe(false);
 	});
 
 	it("doesn't warm when the cache is off", async () => {
@@ -275,6 +294,25 @@ describe("prepareFsModuleCache()", () => {
 			warmed: false
 		});
 	});
+});
+
+describe("run() — helper failure", () => {
+	it("warns and runs the files anyway when the helper fails", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		// Fails only inside the helper process, so the workers still run.
+		const vitestConfig = await write(
+			path.join(tmp, "vitest.config.mjs"),
+			'if (process.argv[1]?.endsWith("fs-cache-helper.mjs")) throw new Error("helper-only failure");\n' +
+				'export default { test: { include: ["tests/fixtures/fs-cache/**/*.test.vitest.mjs"] } };\n'
+		);
+
+		const code = await run({ cwd: PKG_ROOT, testDir: CACHE_FIXTURES, vitestConfig, workers: 2, suppressFileOutput: true });
+
+		expect(code).toBe(0);
+		expect(warn).toHaveBeenCalledWith(expect.stringMatching(/module cache setup skipped \(helper-only failure\)/));
+		vi.restoreAllMocks();
+	}, 120_000);
 });
 
 describe("run() — parallel workers after a lockfile change", () => {
