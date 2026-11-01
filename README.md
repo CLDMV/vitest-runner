@@ -47,8 +47,8 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ### Requirements
 
-- **Node.js 22.13.0 or later** (`engines.node` is `>=22.13.0`, matching the `chalk` 6 dependency, the `vitest` 5 peer and the CI matrix). Node.js 20 is not supported from v1.5.3; stay on v1.5.1 there.
-- The package is an ES module and loads with `import`. `require("@cldmv/vitest-runner")` loads the ES module build synchronously, which needs Node.js >=22.13.0; on older Node.js, use `import()` instead.
+- **Node.js 22.22.0 or later** (`engines.node` is `>=22.22.0`, matching the CI matrix and the dev toolchain). Node.js 20 is not supported from v1.5.3; stay on v1.5.1 there.
+- The package is an ES module and loads with `import`. `require("@cldmv/vitest-runner")` loads the ES module build synchronously, which needs Node.js >=22.22.0; on older Node.js, use `import()` instead.
 - `vitest` ≥ 1.0 (peer dependency, installed in your project)
 - `chalk` (bundled dependency — no action needed)
 
@@ -215,7 +215,7 @@ import { run } from "@cldmv/vitest-runner";
 const { run } = require("@cldmv/vitest-runner");
 ```
 
-`require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js >=22.13.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
+`require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js >=22.22.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
 
 When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) and `require` to `src/index.cjs`, instead of the built `dist/`.
 

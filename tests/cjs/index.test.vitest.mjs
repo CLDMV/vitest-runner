@@ -71,7 +71,7 @@ describe("src/index.cjs", () => {
 		}
 
 		expect(error?.code).toBe("ERR_REQUIRE_ESM");
-		expect(error?.message).toMatch(/require\(\) needs Node\.js >=22\.13\.0/);
+		expect(error?.message).toMatch(/require\(\) needs Node\.js >=22\.22\.0/);
 		expect(error?.message).toMatch(/import\(\)/);
 	});
 });
