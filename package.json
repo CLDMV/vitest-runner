@@ -10,7 +10,8 @@
 		".": {
 			"vitest-runner-dev": {
 				"types": "./types/index.d.mts",
-				"import": "./src/index.mjs"
+				"import": "./src/index.mjs",
+				"require": "./src/index.cjs"
 			},
 			"types": "./types/index.d.mts",
 			"import": "./dist/index.mjs",
@@ -32,7 +33,7 @@
 		"format": "prettier --write . --config .configs/.prettierrc",
 		"format:check": "prettier --check . --config .configs/.prettierrc",
 		"test": "vitest run --config .configs/vitest.config.mjs && npm run test:cjs",
-		"test:cjs": "npm run build && node --test tests/cjs/entry.test.cjs",
+		"test:cjs": "npm run build && node --conditions=vitest-runner-dev --test tests/cjs/entry.test.cjs",
 		"test:watch": "vitest --config .configs/vitest.config.mjs",
 		"test:coverage": "vitest run --coverage --config .configs/vitest.config.mjs && npm run test:cjs",
 		"ci:coverage": "vitest run --coverage --reporter=dot --maxWorkers=1 --config .configs/vitest.config.mjs && npm run test:cjs",
@@ -71,7 +72,7 @@
 		"vitest": ">=1.0.0"
 	},
 	"engines": {
-		"node": ">=22.12.0"
+		"node": ">=22.22.0"
 	},
 	"publishConfig": {
 		"access": "public"
