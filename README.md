@@ -217,7 +217,7 @@ const { run } = require("@cldmv/vitest-runner");
 
 `require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js ^20.19.0 or >=22.12.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
 
-When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) instead of the built `dist/`.
+When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) and `require` to `src/index.cjs`, instead of the built `dist/`.
 
 ### `run(options)` → `Promise<number | object>`
 

@@ -52,3 +52,19 @@ test("require() fails with a clear message where Node.js has no require(esm)", (
 	assert.match(res.stderr, /require\(\) needs Node\.js \^20\.19\.0 or >=22\.12\.0/);
 	assert.match(res.stderr, /import\(\)/);
 });
+
+test("the vitest-runner-dev condition resolves require() and import to src/, and no condition to dist/", () => {
+	const resolve = (conditions, expr) =>
+		spawnSync(process.execPath, [...conditions, "-p", expr], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
+	const dev = ["--conditions=vitest-runner-dev"];
+	const requireExpr = "require.resolve('@cldmv/vitest-runner')";
+	const importExpr = "import.meta.resolve('@cldmv/vitest-runner')";
+
+	assert.equal(resolve(dev, requireExpr), path.join(repoRoot, "src/index.cjs"));
+	assert.equal(resolve([], requireExpr), path.join(repoRoot, "dist/index.cjs"));
+	assert.match(
+		spawnSync(process.execPath, [...dev, "--input-type=module", "-e", `console.log(${importExpr})`], { cwd: repoRoot, encoding: "utf8" })
+			.stdout,
+		/\/src\/index\.mjs/
+	);
+});
