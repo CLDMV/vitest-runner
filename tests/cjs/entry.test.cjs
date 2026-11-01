@@ -41,7 +41,7 @@ test("require() returns the same named exports as import", async () => {
 
 test("require() fails with a clear message where Node.js has no require(esm)", () => {
 	// --no-experimental-require-module turns require(esm) off, which is what Node.js
-	// versions before 20.19 / 22.12 look like to the entry.
+	// versions before 22.13 look like to the entry.
 	const res = spawnSync(process.execPath, ["--no-experimental-require-module", "-e", "require('./dist/index.cjs')"], {
 		cwd: repoRoot,
 		encoding: "utf8"
@@ -49,7 +49,7 @@ test("require() fails with a clear message where Node.js has no require(esm)", (
 
 	assert.notEqual(res.status, 0);
 	assert.match(res.stderr, /ERR_REQUIRE_ESM/);
-	assert.match(res.stderr, /require\(\) needs Node\.js \^20\.19\.0 or >=22\.12\.0/);
+	assert.match(res.stderr, /require\(\) needs Node\.js >=22\.13\.0/);
 	assert.match(res.stderr, /import\(\)/);
 });
 

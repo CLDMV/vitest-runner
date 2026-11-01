@@ -27,7 +27,7 @@
  * call to detect the dependency.
  *
  * Node.js versions without require(esm) (before 20.19 / 22.12) would fail with
- * a bare ERR_REQUIRE_ESM, so the check below fails early with a message that
+ * a bare ERR_REQUIRE_ESM, and 22.12.x prints an ExperimentalWarning, so the supported floor is 22.13. The check below fails early with a message that
  * says what to do instead.
  *
  * This file is copied verbatim into dist/index.cjs by tsup's onSuccess hook
@@ -40,7 +40,7 @@
 
 if (!process.features?.require_module) {
 	const error = new Error(
-		`@cldmv/vitest-runner: require() needs Node.js ^20.19.0 or >=22.12.0 (this is ${process.version}). On older Node.js, load the package with import() instead.`
+		`@cldmv/vitest-runner: require() needs Node.js >=22.13.0 (this is ${process.version}). On older Node.js, load the package with import() instead.`
 	);
 	error.code = "ERR_REQUIRE_ESM";
 	throw error;
