@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:59:54-07:00 (1793026794)
+ *	@Last modified time: 2026-11-01T16:33:29-08:00 (1793579609)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -43,7 +43,7 @@ import { defineConfig } from "tsup";
 
 const shared = {
 	outDir: "dist",
-	target: "node20",
+	target: "node22",
 	platform: "node",
 	splitting: false,
 	sourcemap: true,
