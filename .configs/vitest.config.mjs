@@ -16,7 +16,12 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+	// Resolve the package's own name to src/ (the vitest-runner-dev export condition) so tests
+	// run against source. resolve.conditions replaces Vite's defaults, so those are kept.
+	resolve: { conditions: ["vitest-runner-dev", "module", "browser", "development|production"] },
+	ssr: { resolve: { conditions: ["vitest-runner-dev", "node", "development|production"] } },
 	test: {
+		nodeOptions: ["--conditions=vitest-runner-dev"],
 		include: ["tests/**/*.test.vitest.{js,mjs,cjs}"],
 		exclude: ["tests/fixtures/**", "node_modules/**"],
 		coverage: {

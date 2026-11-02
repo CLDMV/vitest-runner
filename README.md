@@ -14,17 +14,18 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.5.6 (October 2026)
+### Latest: v1.6.0 (November 2026)
 
-- **Dev-tooling dependency update, nothing new in the package** — all open dependency updates in one change: `tsup` 9 (with `esbuild` 0.28.2), Vitest 5.0.5 and the patch updates, plus an override that moves the dev-only `katex` to a fixed release. Both open Dependabot alerts are cleared, and the built files are byte-identical to v1.5.5 ([#104](https://github.com/CLDMV/vitest-runner/pull/104)).
-- [View full v1.5.6 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.6.md)
+- **`require` under the dev condition** — `--conditions=vitest-runner-dev` now sends `require()` to `src/index.cjs` as well as `import` to `src/index.mjs`, and the repository's own tests run against the source that way ([#110](https://github.com/CLDMV/vitest-runner/pull/110), [#99](https://github.com/CLDMV/vitest-runner/issues/99)).
+- **Node.js 22.22.0 or later is required** — `engines.node` rises from `>=22.12.0`, so upgrade Node.js before upgrading the runner. The runner's behavior and options are unchanged, and the remaining updates are dev-only ([#111](https://github.com/CLDMV/vitest-runner/pull/111), [#112](https://github.com/CLDMV/vitest-runner/pull/112)).
+- [View full v1.6.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.0.md)
 
 ### Recent Releases
 
+- **v1.5.6** (October 2026) — Dev-tooling dependency update: `tsup` 9, Vitest 5.0.5 and a `katex` override clear both Dependabot alerts; the built files are byte-identical to v1.5.5 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.6.md))
 - **v1.5.5** (October 2026) — No more `ENOTEMPTY` startup errors from Vitest 5's module cache: a cache directory per package, one lockfile check per run, and a new `fsModuleCachePath` option ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.5.md))
 - **v1.5.4** (October 2026) — Dev-tooling dependency update (`@cldmv/fix-headers` 2.2.0, `@cldmv/configs` 1.2.4); the published package is identical to v1.5.3 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md))
 - **v1.5.3** (October 2026) — A bundler-friendly CommonJS entry that fails clearly on Node.js without `require(esm)`, and `engines.node` raised to `>=22.12.0` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md))
-- **v1.5.2** (October 2026) — `chalk` moves to 6.0.1, a skipped PR run can no longer satisfy `✅ Required PR Check`, and the repository adopts the shared CLDMV fix-headers config ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.2.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
@@ -47,8 +48,8 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ### Requirements
 
-- **Node.js 22.12.0 or later** (`engines.node` is `>=22.12.0`, matching the `chalk` 6 dependency, the `vitest` 5 peer and the CI matrix). Node.js 20 is not supported from v1.5.3; stay on v1.5.1 there.
-- The package is an ES module and loads with `import`. `require("@cldmv/vitest-runner")` loads the ES module build synchronously, which needs Node.js ^20.19.0 or >=22.12.0; on older Node.js, use `import()` instead.
+- **Node.js 22.22.0 or later** (`engines.node` is `>=22.22.0`, matching the CI matrix and the dev toolchain). Node.js 20 is not supported from v1.5.3; stay on v1.5.1 there.
+- The package is an ES module and loads with `import`. `require("@cldmv/vitest-runner")` loads the ES module build synchronously, which needs Node.js >=22.22.0; on older Node.js, use `import()` instead.
 - `vitest` ≥ 1.0 (peer dependency, installed in your project)
 - `chalk` (bundled dependency — no action needed)
 
@@ -215,9 +216,9 @@ import { run } from "@cldmv/vitest-runner";
 const { run } = require("@cldmv/vitest-runner");
 ```
 
-`require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js ^20.19.0 or >=22.12.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
+`require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js >=22.22.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
 
-When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) instead of the built `dist/`.
+When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) and `require` to `src/index.cjs`, instead of the built `dist/`.
 
 ### `run(options)` → `Promise<number | object>`
 
