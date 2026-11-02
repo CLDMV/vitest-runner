@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T00:00:00-07:00 (1792998000)
+ *	@Last modified time: 2026-11-01T16:33:27-08:00 (1793579607)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -71,7 +71,7 @@ describe("src/index.cjs", () => {
 		}
 
 		expect(error?.code).toBe("ERR_REQUIRE_ESM");
-		expect(error?.message).toMatch(/require\(\) needs Node\.js >=22\.22\.0/);
+		expect(error?.message).toMatch(/require\(\) needs Node\.js >=22\.13\.0/);
 		expect(error?.message).toMatch(/import\(\)/);
 	});
 });

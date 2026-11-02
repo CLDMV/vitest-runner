@@ -72,7 +72,14 @@
 		"vitest": ">=1.0.0"
 	},
 	"engines": {
-		"node": ">=22.22.0"
+		"node": ">=22.0.0"
+	},
+	"devEngines": {
+		"runtime": {
+			"name": "node",
+			"version": ">=22.22.0",
+			"onFail": "error"
+		}
 	},
 	"publishConfig": {
 		"access": "public"

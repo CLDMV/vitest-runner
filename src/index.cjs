@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-01T13:17:28-08:00 (1793567848)
+ *	@Last modified time: 2026-11-01T16:33:27-08:00 (1793579607)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -26,9 +26,10 @@
  * breaks bundling by tools (esbuild/webpack) that need a static `require()`
  * call to detect the dependency.
  *
- * Node.js versions without require(esm) (before 20.19 / 22.12) would fail with
- * a bare ERR_REQUIRE_ESM, and 22.12.x prints an ExperimentalWarning, so the supported floor is 22.22. The check below fails early with a message that
- * says what to do instead.
+ * Node.js versions without require(esm) (22.x before 22.12) would fail with a bare
+ * ERR_REQUIRE_ESM, and 22.12.x prints an ExperimentalWarning, so require() is
+ * supported from 22.13. The check below fails early with a message that says what
+ * to do instead.
  *
  * This file is copied verbatim into dist/index.cjs by tsup's onSuccess hook
  * (see tsup.config.mjs) — it never passes through esbuild itself, so it
@@ -40,7 +41,7 @@
 
 if (!process.features?.require_module) {
 	const error = new Error(
-		`@cldmv/vitest-runner: require() needs Node.js >=22.22.0 (this is ${process.version}). On older Node.js, load the package with import() instead.`
+		`@cldmv/vitest-runner: require() needs Node.js >=22.13.0 (this is ${process.version}). On older Node.js, load the package with import() instead.`
 	);
 	error.code = "ERR_REQUIRE_ESM";
 	throw error;
