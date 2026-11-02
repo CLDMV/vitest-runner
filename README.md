@@ -14,17 +14,18 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.5.6 (October 2026)
+### Latest: v1.6.0 (November 2026)
 
-- **Dev-tooling dependency update, nothing new in the package** — all open dependency updates in one change: `tsup` 9 (with `esbuild` 0.28.2), Vitest 5.0.5 and the patch updates, plus an override that moves the dev-only `katex` to a fixed release. Both open Dependabot alerts are cleared, and the built files are byte-identical to v1.5.5 ([#104](https://github.com/CLDMV/vitest-runner/pull/104)).
-- [View full v1.5.6 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.6.md)
+- **`require` under the dev condition** — `--conditions=vitest-runner-dev` now sends `require()` to `src/index.cjs` as well as `import` to `src/index.mjs`, and the repository's own tests run against the source that way ([#110](https://github.com/CLDMV/vitest-runner/pull/110), [#99](https://github.com/CLDMV/vitest-runner/issues/99)).
+- **Node.js 22.22.0 or later is required** — `engines.node` rises from `>=22.12.0`, so upgrade Node.js before upgrading the runner. The runner's behavior and options are unchanged, and the remaining updates are dev-only ([#111](https://github.com/CLDMV/vitest-runner/pull/111), [#112](https://github.com/CLDMV/vitest-runner/pull/112)).
+- [View full v1.6.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.0.md)
 
 ### Recent Releases
 
+- **v1.5.6** (October 2026) — Dev-tooling dependency update: `tsup` 9, Vitest 5.0.5 and a `katex` override clear both Dependabot alerts; the built files are byte-identical to v1.5.5 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.6.md))
 - **v1.5.5** (October 2026) — No more `ENOTEMPTY` startup errors from Vitest 5's module cache: a cache directory per package, one lockfile check per run, and a new `fsModuleCachePath` option ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.5.md))
 - **v1.5.4** (October 2026) — Dev-tooling dependency update (`@cldmv/fix-headers` 2.2.0, `@cldmv/configs` 1.2.4); the published package is identical to v1.5.3 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md))
 - **v1.5.3** (October 2026) — A bundler-friendly CommonJS entry that fails clearly on Node.js without `require(esm)`, and `engines.node` raised to `>=22.12.0` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md))
-- **v1.5.2** (October 2026) — `chalk` moves to 6.0.1, a skipped PR run can no longer satisfy `✅ Required PR Check`, and the repository adopts the shared CLDMV fix-headers config ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.2.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
