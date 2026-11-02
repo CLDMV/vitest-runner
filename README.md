@@ -14,18 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.6.0 (November 2026)
+### Latest: v1.6.1 (November 2026)
 
-- **`require` under the dev condition** — `--conditions=vitest-runner-dev` now sends `require()` to `src/index.cjs` as well as `import` to `src/index.mjs`, and the repository's own tests run against the source that way ([#110](https://github.com/CLDMV/vitest-runner/pull/110), [#99](https://github.com/CLDMV/vitest-runner/issues/99)).
-- **Node.js 22.22.0 or later is required** — `engines.node` rises from `>=22.12.0`, so upgrade Node.js before upgrading the runner. The runner's behavior and options are unchanged, and the remaining updates are dev-only ([#111](https://github.com/CLDMV/vitest-runner/pull/111), [#112](https://github.com/CLDMV/vitest-runner/pull/112)).
-- [View full v1.6.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.0.md)
+- **`engines.node` set to the runtime floor** — v1.6.0 declared `>=22.22.0`, the build and test toolchain floor. `engines.node` is now `>=22.0.0`, the floor of the `chalk` 6 dependency, and the 22.22.0 development floor moves to `devEngines`, so earlier Node.js 22 releases install the runner without an `EBADENGINE` warning. `require()` needs Node.js >=22.13.0; behavior and options are unchanged ([#115](https://github.com/CLDMV/vitest-runner/pull/115)).
+- [View full v1.6.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.1.md)
 
 ### Recent Releases
 
+- **v1.6.0** (November 2026) — `--conditions=vitest-runner-dev` sends `require()` to `src/index.cjs` too, and `engines.node` raised to `>=22.22.0`; runner behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.0.md))
 - **v1.5.6** (October 2026) — Dev-tooling dependency update: `tsup` 9, Vitest 5.0.5 and a `katex` override clear both Dependabot alerts; the built files are byte-identical to v1.5.5 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.6.md))
 - **v1.5.5** (October 2026) — No more `ENOTEMPTY` startup errors from Vitest 5's module cache: a cache directory per package, one lockfile check per run, and a new `fsModuleCachePath` option ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.5.md))
 - **v1.5.4** (October 2026) — Dev-tooling dependency update (`@cldmv/fix-headers` 2.2.0, `@cldmv/configs` 1.2.4); the published package is identical to v1.5.3 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md))
-- **v1.5.3** (October 2026) — A bundler-friendly CommonJS entry that fails clearly on Node.js without `require(esm)`, and `engines.node` raised to `>=22.12.0` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.3.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
