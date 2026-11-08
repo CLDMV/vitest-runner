@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T10:14:22-07:00 (1793034862)
+ *	@Last modified time: 2026-11-07T21:39:30-08:00 (1794116370)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -30,7 +30,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as vitestNode from "vitest/node";
 import { planFsModuleCache, warmFsModuleCache, prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "../../src/core/fs-cache.mjs";
-import { run } from "../../src/index.mjs";
+import { run } from "@cldmv/vitest-runner";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, "../..");

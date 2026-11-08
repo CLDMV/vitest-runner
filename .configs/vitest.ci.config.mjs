@@ -7,34 +7,38 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:06-07:00 (1790980506)
+ *	@Last modified time: 2026-11-07T21:39:25-08:00 (1794116365)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
  */
 
-import base from "./vitest.config.mjs";
+import baseConfig from "./vitest.config.mjs";
 
-export default {
-	...base,
+// vitest.config.mjs is a function of the Vite mode, so resolve it first.
+export default (env) => {
+	const base = baseConfig(env);
+	return {
+		...base,
 
-	// CI: pick a pool and force it to 1 worker.
-	// Use forks for CI stability, but threads is fine too.
-	// pool: "forks",
-	maxForks: 1,
-	minForks: 1,
+		// CI: pick a pool and force it to 1 worker.
+		// Use forks for CI stability, but threads is fine too.
+		// pool: "forks",
+		maxForks: 1,
+		minForks: 1,
 
-	// Optional: if you choose pool: "threads" instead:
-	// pool: "threads",
-	maxThreads: 1,
-	minThreads: 1,
+		// Optional: if you choose pool: "threads" instead:
+		// pool: "threads",
+		maxThreads: 1,
+		minThreads: 1,
 
-	test: {
-		...base.test,
+		test: {
+			...base.test,
 
-		// CI: no file-level parallelism either (hard clamp)
-		maxWorkers: 1,
-		minWorkers: 1,
-		fileParallelism: false
-	}
+			// CI: no file-level parallelism either (hard clamp)
+			maxWorkers: 1,
+			minWorkers: 1,
+			fileParallelism: false
+		}
+	};
 };
