@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:38-07:00 (1790980538)
+ *	@Last modified time: 2026-11-07T21:39:33-08:00 (1794116373)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -17,7 +17,7 @@
  * @fileoverview Unit tests for src/utils/duration.mjs
  */
 import { describe, it, expect } from "vitest";
-import { formatDuration } from "../../src/utils/duration.mjs";
+import { formatDuration } from "@cldmv/vitest-runner";
 
 describe("formatDuration", () => {
 	it("formats 0 ms as 0:00", () => {

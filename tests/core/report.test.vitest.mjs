@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:28-07:00 (1790980528)
+ *	@Last modified time: 2026-11-07T21:39:31-08:00 (1794116371)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -20,7 +20,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { stripAnsi } from "../../src/utils/ansi.mjs";
+import { stripAnsi } from "@cldmv/vitest-runner";
 import {
 	computeSummaryFromFinal,
 	printMergeOutput,

@@ -1,6 +1,6 @@
 {
 	"name": "@cldmv/vitest-runner",
-	"version": "1.6.1",
+	"version": "1.6.2",
 	"description": "Sequential Vitest runner to avoid OOM issues with large test suites",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -32,11 +32,12 @@
 		"lint": "eslint --config .configs/eslint.config.mjs .",
 		"format": "prettier --write . --config .configs/.prettierrc",
 		"format:check": "prettier --check . --config .configs/.prettierrc",
-		"test": "vitest run --config .configs/vitest.config.mjs && npm run test:cjs",
+		"test": "vitest run --config .configs/vitest.config.mjs && npm run test:cjs && npm run test:dist",
 		"test:cjs": "npm run build && node --conditions=vitest-runner-dev --test tests/cjs/entry.test.cjs",
+		"test:dist": "npm run build && vitest run --config .configs/vitest.config.mjs --mode=dist",
 		"test:watch": "vitest --config .configs/vitest.config.mjs",
 		"test:coverage": "vitest run --coverage --config .configs/vitest.config.mjs && npm run test:cjs",
-		"ci:coverage": "vitest run --coverage --reporter=dot --maxWorkers=1 --config .configs/vitest.config.mjs && npm run test:cjs",
+		"ci:coverage": "vitest run --coverage --reporter=dot --maxWorkers=1 --config .configs/vitest.config.mjs && npm run test:cjs && npm run test:dist",
 		"types:build": "tsc -p .configs/tsconfig.json",
 		"types:check": "tsc -p .configs/tsconfig.json --noEmit",
 		"build": "tsup",
@@ -51,7 +52,7 @@
 		"oom"
 	],
 	"devDependencies": {
-		"@cldmv/configs": "^1.3.0",
+		"@cldmv/configs": "^1.4.0",
 		"@cldmv/fix-headers": "^2.2.4",
 		"@eslint/js": "^10.0.1",
 		"@eslint/json": "^2.1.1",

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:43:53-07:00 (1793025833)
+ *	@Last modified time: 2026-11-07T21:39:33-08:00 (1794116373)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -26,8 +26,8 @@ import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "../../src/index.mjs";
-import { stripAnsi } from "../../src/utils/ansi.mjs";
+import { run } from "@cldmv/vitest-runner";
+import { stripAnsi } from "@cldmv/vitest-runner";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** The vitest-runner package root — vitest is installed here. */
