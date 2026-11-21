@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:43:53-07:00 (1793025833)
+ *	@Last modified time: 2026-11-21T12:51:14-08:00 (1795294274)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -24,7 +24,7 @@
  *   index.mjs:273  — first  `fs.rm(...).catch(() => {})` cleanup callback
  *   index.mjs:274  — second `fs.rm(...).catch(() => {})` cleanup callback
  */
-import { vi, describe, it, expect, afterEach } from "vitest";
+import { vi, describe, it, expect, afterEach, afterAll } from "vitest";
 
 // Mock spawn so the tests don't actually spawn child processes.
 vi.mock("../../src/core/spawn.mjs", async (importOriginal) => {
@@ -63,13 +63,25 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "../../src/index.mjs";
+import { run as runnerRun } from "../../src/index.mjs";
 import { runSingleFile } from "../../src/core/spawn.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, "../..");
 const FIXTURES = path.join(PKG_ROOT, "tests", "fixtures");
 const FIXTURE_CONFIG = path.join(FIXTURES, "vitest.config.mjs");
+
+// Each run() gets its own blobs folder, so test files running in parallel never clear
+// or read each other's blobs through the shared default <cwd>/.vitest-coverage-blobs.
+// The folder name keeps ".vitest-coverage-blobs" so path checks against it still match.
+// A blobsDir passed by the test itself still wins.
+const BLOBS_ROOT = path.join(PKG_ROOT, "tmp", "test-blobs", `run-fs-errors-${process.pid}`);
+let blobsDirCount = 0;
+/** @param {Parameters<typeof runnerRun>[0]} opts */
+const run = (opts) => runnerRun({ blobsDir: path.join(BLOBS_ROOT, String(blobsDirCount++), ".vitest-coverage-blobs"), ...opts });
+afterAll(async () => {
+	await fs.rm(BLOBS_ROOT, { recursive: true, force: true });
+});
 
 const BASE_COVERAGE = {
 	cwd: PKG_ROOT,
