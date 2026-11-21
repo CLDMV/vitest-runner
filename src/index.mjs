@@ -266,8 +266,10 @@ async function runImpl(opts, scratchRoot) {
 	if (hasCoverage) {
 		const blobsDir = path.resolve(cwd, blobsDirOpt ?? ".vitest-coverage-blobs");
 		// Temp coverage dirs live OUTSIDE blobsDir — vitest --mergeReports errors on
-		// any non-blob entry found inside the blobs directory.
-		const coverageTmpBase = path.resolve(cwd, ".vitest-coverage-tmp");
+		// any non-blob entry found inside the blobs directory. They sit under this
+		// run's own scratch root, so two runs in the same cwd never remove each
+		// other's per-file coverage output (and a signal exit cleans them up too).
+		const coverageTmpBase = path.join(scratchRoot, "coverage-tmp");
 
 		await Promise.all([fs.rm(blobsDir, { recursive: true, force: true }), fs.rm(coverageTmpBase, { recursive: true, force: true })]);
 		await Promise.all([fs.mkdir(blobsDir, { recursive: true }), fs.mkdir(coverageTmpBase, { recursive: true })]);

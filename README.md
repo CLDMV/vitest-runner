@@ -377,7 +377,7 @@ When `--coverage` (or `coverageQuiet: true`) is passed, the runner uses a blob-p
 
 1. Each file receives `--coverage --reporter=blob` with its own temp output directory.
 2. After all files complete, `vitest --mergeReports` combines the blobs into a single report.
-3. Temporary blob and coverage-tmp directories are cleaned up automatically.
+3. Temporary blob and per-file coverage directories are cleaned up automatically. The per-file coverage directories live under the run's own scratch root (see `scratchDir`), so two runs in the same project never remove each other's.
 
 This avoids the OOM crash that occurs when a single vitest process holds coverage data for thousands of files simultaneously.
 
