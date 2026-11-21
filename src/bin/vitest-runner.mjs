@@ -103,6 +103,7 @@ try {
 		...(args.isolate !== undefined && { isolate: args.isolate }),
 		...(args.blobsDir !== undefined && { blobsDir: args.blobsDir }),
 		...(args.workers !== undefined && { workers: args.workers }),
+		...(args.mergeBatchSize !== undefined && !Number.isNaN(args.mergeBatchSize) && { mergeBatchSize: args.mergeBatchSize }),
 		...(args.soloPatterns.length > 0 && { earlyRunPatterns: args.soloPatterns }),
 		...(args.exclude.length > 0 && { exclude: args.exclude }),
 		...(args.scratchDir !== undefined && { scratchDir: args.scratchDir })

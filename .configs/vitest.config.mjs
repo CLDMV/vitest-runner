@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-07T21:39:25-08:00 (1794116365)
+ *	@Last modified time: 2026-11-21T11:56:08-08:00 (1795290968)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -41,7 +41,9 @@ export default defineConfig(({ mode }) =>
 					// src/core/fs-cache-helper.mjs is the same case: it only ever runs as its own
 					// process (started by core/fs-cache.mjs). Its logic lives in fs-cache.mjs,
 					// which tests/core/fs-cache.test.vitest.mjs calls in-process.
-					exclude: ["src/bin/**", "src/core/fs-cache-helper.mjs"],
+					// src/core/merge-batches-helper.mjs likewise only runs as its own process; its
+					// logic lives in merge-batches.mjs, tested in-process by merge-batches tests.
+					exclude: ["src/bin/**", "src/core/fs-cache-helper.mjs", "src/core/merge-batches-helper.mjs"],
 					reporter: ["text", "json", "json-summary"]
 				},
 				// Integration tests spawn child processes and can be slow
