@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:18-07:00 (1790980518)
+ *	@Last modified time: 2026-11-21T12:14:13-08:00 (1795292053)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -38,6 +38,7 @@
  * @property {string[]} vitestPassthroughArgs - Flags forwarded verbatim to vitest.
  * @property {string[]} testPatterns - Non-flag positional arguments (file / folder patterns).
  * @property {boolean} keepTmp - Keep the run's scratch directory instead of removing it on completion (`--keep-tmp`).
+ * @property {boolean|undefined} isolate - Run the suite in its own PID namespace (`--isolate`); undefined leaves it to `CLDMV_TEST_ISOLATE`.
  * @property {string|undefined} scratchDir - Per-run scratch root, relative to `cwd` (`--scratch-dir`); defaults to `tmp/vitest-runner`.
  */
 
@@ -58,6 +59,7 @@ const RUNNER_FLAGS = new Set([
 	"--exclude",
 	"--file-pattern",
 	"--keep-tmp",
+	"--isolate",
 	"--scratch-dir",
 	"--help",
 	"-h"
@@ -95,6 +97,7 @@ export function parseArguments(args) {
 	let help = false;
 	let testFilePattern;
 	let keepTmp = false;
+	let isolate;
 	let scratchDir;
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
@@ -143,6 +146,8 @@ export function parseArguments(args) {
 			testFilePattern = new RegExp(arg.slice("--file-pattern=".length), "i");
 		} else if (arg === "--keep-tmp") {
 			keepTmp = true;
+		} else if (arg === "--isolate") {
+			isolate = true;
 		} else if (arg === "--scratch-dir") {
 			scratchDir = args[++i];
 		} else if (arg.startsWith("--scratch-dir=")) {
@@ -180,6 +185,7 @@ export function parseArguments(args) {
 		vitestPassthroughArgs,
 		testPatterns,
 		keepTmp,
+		isolate,
 		scratchDir
 	};
 }
