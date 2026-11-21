@@ -2,6 +2,9 @@
  * Run all discovered Vitest test files sequentially (with a configurable worker
  * pool for the non-solo phase) and return an exit code.
  *
+ * With isolation on (`isolate` / `CLDMV_TEST_ISOLATE=1`) and not already in a PID namespace,
+ * it re-runs the process's own command line in a new one and returns that run's exit code.
+ *
  * Owns the run's scratch directory lifecycle (`scratchDir`/`keepTmp`): sweeps stale
  * roots from dead prior runs, creates this run's root, and removes it on every exit
  * path — normal completion, a thrown error, or SIGINT/SIGTERM — unless `keepTmp` is
@@ -126,6 +129,10 @@ export type RunOptions = {
      * - Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM).
      */
     keepTmp?: boolean;
+    /**
+     * - Linux: run the whole suite in its own PID namespace, so a test's bad `kill` can only reach the run's own processes. The runner re-runs its own command line under `unshare -U --map-current-user -p -f --mount-proc` and returns that run's exit code; it's skipped when the process is already in a PID namespace (a container, a k3s pod). Fails loudly when unprivileged namespaces aren't available. Defaults to `CLDMV_TEST_ISOLATE=1`. Can't be combined with `json`.
+     */
+    isolate?: boolean;
     /**
      * - Vitest 5+ `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Takes precedence over `fsModuleCachePath` in the vitest config; a `--fsModuleCachePath` passthrough arg takes precedence over this. When unset, children use `<cwd>/node_modules/.vitest-cache` unless the resolved config (root or any project) sets a path. `false` adds nothing and leaves vitest's own setting in place.
      */

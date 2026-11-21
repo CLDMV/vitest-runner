@@ -14,17 +14,18 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.6.1 (November 2026)
+### Latest: v1.7.0 (November 2026)
 
-- **`engines.node` set to the runtime floor** — v1.6.0 declared `>=22.22.0`, the build and test toolchain floor. `engines.node` is now `>=22.0.0`, the floor of the `chalk` 6 dependency, and the 22.22.0 development floor moves to `devEngines`, so earlier Node.js 22 releases install the runner without an `EBADENGINE` warning. `require()` needs Node.js >=22.13.0; behavior and options are unchanged ([#115](https://github.com/CLDMV/vitest-runner/pull/115)).
-- [View full v1.6.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.1.md)
+- **Run the suite in its own PID namespace** — with `isolate: true`, `--isolate` or `CLDMV_TEST_ISOLATE=1`, the runner re-runs itself under `unshare -U --map-current-user -p -f --mount-proc`, so a test's bad `kill` can only reach the run's own processes. It's skipped when already in a PID namespace, and it fails before the run starts when namespaces aren't available rather than running unsandboxed. Linux only, off by default ([#130](https://github.com/CLDMV/vitest-runner/pull/130)).
+- **Scratch roots are swept by liveness, not by pid** — each run holds a socket from [`@cldmv/lib-process`](https://github.com/CLDMV/lib-process) in its randomly named root, so a crashed run's root is removed at once and a live run's never is, even across PID namespaces ([#130](https://github.com/CLDMV/vitest-runner/pull/130)).
+- [View full v1.7.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.7.0.md)
 
 ### Recent Releases
 
+- **v1.6.1** (November 2026) — `engines.node` set to `>=22.0.0`, the runtime floor, with the 22.22.0 toolchain floor moved to `devEngines`; behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.1.md))
 - **v1.6.0** (November 2026) — `--conditions=vitest-runner-dev` sends `require()` to `src/index.cjs` too, and `engines.node` raised to `>=22.22.0`; runner behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.0.md))
 - **v1.5.6** (October 2026) — Dev-tooling dependency update: `tsup` 9, Vitest 5.0.5 and a `katex` override clear both Dependabot alerts; the built files are byte-identical to v1.5.5 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.6.md))
 - **v1.5.5** (October 2026) — No more `ENOTEMPTY` startup errors from Vitest 5's module cache: a cache directory per package, one lockfile check per run, and a new `fsModuleCachePath` option ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.5.md))
-- **v1.5.4** (October 2026) — Dev-tooling dependency update (`@cldmv/fix-headers` 2.2.0, `@cldmv/configs` 1.2.4); the published package is identical to v1.5.3 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.4.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
@@ -119,6 +120,7 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--blobs-dir <path>`       | Directory for per-file coverage blobs (default: `.vitest-coverage-blobs`, relative to `cwd`)                                             |
 | `--no-merge-reports`       | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step                      |
 | `--keep-tmp`               | Keep this run's scratch directory instead of removing it on completion                                                                   |
+| `--isolate`                | Run the suite in its own PID namespace (Linux; see [Isolation](#isolation-pid-namespace))                                                |
 | `--scratch-dir <path>`     | Per-run scratch root, relative to `cwd` (default: `tmp/vitest-runner`)                                                                   |
 | `--help`, `-h`             | Print this help and exit                                                                                                                 |
 
@@ -157,10 +159,11 @@ vitest-runner --bail
 
 ### Environment variables
 
-| Variable         | Default  | Description                                                                     |
-| ---------------- | -------- | ------------------------------------------------------------------------------- |
-| `VITEST_HEAP_MB` | _(none)_ | `--max-old-space-size` ceiling passed to every child process                    |
-| `VITEST_WORKERS` | `4`      | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`) |
+| Variable             | Default  | Description                                                                                              |
+| -------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `VITEST_HEAP_MB`     | _(none)_ | `--max-old-space-size` ceiling passed to every child process                                             |
+| `VITEST_WORKERS`     | `4`      | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`)                          |
+| `CLDMV_TEST_ISOLATE` | _(none)_ | `1` runs the suite in its own PID namespace (Linux; the `isolate` option or `--isolate` take precedence) |
 
 ### Examples
 
@@ -218,7 +221,7 @@ const { run } = require("@cldmv/vitest-runner");
 
 `require()` loads the ES module build synchronously through Node's `require(esm)`, which needs Node.js >=22.13.0; on older Node.js it throws a clear `ERR_REQUIRE_ESM` error, and `import()` is the way to load the package there.
 
-When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) and `require` to `src/index.cjs`, instead of the built `dist/`.
+When developing against a local checkout or workspace copy instead of the published package, run Node with `--conditions=vitest-runner-dev` so that `import` of the package resolves to its `src/` entry (`src/index.mjs`) and `require` to `src/index.cjs`, instead of the built `dist/`. In this repository `npm test` runs the suite against `src/` through that condition, and `npm run test:dist` builds the package and runs the suite against `dist/`.
 
 ### `run(options)` → `Promise<number | object>`
 
@@ -263,6 +266,7 @@ process.exit(code);
 | `nodeEnv`              | `string`                | `'development'`                    | Value written to `NODE_ENV` in child processes                                                                                                                                                                                                                                                                                                                |
 | `scratchDir`           | `string`                | `'tmp/vitest-runner'`              | Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`                                                                                                                                                                                                                |
 | `keepTmp`              | `boolean`               | `false`                            | Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM)                                                                                                                                                                                                                                                    |
+| `isolate`              | `boolean`               | `CLDMV_TEST_ISOLATE=1`             | Linux: run the whole suite in its own PID namespace (see [Isolation](#isolation-pid-namespace)). Can't be combined with `json`                                                                                                                                                                                                                                |
 | `fsModuleCachePath`    | `string \| false`       | `<cwd>/node_modules/.vitest-cache` | Vitest 5+ `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Overrides a path in the vitest config; a `--fsModuleCachePath` passthrough arg overrides this. When unset, the default applies only if the resolved config (root or any project) sets no path. `false` adds nothing. See [Vitest's module cache](#vitests-module-cache) |
 
 #### `PerFileHeapOverride`
@@ -321,7 +325,9 @@ await run({
 
 ### Scratch directories (`VITEST_RUNNER_TMP` / `makeRunTmpDir`)
 
-Every run gets its own scratch root (`<scratchDir>/<pid>-<timestamp>/`), created before any file runs and removed once the run completes — on success, on failure, and on SIGINT/SIGTERM — unless `keepTmp` is set. Each file invocation gets its own subdirectory under that root, exposed to the child as `process.env.VITEST_RUNNER_TMP`. Stale roots left by a crashed prior run (dead PID) are swept at the start of the next run.
+Every run gets its own scratch root (`<scratchDir>/<16 random hex>/`), created before any file runs and removed once the run completes — on success, on failure, and on SIGINT/SIGTERM — unless `keepTmp` is set. Each file invocation gets its own subdirectory under that root, exposed to the child as `process.env.VITEST_RUNNER_TMP`.
+
+Stale roots left by a crashed prior run are swept at the start of the next run. A live run holds a liveness socket in its root ([`@cldmv/lib-process`](https://github.com/CLDMV/lib-process) `alive`), so the sweep never trusts a pid: a root whose socket refuses connections is removed straight away, even inside a PID namespace where other runs' pids look dead. A root with no socket (a run still starting, or a path too long for a Unix socket) is only removed once it has gone 10 minutes without an update; live runs touch their root every minute. Roots named the old way (`<pid>-<timestamp>`, before 1.7) are removed after a day.
 
 From a test file, use `makeRunTmpDir(label)` to get a fresh, uniquely-named subdirectory instead of managing your own `mkdtemp` base:
 
@@ -332,6 +338,16 @@ const dir = makeRunTmpDir("my-fixture"); // a fresh directory under VITEST_RUNNE
 ```
 
 CLI flags: `--scratch-dir <path>` and `--keep-tmp` (see [Runner flags](#runner-flags) above).
+
+### Isolation (PID namespace)
+
+A test that kills by a computed pid can reach every process you own. With `isolate: true` (or `--isolate`, or `CLDMV_TEST_ISOLATE=1`) the runner re-runs its own command line under `unshare -U --map-current-user -p -f --mount-proc` and returns that run's exit code. Inside the namespace a kill only reaches the run's own processes, and when the run ends the kernel kills anything it left behind.
+
+- Linux only. When unprivileged user and PID namespaces aren't available, the run fails before it starts. It never falls back to running unsandboxed.
+- Already in a PID namespace (a container, a k3s pod, an earlier `unshare -p`)? Then it runs as is: the runner compares `/proc/self/ns/pid` with the kernel's initial namespace.
+- Your user id stays the same inside (`--map-current-user`, not `-r`, which breaks `cp -a`), so files keep their owner. The network isn't separated.
+- Code in your script before `run()` runs twice, once outside and once inside, because the whole command line is re-run.
+- Can't be combined with `json`.
 
 ### Vitest's module cache
 

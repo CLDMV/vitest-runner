@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:27-07:00 (1790980527)
+ *	@Last modified time: 2026-11-07T21:39:30-08:00 (1794116370)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -17,7 +17,7 @@
  * @fileoverview Unit tests for src/core/progress.mjs
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createCoverageProgressTracker, noopProgressTracker } from "../../src/core/progress.mjs";
+import { createCoverageProgressTracker, noopProgressTracker } from "@cldmv/vitest-runner";
 
 describe("noopProgressTracker", () => {
 	it("onStart does not throw", () => {

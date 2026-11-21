@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:43:53-07:00 (1793025833)
+ *	@Last modified time: 2026-11-07T21:39:33-08:00 (1794116373)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -24,10 +24,11 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import fs from "node:fs/promises";
+import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "../../src/index.mjs";
-import { stripAnsi } from "../../src/utils/ansi.mjs";
+import { run } from "@cldmv/vitest-runner";
+import { stripAnsi } from "@cldmv/vitest-runner";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** The vitest-runner package root — vitest is installed here. */
@@ -763,11 +764,16 @@ describe("run() — scratch directory lifecycle (VITEST_RUNNER_TMP / keepTmp / s
 		await fs.rm(markerFile, { force: true });
 	});
 
-	it("sweeps stale scratch roots left by a dead process before creating this run's root", async () => {
+	it("sweeps stale scratch roots left by a dead run before creating this run's root", async () => {
 		const scratchDir = path.join("tmp", "scratch-lifecycle-sweep");
 		const base = path.resolve(CWD, scratchDir);
-		const staleRoot = path.join(base, "999999999-123");
+		// A crashed run's root: random name, a socket nobody listens on any more.
+		const staleRoot = path.join(base, "0123456789abcdef");
 		await fs.mkdir(staleRoot, { recursive: true });
+		const server = net.createServer();
+		await new Promise((resolve) => server.listen(path.join(staleRoot, ".t"), resolve));
+		await fs.rename(path.join(staleRoot, ".t"), path.join(staleRoot, "alive.sock"));
+		await new Promise((resolve) => server.close(resolve));
 
 		const code = await run({
 			...QUIET_BASE,

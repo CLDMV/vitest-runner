@@ -8,7 +8,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:43:49-07:00 (1793025829)
+ *	@Last modified time: 2026-11-21T12:14:13-08:00 (1795292053)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -100,6 +100,7 @@ try {
 		json: args.json,
 		mergeReports: args.mergeReports,
 		keepTmp: args.keepTmp,
+		...(args.isolate !== undefined && { isolate: args.isolate }),
 		...(args.blobsDir !== undefined && { blobsDir: args.blobsDir }),
 		...(args.workers !== undefined && { workers: args.workers }),
 		...(args.soloPatterns.length > 0 && { earlyRunPatterns: args.soloPatterns }),

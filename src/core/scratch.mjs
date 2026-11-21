@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:21-07:00 (1790980521)
+ *	@Last modified time: 2026-11-21T12:14:14-08:00 (1795292054)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -20,32 +20,32 @@
  * @module vitest-runner/src/core/scratch
  */
 
+import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
+import { alive } from "@cldmv/lib-process";
 
 /** Default scratch root, relative to `cwd`. */
 export const DEFAULT_SCRATCH_DIR = "tmp/vitest-runner";
 
-/** Matches a run root's directory name: `<pid>-<timestamp>`. */
-const RUN_ROOT_NAME_PATTERN = /^(\d+)-\d+$/;
+/** Matches a run root's directory name: 16 random hex characters. */
+const RUN_ROOT_NAME_PATTERN = /^[0-9a-f]{16}$/;
+
+/** Matches a run root left by vitest-runner before 1.7: `<pid>-<timestamp>`. */
+const LEGACY_RUN_ROOT_NAME_PATTERN = /^\d+-\d+$/;
 
 /**
- * Check whether a process is still alive.
- *
- * @param {number} pid
- * @returns {boolean}
+ * How long a run root with no liveness socket may go unmodified before it counts as stale.
+ * A live run touches its root every {@link HEARTBEAT_MS}, so only a run that's gone ages past this.
  */
-export function isPidAlive(pid) {
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (err) {
-		// ESRCH: no such process. Any other error (e.g. EPERM — process exists
-		// but we lack permission to signal it) means it's still alive.
-		return err.code !== "ESRCH";
-	}
-}
+export const STALE_ROOT_AGE_MS = 10 * 60 * 1000;
+
+/** Legacy `<pid>-<timestamp>` roots never had a heartbeat, so they get a day. */
+export const STALE_LEGACY_ROOT_AGE_MS = 24 * 60 * 60 * 1000;
+
+/** How often a live run refreshes its root's modification time. */
+export const HEARTBEAT_MS = 60 * 1000;
 
 /**
  * Sanitize a label for use as a directory name segment.
@@ -61,8 +61,47 @@ function sanitizeLabel(label) {
 }
 
 /**
- * Remove scratch roots left behind by runs whose owning process is no longer alive
- * (a crash or `kill -9` skips the normal exit-time cleanup).
+ * Whether a run root with no usable socket has gone unmodified for longer than `maxAgeMs`.
+ *
+ * @param {string} dir
+ * @param {number} maxAgeMs
+ * @returns {Promise<boolean>}
+ */
+async function olderThan(dir, maxAgeMs) {
+	try {
+		const { mtimeMs } = await fs.stat(dir);
+		return Date.now() - mtimeMs > maxAgeMs;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Reads a run root's liveness without throwing: a socket path over the Unix limit counts as
+ * "unknown", the same as no socket.
+ *
+ * @param {string} dir
+ * @returns {Promise<"alive" | "dead" | "unknown">}
+ */
+async function checkRoot(dir) {
+	try {
+		return await alive.check(dir);
+	} catch {
+		return "unknown";
+	}
+}
+
+/**
+ * Remove scratch roots left behind by runs that are gone (a crash or `kill -9` skips the
+ * normal exit-time cleanup).
+ *
+ * A live run holds a liveness socket in its root (`@cldmv/lib-process` `alive`), so a pid is
+ * never trusted: inside a PID namespace every outside run's pid looks dead, and pids repeat
+ * across namespaces. A root whose socket refuses connections is removed at once. A root with
+ * no socket (a run still starting, a path too long for a Unix socket, Windows) is removed
+ * only once it has gone unmodified for {@link STALE_ROOT_AGE_MS}; live runs refresh it every
+ * {@link HEARTBEAT_MS}. Roots named the pre-1.7 way (`<pid>-<timestamp>`) are removed by age
+ * alone, after {@link STALE_LEGACY_ROOT_AGE_MS}.
  *
  * @param {string} cwd - Project root.
  * @param {string} scratchDir - Scratch base directory, relative to `cwd` (or absolute).
@@ -80,28 +119,64 @@ export async function sweepStaleScratchRoots(cwd, scratchDir) {
 
 	for (const entry of entries) {
 		if (!entry.isDirectory()) continue;
-		const match = entry.name.match(RUN_ROOT_NAME_PATTERN);
-		if (!match) continue;
+		const dir = path.join(base, entry.name);
 
-		const pid = parseInt(match[1], 10);
-		if (isPidAlive(pid)) continue;
+		let stale = false;
+		if (RUN_ROOT_NAME_PATTERN.test(entry.name)) {
+			const state = await checkRoot(dir);
+			stale = state === "dead" || (state === "unknown" && (await olderThan(dir, STALE_ROOT_AGE_MS)));
+		} else if (LEGACY_RUN_ROOT_NAME_PATTERN.test(entry.name)) {
+			stale = await olderThan(dir, STALE_LEGACY_ROOT_AGE_MS);
+		}
 
-		await fs.rm(path.join(base, entry.name), { recursive: true, force: true }).catch(() => {});
+		if (stale) await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
 	}
 }
 
 /**
- * Create this run's scratch root: `<cwd>/<scratchDir>/<pid>-<timestamp>/`.
+ * A run's scratch root and the liveness hold on it.
+ *
+ * @typedef {Object} RunScratchRoot
+ * @property {string} root - The root's path.
+ * @property {() => Promise<void>} release - Stops holding the root (socket and heartbeat). Idempotent.
+ */
+
+/**
+ * Create this run's scratch root, `<cwd>/<scratchDir>/<16 hex>/`, and hold it: a liveness
+ * socket other runs' sweepers can check, plus a heartbeat that keeps its modification time
+ * fresh for when there's no socket. Both stop when the process exits, however it exits.
  *
  * @param {string} cwd - Project root.
  * @param {string} scratchDir - Scratch base directory, relative to `cwd` (or absolute).
- * @returns {Promise<string>} Absolute path to the created root.
+ * @returns {Promise<RunScratchRoot>}
  */
 export async function createRunScratchRoot(cwd, scratchDir) {
 	const base = path.resolve(cwd, scratchDir);
-	const root = path.join(base, `${process.pid}-${Date.now()}`);
+	const root = path.join(base, randomBytes(8).toString("hex"));
 	await fs.mkdir(root, { recursive: true });
-	return root;
+
+	let holder = null;
+	try {
+		holder = await alive.hold(root);
+	} catch {
+		// No socket (path over the Unix socket limit, or a filesystem without sockets): the
+		// sweeper falls back to the root's age, which the heartbeat keeps fresh.
+	}
+	const heartbeat = setInterval(() => {
+		const now = new Date();
+		fs.utimes(root, now, now).catch(() => {});
+	}, HEARTBEAT_MS);
+	heartbeat.unref();
+
+	let released = null;
+	const release = () => {
+		released ??= (async () => {
+			clearInterval(heartbeat);
+			await holder?.close().catch(() => {});
+		})();
+		return released;
+	};
+	return { root, release };
 }
 
 /**

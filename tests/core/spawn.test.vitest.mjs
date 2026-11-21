@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:29-07:00 (1790980529)
+ *	@Last modified time: 2026-11-07T21:39:31-08:00 (1794116371)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -24,8 +24,7 @@
 import { describe, it, expect } from "vitest";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runSingleFile, runVitestDirect, runMergeReports } from "../../src/core/spawn.mjs";
-import { resolveBin } from "../../src/utils/resolve.mjs";
+import { runSingleFile, runVitestDirect, runMergeReports, resolveBin } from "@cldmv/vitest-runner";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, "../..");
