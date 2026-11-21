@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:19-07:00 (1790980519)
+ *	@Last modified time: 2026-11-21T12:14:13-08:00 (1795292053)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -51,6 +51,7 @@ ${chalk.bold("SPECIAL FLAGS:")}
   --no-merge-reports      Leave coverage blobs in --blobs-dir without merging (for an external merge)
   --keep-tmp              Keep this run's scratch directory instead of removing it on completion
   --scratch-dir <path>    Per-run scratch root, relative to cwd (default: tmp/vitest-runner)
+  --isolate               Run the suite in its own PID namespace (Linux; also CLDMV_TEST_ISOLATE=1)
   --help, -h              Show this help message
 
 ${chalk.bold("TEST PATTERNS:")}

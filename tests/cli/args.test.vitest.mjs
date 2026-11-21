@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:26-07:00 (1790980526)
+ *	@Last modified time: 2026-11-21T12:14:14-08:00 (1795292054)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -85,6 +85,17 @@ describe("parseArguments", () => {
 	it("does not forward --keep-tmp or --scratch-dir to vitest passthrough args", () => {
 		const result = parseArguments(["--keep-tmp", "--scratch-dir", "tmp/custom", "--reporter", "verbose"]);
 		expect(result.vitestPassthroughArgs).toEqual(["--reporter", "verbose"]);
+	});
+
+	// ── --isolate ────────────────────────────────────────────────────────────
+
+	it("parses --isolate, and leaves isolate unset without it", () => {
+		expect(parseArguments(["--isolate"]).isolate).toBe(true);
+		expect(parseArguments([]).isolate).toBeUndefined();
+	});
+
+	it("does not forward --isolate to vitest passthrough args", () => {
+		expect(parseArguments(["--isolate", "--reporter", "verbose"]).vitestPassthroughArgs).toEqual(["--reporter", "verbose"]);
 	});
 
 	// ── --solo-pattern ────────────────────────────────────────────────────────
