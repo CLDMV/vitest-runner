@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:14:14-08:00 (1795292054)
+ *	@Last modified time: 2026-11-21T16:59:13-08:00 (1795309153)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -21,9 +21,11 @@ import { EventEmitter } from "node:events";
 import { describe, it, expect, vi } from "vitest";
 import {
 	ISOLATE_ENV,
+	ISOLATED_ENV,
 	INITIAL_PID_NAMESPACE_INODE,
 	UNSHARE_ARGS,
 	isolationRequested,
+	shouldIsolate,
 	inPidNamespace,
 	assertUnshareWorks,
 	runIsolated
@@ -40,6 +42,67 @@ describe("isolationRequested", () => {
 		expect(isolationRequested(undefined, { [ISOLATE_ENV]: "1" })).toBe(true);
 		expect(isolationRequested(undefined, { [ISOLATE_ENV]: "true" })).toBe(false);
 		expect(isolationRequested(undefined, {})).toBe(false);
+	});
+
+	it("reads force from the option or CLDMV_TEST_ISOLATE=force", () => {
+		expect(isolationRequested("force", {})).toBe("force");
+		expect(isolationRequested(undefined, { [ISOLATE_ENV]: "force" })).toBe("force");
+		expect(isolationRequested(true, { [ISOLATE_ENV]: "force" })).toBe(true);
+		expect(isolationRequested(undefined, { [ISOLATE_ENV]: "FORCE" })).toBe(false);
+	});
+});
+
+describe("shouldIsolate", () => {
+	const inside = () => true;
+	const outside = () => false;
+
+	it("is off when isolation is off", () => {
+		expect(shouldIsolate(false, { env: {}, namespaced: outside })).toBe(false);
+	});
+
+	it("skips an already namespaced process unless forced", () => {
+		expect(shouldIsolate(true, { env: {}, namespaced: outside })).toBe(true);
+		expect(shouldIsolate(true, { env: {}, namespaced: inside })).toBe(false);
+		expect(shouldIsolate("force", { env: {}, namespaced: inside })).toBe(true);
+	});
+
+	it("reads the real /proc by default", () => {
+		expect(shouldIsolate("force", { env: {} })).toBe(true);
+	});
+});
+
+describe("consumeIsolatedMarker", () => {
+	// The marker flips module state for the rest of the process, so each test gets a fresh module.
+	const fresh = async () => {
+		vi.resetModules();
+		return import("../../src/core/isolate.mjs");
+	};
+
+	it("is false and leaves nothing behind without the marker", async () => {
+		const { consumeIsolatedMarker } = await fresh();
+		const env = {};
+		expect(consumeIsolatedMarker(env)).toBe(false);
+		expect(env).toEqual({});
+	});
+
+	it("never re-runs the re-run, even when forced, and removes the marker", async () => {
+		const mod = await fresh();
+		const env = { [mod.ISOLATED_ENV]: "1" };
+		expect(mod.shouldIsolate("force", { env, namespaced: () => true })).toBe(false);
+		expect(env).toEqual({});
+		// Seen once is enough: a later run() in the same process stays put too.
+		expect(mod.shouldIsolate("force", { env: {}, namespaced: () => true })).toBe(false);
+	});
+
+	it("reads process.env by default", async () => {
+		const { consumeIsolatedMarker, ISOLATED_ENV: name } = await fresh();
+		process.env[name] = "1";
+		try {
+			expect(consumeIsolatedMarker()).toBe(true);
+			expect(process.env[name]).toBeUndefined();
+		} finally {
+			delete process.env[name];
+		}
 	});
 });
 
@@ -113,7 +176,7 @@ describe("runIsolated", () => {
 		expect(start).toHaveBeenCalledWith(
 			"unshare",
 			[...UNSHARE_ARGS, "--", "/usr/bin/node", "--conditions=dev", "tests/run.mjs", "--coverage"],
-			{ stdio: "inherit", env: { A: "1" } }
+			{ stdio: "inherit", env: { A: "1", [ISOLATED_ENV]: "1" } }
 		);
 		child.emit("exit", 3, null);
 		await expect(promise).resolves.toBe(3);

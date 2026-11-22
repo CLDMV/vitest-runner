@@ -1,11 +1,33 @@
 /**
- * Whether isolation is on: the `isolate` option when given, otherwise `CLDMV_TEST_ISOLATE=1`.
+ * The isolation mode: the `isolate` option when given, otherwise `CLDMV_TEST_ISOLATE` (`1` is
+ * on, `force` is forced, anything else is off).
  *
- * @param {boolean | undefined} option
+ * @param {boolean | "force" | undefined} option
  * @param {NodeJS.ProcessEnv} [env=process.env]
+ * @returns {boolean | "force"}
+ */
+export function isolationRequested(option: boolean | "force" | undefined, env?: NodeJS.ProcessEnv): boolean | "force";
+/**
+ * Reads and removes {@link ISOLATED_ENV}. Once it has been seen, this process counts as the
+ * re-run for the rest of its life.
+ *
+ * @param {NodeJS.ProcessEnv} [env=process.env]
+ * @returns {boolean} Whether this process is the re-run inside the namespace.
+ */
+export function consumeIsolatedMarker(env?: NodeJS.ProcessEnv): boolean;
+/**
+ * Whether run() should re-run itself under unshare for this mode.
+ *
+ * @param {boolean | "force"} mode - From {@link isolationRequested}.
+ * @param {object} [context] - Injection points for tests.
+ * @param {NodeJS.ProcessEnv} [context.env=process.env]
+ * @param {() => boolean} [context.namespaced=inPidNamespace]
  * @returns {boolean}
  */
-export function isolationRequested(option: boolean | undefined, env?: NodeJS.ProcessEnv): boolean;
+export function shouldIsolate(mode: boolean | "force", { env, namespaced }?: {
+    env?: NodeJS.ProcessEnv;
+    namespaced?: () => boolean;
+}): boolean;
 /**
  * Whether this process is already in a PID namespace other than the initial one.
  * Unreadable `/proc` counts as "not isolated", so isolation is attempted (and fails loudly
@@ -25,7 +47,8 @@ export function inPidNamespace(readlink?: (path: string) => string): boolean;
 export function assertUnshareWorks(run?: typeof spawnSync): void;
 /**
  * Re-runs this process's own command line inside new user and PID namespaces and resolves
- * with its exit code. SIGINT and SIGTERM sent to this process are passed on.
+ * with its exit code. The re-run gets {@link ISOLATED_ENV}=1. SIGINT and SIGTERM sent to this
+ * process are passed on.
  *
  * @param {object} [context] - Injection points for tests.
  * @param {typeof spawn} [context.start=spawn]
@@ -44,8 +67,14 @@ export function runIsolated({ start, execPath, execArgv, argv, env, proc }?: {
     env?: NodeJS.ProcessEnv;
     proc?: NodeJS.Process;
 }): Promise<number>;
-/** Environment variable that turns isolation on (`1`) when the `isolate` option isn't set. */
+/** Environment variable that turns isolation on (`1`, or `force`) when the `isolate` option isn't set. */
 export const ISOLATE_ENV: "CLDMV_TEST_ISOLATE";
+/**
+ * Set in the environment of the re-run process. The runner reads and removes it on its first
+ * run() call, so the re-run doesn't start a third copy of itself and the test processes it
+ * spawns don't inherit it (a test that runs the runner again still gets its own namespace).
+ */
+export const ISOLATED_ENV: "VITEST_RUNNER_ISOLATED";
 /**
  * Inode of the kernel's initial PID namespace (PROC_PID_INIT_INO, 0xEFFFFFFC). A process whose
  * `/proc/self/ns/pid` shows any other inode is already in a PID namespace of its own (a

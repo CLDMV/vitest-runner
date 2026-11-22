@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:14:16-08:00 (1795292056)
+ *	@Last modified time: 2026-11-21T16:59:14-08:00 (1795309154)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -66,6 +66,27 @@ describe("run({ isolate })", () => {
 		} finally {
 			Object.defineProperty(process, "platform", platform);
 		}
+	});
+
+	it("takes CLDMV_TEST_ISOLATE=force, and re-runs even inside a PID namespace", async () => {
+		process.env.CLDMV_TEST_ISOLATE = "force";
+		vi.mocked(inPidNamespace).mockReturnValue(true);
+		try {
+			await expect(run({})).resolves.toBe(7);
+			await expect(run({ isolate: "force" })).resolves.toBe(7);
+		} finally {
+			vi.mocked(inPidNamespace).mockReturnValue(false);
+		}
+		expect(assertUnshareWorks).toHaveBeenCalledTimes(2);
+	});
+
+	it("fails loudly when forced and unshare isn't permitted, never running unsandboxed", async () => {
+		vi.mocked(inPidNamespace).mockReturnValueOnce(true);
+		vi.mocked(assertUnshareWorks).mockImplementationOnce(() => {
+			throw new Error("vitest-runner: isolation is on but unprivileged user and PID namespaces aren't available here");
+		});
+		await expect(run({ isolate: "force", _testResultsOverride: [] })).rejects.toThrow(/namespaces aren't available/);
+		expect(runIsolated).not.toHaveBeenCalled();
 	});
 
 	it("doesn't re-run when already in a PID namespace", async () => {

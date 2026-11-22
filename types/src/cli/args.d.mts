@@ -86,9 +86,9 @@ export type ParsedArgs = {
      */
     keepTmp: boolean;
     /**
-     * - Run the suite in its own PID namespace (`--isolate`); undefined leaves it to `CLDMV_TEST_ISOLATE`.
+     * - Run the suite in its own PID namespace (`--isolate`, or `--isolate=force` to do it even when already in one); undefined leaves it to `CLDMV_TEST_ISOLATE`.
      */
-    isolate: boolean | undefined;
+    isolate: boolean | "force" | undefined;
     /**
      * - Per-run scratch root, relative to `cwd` (`--scratch-dir`); defaults to `tmp/vitest-runner`.
      */

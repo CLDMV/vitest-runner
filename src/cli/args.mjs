@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:14:13-08:00 (1795292053)
+ *	@Last modified time: 2026-11-21T16:59:12-08:00 (1795309152)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -38,7 +38,7 @@
  * @property {string[]} vitestPassthroughArgs - Flags forwarded verbatim to vitest.
  * @property {string[]} testPatterns - Non-flag positional arguments (file / folder patterns).
  * @property {boolean} keepTmp - Keep the run's scratch directory instead of removing it on completion (`--keep-tmp`).
- * @property {boolean|undefined} isolate - Run the suite in its own PID namespace (`--isolate`); undefined leaves it to `CLDMV_TEST_ISOLATE`.
+ * @property {boolean|"force"|undefined} isolate - Run the suite in its own PID namespace (`--isolate`, or `--isolate=force` to do it even when already in one); undefined leaves it to `CLDMV_TEST_ISOLATE`.
  * @property {string|undefined} scratchDir - Per-run scratch root, relative to `cwd` (`--scratch-dir`); defaults to `tmp/vitest-runner`.
  */
 
@@ -97,6 +97,7 @@ export function parseArguments(args) {
 	let help = false;
 	let testFilePattern;
 	let keepTmp = false;
+	/** @type {boolean | "force" | undefined} */
 	let isolate;
 	let scratchDir;
 	for (let i = 0; i < args.length; i++) {
@@ -148,6 +149,8 @@ export function parseArguments(args) {
 			keepTmp = true;
 		} else if (arg === "--isolate") {
 			isolate = true;
+		} else if (arg === "--isolate=force") {
+			isolate = "force";
 		} else if (arg === "--scratch-dir") {
 			scratchDir = args[++i];
 		} else if (arg.startsWith("--scratch-dir=")) {

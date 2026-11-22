@@ -121,6 +121,7 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--no-merge-reports`       | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step                      |
 | `--keep-tmp`               | Keep this run's scratch directory instead of removing it on completion                                                                   |
 | `--isolate`                | Run the suite in its own PID namespace (Linux; see [Isolation](#isolation-pid-namespace))                                                |
+| `--isolate=force`          | The same, even when already in a PID namespace                                                                                           |
 | `--scratch-dir <path>`     | Per-run scratch root, relative to `cwd` (default: `tmp/vitest-runner`)                                                                   |
 | `--help`, `-h`             | Print this help and exit                                                                                                                 |
 
@@ -159,11 +160,11 @@ vitest-runner --bail
 
 ### Environment variables
 
-| Variable             | Default  | Description                                                                                              |
-| -------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `VITEST_HEAP_MB`     | _(none)_ | `--max-old-space-size` ceiling passed to every child process                                             |
-| `VITEST_WORKERS`     | `4`      | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`)                          |
-| `CLDMV_TEST_ISOLATE` | _(none)_ | `1` runs the suite in its own PID namespace (Linux; the `isolate` option or `--isolate` take precedence) |
+| Variable             | Default  | Description                                                                                                                                        |
+| -------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITEST_HEAP_MB`     | _(none)_ | `--max-old-space-size` ceiling passed to every child process                                                                                       |
+| `VITEST_WORKERS`     | `4`      | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`)                                                                    |
+| `CLDMV_TEST_ISOLATE` | _(none)_ | `1` runs the suite in its own PID namespace, `force` does it even when already in one (Linux; the `isolate` option or `--isolate` take precedence) |
 
 ### Examples
 
@@ -266,7 +267,7 @@ process.exit(code);
 | `nodeEnv`              | `string`                | `'development'`                    | Value written to `NODE_ENV` in child processes                                                                                                                                                                                                                                                                                                                |
 | `scratchDir`           | `string`                | `'tmp/vitest-runner'`              | Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`                                                                                                                                                                                                                |
 | `keepTmp`              | `boolean`               | `false`                            | Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM)                                                                                                                                                                                                                                                    |
-| `isolate`              | `boolean`               | `CLDMV_TEST_ISOLATE=1`             | Linux: run the whole suite in its own PID namespace (see [Isolation](#isolation-pid-namespace)). Can't be combined with `json`                                                                                                                                                                                                                                |
+| `isolate`              | `boolean \| "force"`    | `CLDMV_TEST_ISOLATE`               | Linux: run the whole suite in its own PID namespace; `"force"` does it even when already in one (see [Isolation](#isolation-pid-namespace)). Can't be combined with `json`                                                                                                                                                                                    |
 | `fsModuleCachePath`    | `string \| false`       | `<cwd>/node_modules/.vitest-cache` | Vitest 5+ `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Overrides a path in the vitest config; a `--fsModuleCachePath` passthrough arg overrides this. When unset, the default applies only if the resolved config (root or any project) sets no path. `false` adds nothing. See [Vitest's module cache](#vitests-module-cache) |
 
 #### `PerFileHeapOverride`
@@ -344,7 +345,8 @@ CLI flags: `--scratch-dir <path>` and `--keep-tmp` (see [Runner flags](#runner-f
 A test that kills by a computed pid can reach every process you own. With `isolate: true` (or `--isolate`, or `CLDMV_TEST_ISOLATE=1`) the runner re-runs its own command line under `unshare -U --map-current-user -p -f --mount-proc` and returns that run's exit code. Inside the namespace a kill only reaches the run's own processes, and when the run ends the kernel kills anything it left behind.
 
 - Linux only. When unprivileged user and PID namespaces aren't available, the run fails before it starts. It never falls back to running unsandboxed.
-- Already in a PID namespace (a container, a k3s pod, an earlier `unshare -p`)? Then it runs as is: the runner compares `/proc/self/ns/pid` with the kernel's initial namespace.
+- Already in a PID namespace (a container, a k3s pod, an earlier `unshare -p`)? Then it runs as is: the runner compares `/proc/self/ns/pid` with the kernel's initial namespace. To isolate anyway, for example to test the isolated path in a container that allows unprivileged `unshare`, use `isolate: "force"`, `--isolate=force` or `CLDMV_TEST_ISOLATE=force`. The same rule applies: if `unshare` isn't permitted, the run fails before it starts.
+- The re-run process gets `VITEST_RUNNER_ISOLATED=1`, which the runner removes from its environment straight away, so it doesn't re-run itself again and the tests it starts don't see it.
 - Your user id stays the same inside (`--map-current-user`, not `-r`, which breaks `cp -a`), so files keep their owner. The network isn't separated.
 - Code in your script before `run()` runs twice, once outside and once inside, because the whole command line is re-run.
 - Can't be combined with `json`.

@@ -7,14 +7,14 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:14:15-08:00 (1795292055)
+ *	@Last modified time: 2026-11-21T16:59:14-08:00 (1795309154)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
  */
 
 // Runs the passing fixtures with isolation on and prints the PID namespace it ran in, once
-// outside (before the re-exec) and once inside. Exit code = run()'s.
+// outside (before the re-exec) and once inside. Exit code = run()'s. Pass `force` to force it.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,7 +26,7 @@ const code = await run({
 	cwd: path.resolve(fixtures, "../.."),
 	testDir: path.join(fixtures, "passing"),
 	vitestConfig: path.join(fixtures, "vitest.config.mjs"),
-	isolate: true,
+	isolate: process.argv[2] === "force" ? "force" : true,
 	coverageQuiet: true,
 	suppressFileOutput: true,
 	scratchDir: "tmp/isolate-e2e"

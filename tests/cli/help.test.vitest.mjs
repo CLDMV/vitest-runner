@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:14:14-08:00 (1795292054)
+ *	@Last modified time: 2026-11-21T16:59:13-08:00 (1795309153)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -108,6 +108,7 @@ describe("showHelp", () => {
 		});
 		showHelp();
 		expect(output).toContain("--isolate");
+		expect(output).toContain("--isolate=force");
 	});
 
 	it("output contains --scratch-dir flag description", () => {
