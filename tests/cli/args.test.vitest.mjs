@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:14:14-08:00 (1795292054)
+ *	@Last modified time: 2026-11-21T16:59:13-08:00 (1795309153)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -92,10 +92,12 @@ describe("parseArguments", () => {
 	it("parses --isolate, and leaves isolate unset without it", () => {
 		expect(parseArguments(["--isolate"]).isolate).toBe(true);
 		expect(parseArguments([]).isolate).toBeUndefined();
+		expect(parseArguments(["--isolate=force"]).isolate).toBe("force");
 	});
 
 	it("does not forward --isolate to vitest passthrough args", () => {
 		expect(parseArguments(["--isolate", "--reporter", "verbose"]).vitestPassthroughArgs).toEqual(["--reporter", "verbose"]);
+		expect(parseArguments(["--isolate=force"]).vitestPassthroughArgs).toEqual([]);
 	});
 
 	// ── --solo-pattern ────────────────────────────────────────────────────────

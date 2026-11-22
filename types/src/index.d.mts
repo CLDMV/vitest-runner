@@ -3,7 +3,8 @@
  * pool for the non-solo phase) and return an exit code.
  *
  * With isolation on (`isolate` / `CLDMV_TEST_ISOLATE=1`) and not already in a PID namespace,
- * it re-runs the process's own command line in a new one and returns that run's exit code.
+ * or with isolation forced (`"force"`) wherever it runs, it re-runs the process's own command
+ * line in a new one and returns that run's exit code.
  *
  * Owns the run's scratch directory lifecycle (`scratchDir`/`keepTmp`): sweeps stale
  * roots from dead prior runs, creates this run's root, and removes it on every exit
@@ -130,9 +131,9 @@ export type RunOptions = {
      */
     keepTmp?: boolean;
     /**
-     * - Linux: run the whole suite in its own PID namespace, so a test's bad `kill` can only reach the run's own processes. The runner re-runs its own command line under `unshare -U --map-current-user -p -f --mount-proc` and returns that run's exit code; it's skipped when the process is already in a PID namespace (a container, a k3s pod). Fails loudly when unprivileged namespaces aren't available. Defaults to `CLDMV_TEST_ISOLATE=1`. Can't be combined with `json`.
+     * - Linux: run the whole suite in its own PID namespace, so a test's bad `kill` can only reach the run's own processes. The runner re-runs its own command line under `unshare -U --map-current-user -p -f --mount-proc` and returns that run's exit code; with `true` it's skipped when the process is already in a PID namespace (a container, a k3s pod), with `"force"` it re-runs anyway. Fails loudly when unprivileged namespaces aren't available. Defaults to `CLDMV_TEST_ISOLATE` (`1` or `force`). Can't be combined with `json`.
      */
-    isolate?: boolean;
+    isolate?: boolean | "force";
     /**
      * - Vitest 5+ `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Takes precedence over `fsModuleCachePath` in the vitest config; a `--fsModuleCachePath` passthrough arg takes precedence over this. When unset, children use `<cwd>/node_modules/.vitest-cache` unless the resolved config (root or any project) sets a path. `false` adds nothing and leaves vitest's own setting in place.
      */

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:14:14-08:00 (1795292054)
+ *	@Last modified time: 2026-11-21T16:59:12-08:00 (1795309152)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -24,14 +24,28 @@
  * line under `unshare -U --map-current-user -p -f --mount-proc` and passes the exit code
  * through. When unprivileged namespaces aren't available it fails loudly; it never falls
  * back to running unsandboxed. `-r` (map root) is deliberately not used: it breaks `cp -a`.
+ *
+ * A process that's already in a PID namespace (a container, a k3s pod) runs as is, unless
+ * isolation is forced (`isolate: "force"`, `--isolate=force`, `CLDMV_TEST_ISOLATE=force`). The
+ * re-run process gets {@link ISOLATED_ENV} so it never re-runs itself again.
  */
 
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 
-/** Environment variable that turns isolation on (`1`) when the `isolate` option isn't set. */
+/** Environment variable that turns isolation on (`1`, or `force`) when the `isolate` option isn't set. */
 export const ISOLATE_ENV = "CLDMV_TEST_ISOLATE";
+
+/**
+ * Set in the environment of the re-run process. The runner reads and removes it on its first
+ * run() call, so the re-run doesn't start a third copy of itself and the test processes it
+ * spawns don't inherit it (a test that runs the runner again still gets its own namespace).
+ */
+export const ISOLATED_ENV = "VITEST_RUNNER_ISOLATED";
+
+/** Whether this process is the re-run inside the namespace; set by {@link consumeIsolatedMarker}. */
+let isolatedProcess = false;
 
 /**
  * Inode of the kernel's initial PID namespace (PROC_PID_INIT_INO, 0xEFFFFFFC). A process whose
@@ -44,14 +58,45 @@ export const INITIAL_PID_NAMESPACE_INODE = 4026531836;
 export const UNSHARE_ARGS = Object.freeze(["-U", "--map-current-user", "-p", "-f", "--mount-proc", "--kill-child=SIGTERM"]);
 
 /**
- * Whether isolation is on: the `isolate` option when given, otherwise `CLDMV_TEST_ISOLATE=1`.
+ * The isolation mode: the `isolate` option when given, otherwise `CLDMV_TEST_ISOLATE` (`1` is
+ * on, `force` is forced, anything else is off).
  *
- * @param {boolean | undefined} option
+ * @param {boolean | "force" | undefined} option
  * @param {NodeJS.ProcessEnv} [env=process.env]
- * @returns {boolean}
+ * @returns {boolean | "force"}
  */
 export function isolationRequested(option, env = process.env) {
-	return option ?? env[ISOLATE_ENV] === "1";
+	if (option !== undefined) return option === "force" ? "force" : option === true;
+	const value = env[ISOLATE_ENV];
+	return value === "force" ? "force" : value === "1";
+}
+
+/**
+ * Reads and removes {@link ISOLATED_ENV}. Once it has been seen, this process counts as the
+ * re-run for the rest of its life.
+ *
+ * @param {NodeJS.ProcessEnv} [env=process.env]
+ * @returns {boolean} Whether this process is the re-run inside the namespace.
+ */
+export function consumeIsolatedMarker(env = process.env) {
+	if (env[ISOLATED_ENV] === "1") isolatedProcess = true;
+	delete env[ISOLATED_ENV];
+	return isolatedProcess;
+}
+
+/**
+ * Whether run() should re-run itself under unshare for this mode.
+ *
+ * @param {boolean | "force"} mode - From {@link isolationRequested}.
+ * @param {object} [context] - Injection points for tests.
+ * @param {NodeJS.ProcessEnv} [context.env=process.env]
+ * @param {() => boolean} [context.namespaced=inPidNamespace]
+ * @returns {boolean}
+ */
+export function shouldIsolate(mode, { env = process.env, namespaced = inPidNamespace } = {}) {
+	const relaunched = consumeIsolatedMarker(env);
+	if (!mode || relaunched) return false;
+	return mode === "force" || !namespaced();
 }
 
 /**
@@ -91,7 +136,8 @@ export function assertUnshareWorks(run = spawnSync) {
 
 /**
  * Re-runs this process's own command line inside new user and PID namespaces and resolves
- * with its exit code. SIGINT and SIGTERM sent to this process are passed on.
+ * with its exit code. The re-run gets {@link ISOLATED_ENV}=1. SIGINT and SIGTERM sent to this
+ * process are passed on.
  *
  * @param {object} [context] - Injection points for tests.
  * @param {typeof spawn} [context.start=spawn]
@@ -110,7 +156,10 @@ export function runIsolated({
 	env = process.env,
 	proc = process
 } = {}) {
-	const child = start("unshare", [...UNSHARE_ARGS, "--", execPath, ...execArgv, ...argv.slice(1)], { stdio: "inherit", env });
+	const child = start("unshare", [...UNSHARE_ARGS, "--", execPath, ...execArgv, ...argv.slice(1)], {
+		stdio: "inherit",
+		env: { ...env, [ISOLATED_ENV]: "1" }
+	});
 	const forward = (/** @type {NodeJS.Signals} */ signal) => child.kill(signal);
 	proc.on("SIGINT", forward);
 	proc.on("SIGTERM", forward);
