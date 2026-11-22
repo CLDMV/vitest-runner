@@ -14,18 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.7.0 (November 2026)
+### Latest: v1.8.0 (November 2026)
 
-- **Run the suite in its own PID namespace** — with `isolate: true`, `--isolate` or `CLDMV_TEST_ISOLATE=1`, the runner re-runs itself under `unshare -U --map-current-user -p -f --mount-proc`, so a test's bad `kill` can only reach the run's own processes. It's skipped when already in a PID namespace, and it fails before the run starts when namespaces aren't available rather than running unsandboxed. Linux only, off by default ([#130](https://github.com/CLDMV/vitest-runner/pull/130)).
-- **Scratch roots are swept by liveness, not by pid** — each run holds a socket from [`@cldmv/lib-process`](https://github.com/CLDMV/lib-process) in its randomly named root, so a crashed run's root is removed at once and a live run's never is, even across PID namespaces ([#130](https://github.com/CLDMV/vitest-runner/pull/130)).
-- [View full v1.7.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.7.0.md)
+- **Forced isolation** — `isolate: "force"`, `--isolate=force` or `CLDMV_TEST_ISOLATE=force` re-run the suite in its own PID namespace even when the runner is already in one, so the isolated path can be tested inside a container or k3s pod that allows unprivileged `unshare`. Plain isolation still skips there. If `unshare` isn't permitted, the run fails before it starts ([#135](https://github.com/CLDMV/vitest-runner/pull/135)).
+- [View full v1.8.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.0.md)
 
 ### Recent Releases
 
+- **v1.7.0** (November 2026) — Opt-in PID-namespace isolation (`isolate`, `--isolate`, `CLDMV_TEST_ISOLATE=1`), and scratch roots swept by a liveness socket instead of by pid ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.7.0.md))
 - **v1.6.1** (November 2026) — `engines.node` set to `>=22.0.0`, the runtime floor, with the 22.22.0 toolchain floor moved to `devEngines`; behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.1.md))
 - **v1.6.0** (November 2026) — `--conditions=vitest-runner-dev` sends `require()` to `src/index.cjs` too, and `engines.node` raised to `>=22.22.0`; runner behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.0.md))
 - **v1.5.6** (October 2026) — Dev-tooling dependency update: `tsup` 9, Vitest 5.0.5 and a `katex` override clear both Dependabot alerts; the built files are byte-identical to v1.5.5 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.6.md))
-- **v1.5.5** (October 2026) — No more `ENOTEMPTY` startup errors from Vitest 5's module cache: a cache directory per package, one lockfile check per run, and a new `fsModuleCachePath` option ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.5.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
