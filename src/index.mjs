@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:14:14-08:00 (1795292054)
+ *	@Last modified time: 2026-11-21T16:59:13-08:00 (1795309153)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -59,7 +59,7 @@ import {
 	removeScratchRoot,
 	removeScratchRootSync
 } from "./core/scratch.mjs";
-import { assertUnshareWorks, inPidNamespace, ISOLATE_ENV, isolationRequested, runIsolated } from "./core/isolate.mjs";
+import { assertUnshareWorks, inPidNamespace, ISOLATE_ENV, isolationRequested, runIsolated, shouldIsolate } from "./core/isolate.mjs";
 
 /**
  * @typedef {Object} PerFileHeapOverride
@@ -94,7 +94,7 @@ import { assertUnshareWorks, inPidNamespace, ISOLATE_ENV, isolationRequested, ru
  * @property {string} [nodeEnv='development'] - Value for `NODE_ENV` in child processes.
  * @property {string} [scratchDir='tmp/vitest-runner'] - Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`.
  * @property {boolean} [keepTmp=false] - Keep the run's scratch root instead of removing it on completion (normal exit, failure, or SIGINT/SIGTERM).
- * @property {boolean} [isolate] - Linux: run the whole suite in its own PID namespace, so a test's bad `kill` can only reach the run's own processes. The runner re-runs its own command line under `unshare -U --map-current-user -p -f --mount-proc` and returns that run's exit code; it's skipped when the process is already in a PID namespace (a container, a k3s pod). Fails loudly when unprivileged namespaces aren't available. Defaults to `CLDMV_TEST_ISOLATE=1`. Can't be combined with `json`.
+ * @property {boolean | "force"} [isolate] - Linux: run the whole suite in its own PID namespace, so a test's bad `kill` can only reach the run's own processes. The runner re-runs its own command line under `unshare -U --map-current-user -p -f --mount-proc` and returns that run's exit code; with `true` it's skipped when the process is already in a PID namespace (a container, a k3s pod), with `"force"` it re-runs anyway. Fails loudly when unprivileged namespaces aren't available. Defaults to `CLDMV_TEST_ISOLATE` (`1` or `force`). Can't be combined with `json`.
  * @property {string|false} [fsModuleCachePath] - Vitest 5+ `fsModuleCache` directory for every child, relative to `cwd` (or absolute). Takes precedence over `fsModuleCachePath` in the vitest config; a `--fsModuleCachePath` passthrough arg takes precedence over this. When unset, children use `<cwd>/node_modules/.vitest-cache` unless the resolved config (root or any project) sets a path. `false` adds nothing and leaves vitest's own setting in place.
  * @property {object[] | null} [_testResultsOverride=null] - @internal Inject pre-built results to bypass discovery and spawn (for testing final-report render paths).
  */
@@ -130,7 +130,8 @@ function getHeapForFile(filePath, globalMaxMb, overrides) {
  * pool for the non-solo phase) and return an exit code.
  *
  * With isolation on (`isolate` / `CLDMV_TEST_ISOLATE=1`) and not already in a PID namespace,
- * it re-runs the process's own command line in a new one and returns that run's exit code.
+ * or with isolation forced (`"force"`) wherever it runs, it re-runs the process's own command
+ * line in a new one and returns that run's exit code.
  *
  * Owns the run's scratch directory lifecycle (`scratchDir`/`keepTmp`): sweeps stale
  * roots from dead prior runs, creates this run's root, and removes it on every exit
@@ -142,7 +143,7 @@ function getHeapForFile(filePath, globalMaxMb, overrides) {
  * @returns {Promise<number|object>} `0`/`1` by default; JSON report object when `opts.json` is true.
  */
 export async function run(opts) {
-	if (isolationRequested(opts.isolate) && !inPidNamespace()) {
+	if (shouldIsolate(isolationRequested(opts.isolate), { namespaced: inPidNamespace })) {
 		if (process.platform !== "linux")
 			throw new Error(`vitest-runner: isolation (isolate / ${ISOLATE_ENV}=1) needs Linux; this is ${process.platform}.`);
 		if (opts.json) throw new Error("vitest-runner: isolation can't be combined with json: the isolated run prints its own output.");
