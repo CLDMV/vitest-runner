@@ -27,7 +27,8 @@ const code = await run({
 	testDir: path.join(fixtures, "passing"),
 	vitestConfig: path.join(fixtures, "vitest.config.mjs"),
 	isolate: process.argv[2] === "force" ? "force" : true,
-	coverageQuiet: true,
+	// No coverage: it would share <cwd>/.vitest-coverage-tmp with the coverage tests in run.test.
+	coverageQuiet: false,
 	suppressFileOutput: true,
 	scratchDir: "tmp/isolate-e2e"
 });
