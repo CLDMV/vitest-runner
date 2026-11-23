@@ -14,17 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.8.0 (November 2026)
+### Latest: v1.8.1 (November 2026)
 
-- **Forced isolation** — `isolate: "force"`, `--isolate=force` or `CLDMV_TEST_ISOLATE=force` re-run the suite in its own PID namespace even when the runner is already in one, so the isolated path can be tested inside a container or k3s pod that allows unprivileged `unshare`. Plain isolation still skips there. If `unshare` isn't permitted, the run fails before it starts ([#135](https://github.com/CLDMV/vitest-runner/pull/135)).
-- [View full v1.8.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.0.md)
+- **Coverage merge in bounded memory** — with more than 50 test files, the coverage blobs are now merged in batches, each in its own process, before the final `vitest --mergeReports`, so a large suite no longer runs the merge out of heap after every test has passed. Reporters, thresholds and the exit code behave as before. Set the batch size with `mergeBatchSize`, `--merge-batch-size` or `VITEST_MERGE_BATCH_SIZE` (`0` turns it off) ([#132](https://github.com/CLDMV/vitest-runner/pull/132)).
+- [View full v1.8.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.1.md)
 
 ### Recent Releases
 
+- **v1.8.0** (November 2026) — Forced isolation: `isolate: "force"`, `--isolate=force` or `CLDMV_TEST_ISOLATE=force` re-run the suite in its own PID namespace even when already in one ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.0.md))
 - **v1.7.0** (November 2026) — Opt-in PID-namespace isolation (`isolate`, `--isolate`, `CLDMV_TEST_ISOLATE=1`), and scratch roots swept by a liveness socket instead of by pid ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.7.0.md))
 - **v1.6.1** (November 2026) — `engines.node` set to `>=22.0.0`, the runtime floor, with the 22.22.0 toolchain floor moved to `devEngines`; behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.1.md))
 - **v1.6.0** (November 2026) — `--conditions=vitest-runner-dev` sends `require()` to `src/index.cjs` too, and `engines.node` raised to `>=22.22.0`; runner behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.0.md))
-- **v1.5.6** (October 2026) — Dev-tooling dependency update: `tsup` 9, Vitest 5.0.5 and a `katex` override clear both Dependabot alerts; the built files are byte-identical to v1.5.5 ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.5.6.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
@@ -118,6 +118,7 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--json`                   | Print a JSON run report (no runner text output)                                                                                          |
 | `--blobs-dir <path>`       | Directory for per-file coverage blobs (default: `.vitest-coverage-blobs`, relative to `cwd`)                                             |
 | `--no-merge-reports`       | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step                      |
+| `--merge-batch-size <n>`   | Merge coverage blobs in batches of `n` when there are more than `n` (default: `50` or `VITEST_MERGE_BATCH_SIZE`; `0` = one merge)        |
 | `--keep-tmp`               | Keep this run's scratch directory instead of removing it on completion                                                                   |
 | `--isolate`                | Run the suite in its own PID namespace (Linux; see [Isolation](#isolation-pid-namespace))                                                |
 | `--isolate=force`          | The same, even when already in a PID namespace                                                                                           |
@@ -159,11 +160,12 @@ vitest-runner --bail
 
 ### Environment variables
 
-| Variable             | Default  | Description                                                                                                                                        |
-| -------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITEST_HEAP_MB`     | _(none)_ | `--max-old-space-size` ceiling passed to every child process                                                                                       |
-| `VITEST_WORKERS`     | `4`      | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`)                                                                    |
-| `CLDMV_TEST_ISOLATE` | _(none)_ | `1` runs the suite in its own PID namespace, `force` does it even when already in one (Linux; the `isolate` option or `--isolate` take precedence) |
+| Variable                  | Default  | Description                                                                                                                                        |
+| ------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITEST_HEAP_MB`          | _(none)_ | `--max-old-space-size` ceiling passed to every child process                                                                                       |
+| `VITEST_WORKERS`          | `4`      | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`)                                                                    |
+| `VITEST_MERGE_BATCH_SIZE` | `50`     | Coverage merge batch size (overridden by `--merge-batch-size` / `mergeBatchSize`); see [Merging many blobs](#merging-many-blobs)                   |
+| `CLDMV_TEST_ISOLATE`      | _(none)_ | `1` runs the suite in its own PID namespace, `force` does it even when already in one (Linux; the `isolate` option or `--isolate` take precedence) |
 
 ### Examples
 
@@ -259,6 +261,7 @@ process.exit(code);
 | `worstCoverageCount`   | `number`                | `10`                               | Rows in the worst-coverage table after a coverage run (`0` disables it)                                                                                                                                                                                                                                                                                       |
 | `blobsDir`             | `string`                | `<cwd>/.vitest-coverage-blobs`     | Directory for per-file coverage blobs. Relative paths resolve against `cwd`. Always cleared at the start of a coverage run                                                                                                                                                                                                                                    |
 | `mergeReports`         | `boolean`               | `true`                             | When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted. When `false`, the run stops after producing blobs — no merge, no summary — and `blobsDir` is left populated for an external merge                                                                                                      |
+| `mergeBatchSize`       | `number`                | `50`                               | Blob count above which blobs are merged in batches before the final `vitest --mergeReports` (overrides `VITEST_MERGE_BATCH_SIZE`). `0` always merges in one process; values below `2` are raised to `2`. See [Merging many blobs](#merging-many-blobs)                                                                                                        |
 | `maxOldSpaceMb`        | `number`                | `undefined`                        | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`)                                                                                                                                                                                                                                                                                      |
 | `earlyRunPatterns`     | `string[]`              | `[]`                               | Path substrings — matching files run solo (one at a time) before the parallel worker pool starts                                                                                                                                                                                                                                                              |
 | `perFileHeapOverrides` | `PerFileHeapOverride[]` | `[]`                               | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins                                                                                                                                                                                                                                                                                  |
@@ -374,9 +377,20 @@ When `--coverage` (or `coverageQuiet: true`) is passed, the runner uses a blob-p
 
 1. Each file receives `--coverage --reporter=blob` with its own temp output directory.
 2. After all files complete, `vitest --mergeReports` combines the blobs into a single report.
-3. Temporary blob and coverage-tmp directories are cleaned up automatically.
+3. Temporary blob and per-file coverage directories are cleaned up automatically. The per-file coverage directories live under the run's own scratch root (see `scratchDir`), so two runs in the same project never remove each other's.
 
 This avoids the OOM crash that occurs when a single vitest process holds coverage data for thousands of files simultaneously.
+
+### Merging many blobs
+
+`vitest --mergeReports` reads every blob into memory at once, and each blob carries a coverage map of the whole `include` set, so a suite with hundreds of test files can run the merge itself out of heap after every test has passed.
+
+When there are more blobs than `mergeBatchSize` (default `50`, CLI `--merge-batch-size`, env `VITEST_MERGE_BATCH_SIZE`), the runner reduces them in rounds first. Each round merges up to `mergeBatchSize` blobs into one blob, each batch in its own Node process (with `maxOldSpaceMb` / `VITEST_HEAP_MB` as its heap ceiling when set), and reads the batch one blob at a time. Rounds repeat until no more than `mergeBatchSize` blobs remain, then the usual `vitest --mergeReports` runs over the reduced set. Reporters, `coverage.thresholds`, test failures and the exit code therefore behave exactly as with a single merge; only Vitest's "Per blob" timing line lists the reduced blobs.
+
+- At or below the batch size nothing changes: one `vitest --mergeReports` over `blobsDir`.
+- The reduced blobs are written under the run's scratch directory (see `scratchDir`) and removed on every exit path. `blobsDir` itself is never modified by the reduction.
+- A reduced blob uses the installed Vitest's own `flatted` and `@vitest/istanbul-lib-coverage`, in the same layout the blob reporter writes. The layout is verified for Vitest 5.x. With any other Vitest major, or a blob that doesn't have that layout, the runner prints a warning and falls back to the single merge. It also falls back, with a warning, if a batch fails.
+- `runMergeReports(blobsDir, opts)` takes the same `batchSize` (and an optional `scratchDir`, defaulting to a directory next to `blobsDir`) when called directly.
 
 ### Coverage quiet mode
 
@@ -478,6 +492,8 @@ src/
     scratch.mjs        ← makeRunTmpDir + the scratch-directory lifecycle
     fs-cache.mjs       ← prepareFsModuleCache: Vitest module cache path + one-time lockfile check
     fs-cache-helper.mjs ← helper process started by fs-cache.mjs (built to dist/ and bin/)
+    merge-batches.mjs  ← batched coverage-blob merge used by runMergeReports
+    merge-batches-helper.mjs ← helper process that merges one batch (built to dist/ and bin/)
   cli/
     args.mjs           ← parseArguments
     help.mjs           ← showHelp

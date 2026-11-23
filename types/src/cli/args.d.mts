@@ -54,6 +54,10 @@ export type ParsedArgs = {
      */
     mergeReports: boolean;
     /**
+     * - Blob count above which coverage blobs are merged in batches (`--merge-batch-size <n>`; `0` = never batch), or undefined.
+     */
+    mergeBatchSize: number | undefined;
+    /**
      * - Whether `--help` / `-h` was passed.
      */
     help: boolean;

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-07T21:39:33-08:00 (1794116373)
+ *	@Last modified time: 2026-11-21T12:51:14-08:00 (1795294274)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -22,18 +22,30 @@
  * Each test is slow (~2–5 s) due to vitest startup overhead — testTimeout is
  * set to 30 s in vitest.config.mjs.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterAll } from "vitest";
 import fs from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "@cldmv/vitest-runner";
+import { run as runnerRun } from "@cldmv/vitest-runner";
 import { stripAnsi } from "@cldmv/vitest-runner";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** The vitest-runner package root — vitest is installed here. */
 const CWD = path.resolve(__dirname, "../..");
 const FIXTURES = path.join(CWD, "tests", "fixtures");
+
+// Each run() gets its own blobs folder, so test files running in parallel never clear
+// or read each other's blobs through the shared default <cwd>/.vitest-coverage-blobs.
+// The folder name keeps ".vitest-coverage-blobs" so path checks against it still match.
+// A blobsDir passed by the test itself still wins.
+const BLOBS_ROOT = path.join(CWD, "tmp", "test-blobs", `run-test-${process.pid}`);
+let blobsDirCount = 0;
+/** @param {Parameters<typeof runnerRun>[0]} opts */
+const run = (opts) => runnerRun({ blobsDir: path.join(BLOBS_ROOT, String(blobsDirCount++), ".vitest-coverage-blobs"), ...opts });
+afterAll(async () => {
+	await fs.rm(BLOBS_ROOT, { recursive: true, force: true });
+});
 
 /**
  * Shared base options to silence child stdout in integration tests.
