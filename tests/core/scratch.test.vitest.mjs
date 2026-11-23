@@ -60,6 +60,12 @@ async function makeDeadSocket(dir) {
 	await new Promise((resolve) => server.listen(temp, resolve));
 	await fs.rename(temp, path.join(dir, alive.SOCKET_NAME));
 	await new Promise((resolve) => server.close(resolve));
+	// A socket path over the Unix limit reads as "unknown", not "dead", and the sweep then
+	// skips the root without saying so. The checkout's depth counts towards that limit (CI's
+	// /home/runner/work/<repo>/<repo> is 45 characters), so fail here instead of passing
+	// without reaching the code the test is for.
+	const state = await alive.check(dir).catch(() => "unknown");
+	if (state !== "dead") throw new Error(`makeDeadSocket: ${dir} reads as "${state}", not "dead" (socket path too long?)`);
 }
 
 /** Sets a folder's modification time `ageMs` in the past. */
@@ -162,13 +168,13 @@ describe("sweepStaleScratchRoots", () => {
 	});
 
 	it("swallows an fs.rm failure for one stale root and continues (does not throw)", async () => {
-		const base = path.join(TMP_ROOT, "sweep-rm-failure");
+		const base = path.join(TMP_ROOT, "sweep-rm");
 		const deadRoot = path.join(base, "eeeeeeeeeeeeeeee");
 		await fs.mkdir(deadRoot, { recursive: true });
 		await makeDeadSocket(deadRoot);
 
 		const spy = vi.spyOn(fs, "rm").mockRejectedValueOnce(new Error("simulated rm failure"));
-		await expect(sweepStaleScratchRoots(TMP_ROOT, "sweep-rm-failure")).resolves.toBeUndefined();
+		await expect(sweepStaleScratchRoots(TMP_ROOT, "sweep-rm")).resolves.toBeUndefined();
 		spy.mockRestore();
 	});
 });
