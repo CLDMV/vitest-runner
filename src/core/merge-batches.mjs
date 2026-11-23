@@ -317,7 +317,8 @@ function runReduceHelper({ jobFile, cwd, maxOldSpaceMb, nodeEnv, helperPath }) {
 		child.stdout?.on("data", (d) => (stdout += d.toString()));
 		child.stderr?.on("data", (d) => (stderr = (stderr + d.toString()).slice(-4000)));
 		child.on("close", (code) => {
-			const last = stdout.trim().split("\n").pop() ?? "";
+			// split() always returns at least one element, so pop() is never undefined.
+			const last = /** @type {string} */ (stdout.trim().split("\n").pop());
 			let message;
 			try {
 				message = JSON.parse(last).message ?? "";

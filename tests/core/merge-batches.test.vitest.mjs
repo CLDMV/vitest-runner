@@ -23,7 +23,7 @@
  * single `vitest --mergeReports` over the same blobs: coverage-final.json,
  * coverage-summary.json totals, the test-count lines and the exit code must match.
  */
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -259,6 +259,43 @@ describe("runMergeReports — fallbacks", () => {
 		expect(await readJson(batched.coverageDir, "coverage-final.json")).toEqual(await readJson(single.coverageDir, "coverage-final.json"));
 	}, 120_000);
 
+	it("falls back to one merge when a batch fails for any other reason", async () => {
+		const dir = path.join(WORK, "corrupt", "blobs");
+		await fs.mkdir(dir, { recursive: true });
+		for (const name of (await fs.readdir(greenBlobs)).slice(0, 2)) await fs.copyFile(path.join(greenBlobs, name), path.join(dir, name));
+		// Sorts first, so it shares a batch with a real blob (a batch of one is copied, not merged).
+		await fs.writeFile(path.join(dir, "0-corrupt.blob"), "not a flatted blob");
+		const result = await merge(dir, "corrupt", { batchSize: 2 });
+		expect(result.output).toContain("batch merge failed");
+		expect(result.output).toContain("Merging all 3 blobs in one process");
+	}, 60_000);
+
+	it("falls back to one merge when the vitest bin can't be resolved", async () => {
+		const missingBin = path.join(WORK, "no-such-vitest", "vitest.mjs");
+		const result = await runMergeReports(greenBlobs, { cwd: FIXTURE, vitestBin: missingBin, quietOutput: true, batchSize: 2 });
+		expect(result.output).toContain("found an unknown vitest version");
+		expect(result.exitCode).not.toBe(0);
+	});
+
+	it("still returns the merge result when removing its scratch folder fails", async () => {
+		const scratchDir = path.join(WORK, "rm-fails-scratch");
+		const realRm = fs.rm;
+		let scratchRmCalls = 0;
+		const rmSpy = vi.spyOn(fs, "rm").mockImplementation((target, options) => {
+			// The first call clears the folder before the merge; fail the cleanup in finally.
+			if (path.resolve(String(target)) === scratchDir && ++scratchRmCalls === 2) return Promise.reject(new Error("EBUSY: simulated"));
+			return realRm(target, options);
+		});
+		try {
+			const result = await merge(greenBlobs, "rm-fails", { batchSize: 2, scratchDir });
+			expect(result.exitCode).toBe(0);
+			expect(result.output).toContain("Reduced");
+			expect(scratchRmCalls).toBe(2);
+		} finally {
+			rmSpy.mockRestore();
+		}
+	}, 120_000);
+
 	it("leaves a directory with a non-file entry to vitest's own error", async () => {
 		const dir = path.join(WORK, "with-subdir", "blobs");
 		await fs.mkdir(path.join(dir, "nested"), { recursive: true });
@@ -331,6 +368,25 @@ describe("reduceBlobFiles (in-process)", () => {
 		expect(ids([environmentModules])).toEqual(ids(parsed.map((b) => b[5])));
 	}, 60_000);
 
+	it("keeps every input's run errors, in input order", async () => {
+		const { flatted, libCoverage } = await loadBlobLibraries(vitestPkg.dir);
+		const dir = path.join(WORK, "with-errors");
+		await fs.mkdir(dir, { recursive: true });
+		// The fixture runs raise no unhandled errors, so give two real blobs some.
+		const inputs = [];
+		for (const [i, name] of (await fs.readdir(greenBlobs)).slice(0, 2).entries()) {
+			const blob = flatted.parse(await fs.readFile(path.join(greenBlobs, name), "utf-8"));
+			blob[2] = [{ message: `error ${i}a` }, { message: `error ${i}b` }];
+			const file = path.join(dir, name);
+			await fs.writeFile(file, flatted.stringify(blob));
+			inputs.push(file);
+		}
+		const output = path.join(dir, "merged.blob");
+		await reduceBlobFiles({ inputs, output, expectedVersion: vitestPkg.version, flatted, libCoverage });
+		const [, , errors] = flatted.parse(await fs.readFile(output, "utf-8"));
+		expect(errors.map((e) => e.message)).toEqual(["error 0a", "error 0b", "error 1a", "error 1b"]);
+	});
+
 	it("writes no coverage when no input has coverage", async () => {
 		const { flatted, libCoverage } = await loadBlobLibraries(vitestPkg.dir);
 		const input = path.join(WORK, "no-coverage.blob");
@@ -392,6 +448,18 @@ describe("reduceBlobsInBatches — helper failures", () => {
 		const helperPath = await helper("silent", `process.exit(2);`);
 		const result = await reduceBlobsInBatches({ ...(await baseOpts("silent-scratch")), helperPath });
 		expect(result).toEqual({ ok: false, unsupported: false, message: "merge helper exited with code 2" });
+	});
+
+	it("treats a helper killed by a signal as exit code 1", async () => {
+		const helperPath = await helper("killed", `process.kill(process.pid, "SIGKILL");`);
+		const result = await reduceBlobsInBatches({ ...(await baseOpts("killed-scratch")), helperPath });
+		expect(result).toEqual({ ok: false, unsupported: false, message: "merge helper exited with code 1" });
+	});
+
+	it("returns the blobs' own folder when they already fit in one batch", async () => {
+		const opts = await baseOpts("fits-scratch");
+		const result = await reduceBlobsInBatches({ ...opts, batchSize: opts.blobFiles.length });
+		expect(result).toEqual({ ok: true, dir: greenBlobs, rounds: 0, count: opts.blobFiles.length });
 	});
 
 	it("reports a helper that cannot be started", async () => {

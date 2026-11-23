@@ -168,6 +168,26 @@ describe("run() — spawn catch handlers: coverage mode", () => {
 		expect(code).toBe(1); // no blobs generated → coverage mode returns 1
 		expect(runSingleFile).toHaveBeenCalled();
 	}, 60_000);
+
+	it("defaults blobsDir to <cwd>/.vitest-coverage-blobs when none is given", async () => {
+		// A cwd of its own, so the shared default folder never collides with other test files.
+		const cwd = path.join(BLOBS_ROOT, "default-blobs-cwd");
+		await fs.mkdir(cwd, { recursive: true });
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+		vi.mocked(runMergeReports).mockResolvedValue({ exitCode: 0, output: "" });
+
+		const code = await run({
+			...BASE,
+			cwd,
+			blobsDir: undefined,
+			coverageQuiet: true,
+			testPatterns: ["a.test.vitest.mjs"],
+			vitestArgs: ["--coverage"]
+		});
+
+		expect(code).toBe(0);
+		expect(vi.mocked(runMergeReports).mock.calls[0][0]).toBe(path.join(cwd, ".vitest-coverage-blobs"));
+	}, 60_000);
 });
 
 describe("run() — output suppression and json mode", () => {
