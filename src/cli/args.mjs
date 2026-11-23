@@ -30,6 +30,7 @@
  * @property {boolean} json - Emit a JSON run report instead of text output (`--json`).
  * @property {string|undefined} blobsDir - Directory for per-file coverage blobs (`--blobs-dir`); defaults to `<cwd>/.vitest-coverage-blobs`.
  * @property {boolean} mergeReports - `false` when `--no-merge-reports` was passed; leaves blobs in `blobsDir` without merging.
+ * @property {number|undefined} mergeBatchSize - Blob count above which coverage blobs are merged in batches (`--merge-batch-size <n>`; `0` = never batch), or undefined.
  * @property {boolean} help - Whether `--help` / `-h` was passed.
  * @property {number|undefined} workers - Worker count from `--workers <n>`, or undefined.
  * @property {string[]} soloPatterns - Path substrings from `--solo-pattern <pattern>` (repeatable).
@@ -54,6 +55,7 @@ const RUNNER_FLAGS = new Set([
 	"--json",
 	"--blobs-dir",
 	"--no-merge-reports",
+	"--merge-batch-size",
 	"--workers",
 	"--solo-pattern",
 	"--exclude",
@@ -93,6 +95,7 @@ export function parseArguments(args) {
 	let json = false;
 	let blobsDir;
 	let mergeReports = true;
+	let mergeBatchSize;
 	let workers;
 	let help = false;
 	let testFilePattern;
@@ -129,6 +132,10 @@ export function parseArguments(args) {
 			blobsDir = arg.slice("--blobs-dir=".length);
 		} else if (arg === "--no-merge-reports") {
 			mergeReports = false;
+		} else if (arg === "--merge-batch-size") {
+			mergeBatchSize = parseInt(args[++i], 10);
+		} else if (arg.startsWith("--merge-batch-size=")) {
+			mergeBatchSize = parseInt(arg.slice("--merge-batch-size=".length), 10);
 		} else if (arg === "--workers") {
 			workers = parseInt(args[++i], 10);
 		} else if (arg.startsWith("--workers=")) {
@@ -180,6 +187,7 @@ export function parseArguments(args) {
 		json,
 		blobsDir,
 		mergeReports,
+		mergeBatchSize,
 		help,
 		workers,
 		soloPatterns,

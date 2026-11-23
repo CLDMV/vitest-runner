@@ -50,8 +50,18 @@ export function runVitestDirect(opts: SpawnBaseOptions & {
  * Merge blob reports from individual coverage runs into a single coverage report
  * using `vitest --mergeReports`.
  *
+ * When `blobsDir` holds more blobs than `batchSize`, the blobs are first reduced
+ * in rounds (each batch merged into one blob in its own helper process, see
+ * core/merge-batches.mjs) so the final `vitest --mergeReports` never has to hold
+ * every coverage map at once. At or below `batchSize` nothing changes. The
+ * reduction's files live under `scratchDir` and are removed on every exit path.
+ * If the installed vitest or the blobs don't have the supported layout, the run
+ * falls back to merging all blobs in one process and says so.
+ *
  * @param {string} blobsDir - Directory containing the `.blob` files to merge.
- * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], extraArgs?: string[], quietOutput?: boolean }} opts
+ * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], extraArgs?: string[], quietOutput?: boolean, batchSize?: number, scratchDir?: string }} opts
+ *   `batchSize` defaults to `VITEST_MERGE_BATCH_SIZE` or 50 (`0` = never batch).
+ *   `scratchDir` defaults to a directory next to `blobsDir`.
  * @returns {Promise<{ exitCode: number, output: string }>}
  * @example
  * const { exitCode } = await runMergeReports('/project/.vitest-blobs', {
@@ -63,6 +73,8 @@ export function runMergeReports(blobsDir: string, opts: SpawnBaseOptions & {
     extraCoverageArgs?: string[];
     extraArgs?: string[];
     quietOutput?: boolean;
+    batchSize?: number;
+    scratchDir?: string;
 }): Promise<{
     exitCode: number;
     output: string;

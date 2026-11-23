@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-01T16:33:29-08:00 (1793579609)
+ *	@Last modified time: 2026-11-21T11:56:15-08:00 (1795290975)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -54,9 +54,14 @@ const shared = {
 export default defineConfig([
 	{
 		...shared,
-		// fs-cache-helper is started as its own process by core/fs-cache.mjs, which
-		// finds it next to the bundle that imports it (see the cli entry too).
-		entry: { index: "src/index.mjs", "fs-cache-helper": "src/core/fs-cache-helper.mjs" },
+		// fs-cache-helper and merge-batches-helper are started as their own processes
+		// (by core/fs-cache.mjs and core/merge-batches.mjs), which find them next to
+		// the bundle that imports them (see the cli entry too).
+		entry: {
+			index: "src/index.mjs",
+			"fs-cache-helper": "src/core/fs-cache-helper.mjs",
+			"merge-batches-helper": "src/core/merge-batches-helper.mjs"
+		},
 		format: ["esm"],
 		clean: true,
 		outExtension() {
@@ -68,7 +73,11 @@ export default defineConfig([
 	},
 	{
 		...shared,
-		entry: { "vitest-runner": "src/bin/vitest-runner.mjs", "fs-cache-helper": "src/core/fs-cache-helper.mjs" },
+		entry: {
+			"vitest-runner": "src/bin/vitest-runner.mjs",
+			"fs-cache-helper": "src/core/fs-cache-helper.mjs",
+			"merge-batches-helper": "src/core/merge-batches-helper.mjs"
+		},
 		format: ["esm"],
 		outDir: "bin",
 		clean: false,

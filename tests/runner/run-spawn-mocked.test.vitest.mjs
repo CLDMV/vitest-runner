@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T07:43:53-07:00 (1793025833)
+ *	@Last modified time: 2026-11-21T12:51:14-08:00 (1795294274)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -27,7 +27,7 @@
  *   index.mjs:237      — parallel phase catch (coverage mode)
  *   index.mjs:247-249  — "no blobs generated" guard (coverage mode)
  */
-import { vi, describe, it, expect, afterEach } from "vitest";
+import { vi, describe, it, expect, afterEach, afterAll } from "vitest";
 import fs from "node:fs/promises";
 
 // vi.mock is hoisted by vitest — this mock applies to index.mjs's own import
@@ -43,13 +43,25 @@ vi.mock("../../src/core/spawn.mjs", async (importOriginal) => {
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "../../src/index.mjs";
+import { run as runnerRun } from "../../src/index.mjs";
 import { runSingleFile, runMergeReports } from "../../src/core/spawn.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, "../..");
 const FIXTURES = path.join(PKG_ROOT, "tests", "fixtures");
 const FIXTURE_CONFIG = path.join(FIXTURES, "vitest.config.mjs");
+
+// Each run() gets its own blobs folder, so test files running in parallel never clear
+// or read each other's blobs through the shared default <cwd>/.vitest-coverage-blobs.
+// The folder name keeps ".vitest-coverage-blobs" so path checks against it still match.
+// A blobsDir passed by the test itself still wins.
+const BLOBS_ROOT = path.join(PKG_ROOT, "tmp", "test-blobs", `run-spawn-mocked-${process.pid}`);
+let blobsDirCount = 0;
+/** @param {Parameters<typeof runnerRun>[0]} opts */
+const run = (opts) => runnerRun({ blobsDir: path.join(BLOBS_ROOT, String(blobsDirCount++), ".vitest-coverage-blobs"), ...opts });
+afterAll(async () => {
+	await fs.rm(BLOBS_ROOT, { recursive: true, force: true });
+});
 
 // Base options shared across tests
 const BASE = {
@@ -155,6 +167,26 @@ describe("run() — spawn catch handlers: coverage mode", () => {
 
 		expect(code).toBe(1); // no blobs generated → coverage mode returns 1
 		expect(runSingleFile).toHaveBeenCalled();
+	}, 60_000);
+
+	it("defaults blobsDir to <cwd>/.vitest-coverage-blobs when none is given", async () => {
+		// A cwd of its own, so the shared default folder never collides with other test files.
+		const cwd = path.join(BLOBS_ROOT, "default-blobs-cwd");
+		await fs.mkdir(cwd, { recursive: true });
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+		vi.mocked(runMergeReports).mockResolvedValue({ exitCode: 0, output: "" });
+
+		const code = await run({
+			...BASE,
+			cwd,
+			blobsDir: undefined,
+			coverageQuiet: true,
+			testPatterns: ["a.test.vitest.mjs"],
+			vitestArgs: ["--coverage"]
+		});
+
+		expect(code).toBe(0);
+		expect(vi.mocked(runMergeReports).mock.calls[0][0]).toBe(path.join(cwd, ".vitest-coverage-blobs"));
 	}, 60_000);
 });
 

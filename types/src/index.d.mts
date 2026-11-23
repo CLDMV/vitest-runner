@@ -99,6 +99,10 @@ export type RunOptions = {
      */
     mergeReports?: boolean;
     /**
+     * - Blob count above which coverage blobs are merged in batches before the final `vitest --mergeReports`, so the merge stays within bounded memory however many test files there are. Each batch of up to this many blobs is merged into one blob in its own process, in rounds, until the count fits. Defaults to `VITEST_MERGE_BATCH_SIZE` or 50; `0` always merges in one process. Values below 2 are raised to 2.
+     */
+    mergeBatchSize?: number;
+    /**
      * - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
      */
     maxOldSpaceMb?: number;
@@ -151,3 +155,4 @@ export { createCoverageProgressTracker, noopProgressTracker } from "./core/progr
 export { printCoverageSummary, printMergeOutput, printQuietCoverageFailureDetails } from "./core/report.mjs";
 export { stripAnsi, colourPct } from "./utils/ansi.mjs";
 export { prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
+export { DEFAULT_MERGE_BATCH_SIZE, resolveMergeBatchSize } from "./core/merge-batches.mjs";

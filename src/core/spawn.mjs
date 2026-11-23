@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-26T08:18:12-07:00 (1793027892)
+ *	@Last modified time: 2026-11-21T11:56:12-08:00 (1795290972)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -19,8 +19,17 @@
  */
 
 import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { parseVitestOutput } from "./parse.mjs";
 import { buildEnv } from "../utils/env.mjs";
+import {
+	findVitestPackage,
+	isSupportedVitestVersion,
+	reduceBlobsInBatches,
+	resolveMergeBatchSize,
+	SUPPORTED_VITEST_MAJORS
+} from "./merge-batches.mjs";
 
 /**
  * @typedef {Object} SpawnBaseOptions
@@ -178,8 +187,18 @@ export function runVitestDirect(opts) {
  * Merge blob reports from individual coverage runs into a single coverage report
  * using `vitest --mergeReports`.
  *
+ * When `blobsDir` holds more blobs than `batchSize`, the blobs are first reduced
+ * in rounds (each batch merged into one blob in its own helper process, see
+ * core/merge-batches.mjs) so the final `vitest --mergeReports` never has to hold
+ * every coverage map at once. At or below `batchSize` nothing changes. The
+ * reduction's files live under `scratchDir` and are removed on every exit path.
+ * If the installed vitest or the blobs don't have the supported layout, the run
+ * falls back to merging all blobs in one process and says so.
+ *
  * @param {string} blobsDir - Directory containing the `.blob` files to merge.
- * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], extraArgs?: string[], quietOutput?: boolean }} opts
+ * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], extraArgs?: string[], quietOutput?: boolean, batchSize?: number, scratchDir?: string }} opts
+ *   `batchSize` defaults to `VITEST_MERGE_BATCH_SIZE` or 50 (`0` = never batch).
+ *   `scratchDir` defaults to a directory next to `blobsDir`.
  * @returns {Promise<{ exitCode: number, output: string }>}
  * @example
  * const { exitCode } = await runMergeReports('/project/.vitest-blobs', {
@@ -187,7 +206,94 @@ export function runVitestDirect(opts) {
  *   vitestBin: '/project/node_modules/.bin/vitest',
  * });
  */
-export function runMergeReports(blobsDir, opts) {
+export async function runMergeReports(blobsDir, opts) {
+	const { cwd, vitestBin, maxOldSpaceMb, nodeEnv = "development", quietOutput = false } = opts;
+	const batchSize = resolveMergeBatchSize(opts.batchSize);
+
+	let notes = "";
+	/** @param {string} msg */
+	const log = (msg) => {
+		if (quietOutput) notes += `${msg}\n`;
+		else console.log(msg);
+	};
+	/** @param {{ exitCode: number, output: string }} result */
+	const withNotes = (result) => (notes ? { ...result, output: `${notes}${result.output}` } : result);
+
+	if (batchSize === 0) return spawnMergeReports(blobsDir, opts);
+
+	let entries;
+	try {
+		entries = await fs.readdir(path.resolve(cwd, blobsDir), { withFileTypes: true });
+	} catch {
+		// Let vitest report the missing/unreadable directory exactly as before.
+		return spawnMergeReports(blobsDir, opts);
+	}
+	if (entries.length <= batchSize) return spawnMergeReports(blobsDir, opts);
+
+	// vitest --mergeReports rejects any non-file entry; leave that error to vitest.
+	if (entries.some((e) => !e.isFile())) return spawnMergeReports(blobsDir, opts);
+
+	const absBlobsDir = path.resolve(cwd, blobsDir);
+	const blobFiles = entries
+		.map((e) => e.name)
+		.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+		.map((name) => path.join(absBlobsDir, name));
+
+	let vitestPkg;
+	try {
+		vitestPkg = findVitestPackage(vitestBin);
+	} catch {
+		vitestPkg = null;
+	}
+	if (!vitestPkg || !isSupportedVitestVersion(vitestPkg.version)) {
+		const found = vitestPkg ? `vitest ${vitestPkg.version}` : "an unknown vitest version";
+		log(
+			`⚠️  Batched coverage merge supports vitest ${SUPPORTED_VITEST_MAJORS.join(", ")}.x; found ${found}. Merging all ${blobFiles.length} blobs in one process.`
+		);
+		return withNotes(await spawnMergeReports(blobsDir, opts));
+	}
+
+	const scratchDir = path.resolve(
+		opts.scratchDir ?? path.join(path.dirname(absBlobsDir), `.${path.basename(absBlobsDir)}-merge-${process.pid}-${Date.now()}`)
+	);
+
+	try {
+		await fs.rm(scratchDir, { recursive: true, force: true });
+		await fs.mkdir(scratchDir, { recursive: true });
+
+		const reduced = await reduceBlobsInBatches({
+			blobFiles,
+			scratchDir,
+			batchSize,
+			vitestDir: vitestPkg.dir,
+			vitestVersion: vitestPkg.version,
+			cwd,
+			maxOldSpaceMb,
+			nodeEnv,
+			log
+		});
+
+		if (!reduced.ok) {
+			const why = reduced.unsupported ? "blob layout not supported" : "batch merge failed";
+			log(`⚠️  ${why} (${reduced.message}). Merging all ${blobFiles.length} blobs in one process.`);
+			return withNotes(await spawnMergeReports(blobsDir, opts));
+		}
+
+		log(`🧩 Reduced ${blobFiles.length} blobs to ${reduced.count} in ${reduced.rounds} round(s); running the final merge.`);
+		return withNotes(await spawnMergeReports(reduced.dir, opts));
+	} finally {
+		await fs.rm(scratchDir, { recursive: true, force: true }).catch(() => {});
+	}
+}
+
+/**
+ * Spawn one `vitest --mergeReports <dir> --run --coverage` process.
+ *
+ * @param {string} blobsDir
+ * @param {SpawnBaseOptions & { extraCoverageArgs?: string[], extraArgs?: string[], quietOutput?: boolean }} opts
+ * @returns {Promise<{ exitCode: number, output: string }>}
+ */
+function spawnMergeReports(blobsDir, opts) {
 	const {
 		cwd,
 		vitestBin,

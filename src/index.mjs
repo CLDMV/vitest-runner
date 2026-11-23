@@ -86,6 +86,7 @@ import { assertUnshareWorks, inPidNamespace, ISOLATE_ENV, isolationRequested, ru
  * @property {number} [worstCoverageCount=10] - Rows in the worst-coverage table (0 = disable).
  * @property {string} [blobsDir] - Directory for per-file coverage blobs (default `<cwd>/.vitest-coverage-blobs`). Relative paths resolve against `cwd`. Always cleared at the start of a coverage run.
  * @property {boolean} [mergeReports=true] - When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted at the end. When `false`, the run stops after producing blobs: no merge, no summary, and `blobsDir` is left populated for an external merge step.
+ * @property {number} [mergeBatchSize] - Blob count above which coverage blobs are merged in batches before the final `vitest --mergeReports`, so the merge stays within bounded memory however many test files there are. Each batch of up to this many blobs is merged into one blob in its own process, in rounds, until the count fits. Defaults to `VITEST_MERGE_BATCH_SIZE` or 50; `0` always merges in one process. Values below 2 are raised to 2.
  * @property {number} [maxOldSpaceMb] - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
  * @property {string[]} [earlyRunPatterns=[]] - Path substrings — matching files run solo before the worker pool.
  * @property {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution.
@@ -205,6 +206,7 @@ async function runImpl(opts, scratchRoot) {
 		worstCoverageCount = 10,
 		blobsDir: blobsDirOpt,
 		mergeReports = true,
+		mergeBatchSize,
 		earlyRunPatterns = [],
 		exclude = [],
 		perFileHeapOverrides = [],
@@ -264,8 +266,10 @@ async function runImpl(opts, scratchRoot) {
 	if (hasCoverage) {
 		const blobsDir = path.resolve(cwd, blobsDirOpt ?? ".vitest-coverage-blobs");
 		// Temp coverage dirs live OUTSIDE blobsDir — vitest --mergeReports errors on
-		// any non-blob entry found inside the blobs directory.
-		const coverageTmpBase = path.resolve(cwd, ".vitest-coverage-tmp");
+		// any non-blob entry found inside the blobs directory. They sit under this
+		// run's own scratch root, so two runs in the same cwd never remove each
+		// other's per-file coverage output (and a signal exit cleans them up too).
+		const coverageTmpBase = path.join(scratchRoot, "coverage-tmp");
 
 		await Promise.all([fs.rm(blobsDir, { recursive: true, force: true }), fs.rm(coverageTmpBase, { recursive: true, force: true })]);
 		await Promise.all([fs.mkdir(blobsDir, { recursive: true }), fs.mkdir(coverageTmpBase, { recursive: true })]);
@@ -470,7 +474,10 @@ async function runImpl(opts, scratchRoot) {
 				maxOldSpaceMb,
 				extraCoverageArgs,
 				extraArgs: cacheArgs,
-				quietOutput: coverageQuiet || json
+				quietOutput: coverageQuiet || json,
+				batchSize: mergeBatchSize,
+				// Under the run's scratch root, so a signal exit removes it too (see run()).
+				scratchDir: path.join(scratchRoot, "merge-batches")
 			}));
 
 			if (coverageQuiet && emitTextOutput) {
@@ -843,3 +850,4 @@ export { stripAnsi, colourPct } from "./utils/ansi.mjs";
 export { buildNodeOptions } from "./utils/env.mjs";
 export { makeRunTmpDir } from "./core/scratch.mjs";
 export { prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
+export { DEFAULT_MERGE_BATCH_SIZE, resolveMergeBatchSize } from "./core/merge-batches.mjs";
