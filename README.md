@@ -14,17 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.8.1 (November 2026)
+### Latest: v1.8.2 (November 2026)
 
-- **Coverage merge in bounded memory** — with more than 50 test files, the coverage blobs are now merged in batches, each in its own process, before the final `vitest --mergeReports`, so a large suite no longer runs the merge out of heap after every test has passed. Reporters, thresholds and the exit code behave as before. Set the batch size with `mergeBatchSize`, `--merge-batch-size` or `VITEST_MERGE_BATCH_SIZE` (`0` turns it off) ([#132](https://github.com/CLDMV/vitest-runner/pull/132)).
-- [View full v1.8.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.1.md)
+- **Dev-tooling update** — the repository's own tests now run on Vitest 5.1.1, with ESLint 10.15 and Prettier 3.10. No runtime code or `package.json` changes; a drop-in replacement for v1.8.1 ([#128](https://github.com/CLDMV/vitest-runner/pull/128)).
+- [View full v1.8.2 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.2.md)
 
 ### Recent Releases
 
+- **v1.8.1** (November 2026) — Coverage blobs merged in bounded-memory batches above 50 test files (`mergeBatchSize`, `--merge-batch-size`, `VITEST_MERGE_BATCH_SIZE`), so a large suite no longer runs the final merge out of heap ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.1.md))
 - **v1.8.0** (November 2026) — Forced isolation: `isolate: "force"`, `--isolate=force` or `CLDMV_TEST_ISOLATE=force` re-run the suite in its own PID namespace even when already in one ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.0.md))
 - **v1.7.0** (November 2026) — Opt-in PID-namespace isolation (`isolate`, `--isolate`, `CLDMV_TEST_ISOLATE=1`), and scratch roots swept by a liveness socket instead of by pid ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.7.0.md))
 - **v1.6.1** (November 2026) — `engines.node` set to `>=22.0.0`, the runtime floor, with the 22.22.0 toolchain floor moved to `devEngines`; behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.1.md))
-- **v1.6.0** (November 2026) — `--conditions=vitest-runner-dev` sends `require()` to `src/index.cjs` too, and `engines.node` raised to `>=22.22.0`; runner behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.0.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
