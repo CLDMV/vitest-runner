@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T16:59:12-08:00 (1795309152)
+ *	@Last modified time: 2026-11-22T21:43:34-08:00 (1795412614)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -31,6 +31,8 @@
  * @property {string|undefined} blobsDir - Directory for per-file coverage blobs (`--blobs-dir`); defaults to `<cwd>/.vitest-coverage-blobs`.
  * @property {boolean} mergeReports - `false` when `--no-merge-reports` was passed; leaves blobs in `blobsDir` without merging.
  * @property {number|undefined} mergeBatchSize - Blob count above which coverage blobs are merged in batches (`--merge-batch-size <n>`; `0` = never batch), or undefined.
+ * @property {number|undefined} fileTimeout - Per-file time limit in seconds (`--file-timeout <s>`; `0` = no limit), or undefined.
+ * @property {number|undefined} fileIdleTimeout - Per-file idle limit in seconds (`--file-idle-timeout <s>`; `0` = no limit), or undefined.
  * @property {boolean} help - Whether `--help` / `-h` was passed.
  * @property {number|undefined} workers - Worker count from `--workers <n>`, or undefined.
  * @property {string[]} soloPatterns - Path substrings from `--solo-pattern <pattern>` (repeatable).
@@ -56,6 +58,8 @@ const RUNNER_FLAGS = new Set([
 	"--blobs-dir",
 	"--no-merge-reports",
 	"--merge-batch-size",
+	"--file-timeout",
+	"--file-idle-timeout",
 	"--workers",
 	"--solo-pattern",
 	"--exclude",
@@ -96,6 +100,8 @@ export function parseArguments(args) {
 	let blobsDir;
 	let mergeReports = true;
 	let mergeBatchSize;
+	let fileTimeout;
+	let fileIdleTimeout;
 	let workers;
 	let help = false;
 	let testFilePattern;
@@ -136,6 +142,14 @@ export function parseArguments(args) {
 			mergeBatchSize = parseInt(args[++i], 10);
 		} else if (arg.startsWith("--merge-batch-size=")) {
 			mergeBatchSize = parseInt(arg.slice("--merge-batch-size=".length), 10);
+		} else if (arg === "--file-timeout") {
+			fileTimeout = Number(args[++i]);
+		} else if (arg.startsWith("--file-timeout=")) {
+			fileTimeout = Number(arg.slice("--file-timeout=".length));
+		} else if (arg === "--file-idle-timeout") {
+			fileIdleTimeout = Number(args[++i]);
+		} else if (arg.startsWith("--file-idle-timeout=")) {
+			fileIdleTimeout = Number(arg.slice("--file-idle-timeout=".length));
 		} else if (arg === "--workers") {
 			workers = parseInt(args[++i], 10);
 		} else if (arg.startsWith("--workers=")) {
@@ -188,6 +202,8 @@ export function parseArguments(args) {
 		blobsDir,
 		mergeReports,
 		mergeBatchSize,
+		fileTimeout,
+		fileIdleTimeout,
 		help,
 		workers,
 		soloPatterns,

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T16:59:13-08:00 (1795309153)
+ *	@Last modified time: 2026-11-22T21:43:35-08:00 (1795412615)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -60,6 +60,7 @@ import {
 	removeScratchRootSync
 } from "./core/scratch.mjs";
 import { assertUnshareWorks, inPidNamespace, ISOLATE_ENV, isolationRequested, runIsolated, shouldIsolate } from "./core/isolate.mjs";
+import { getTimeoutsForFile, killChildProcessGroups, resolveFileTimeouts } from "./core/watchdog.mjs";
 
 /**
  * @typedef {Object} PerFileHeapOverride
@@ -91,6 +92,9 @@ import { assertUnshareWorks, inPidNamespace, ISOLATE_ENV, isolationRequested, ru
  * @property {string[]} [earlyRunPatterns=[]] - Path substrings — matching files run solo before the worker pool.
  * @property {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution.
  * @property {PerFileHeapOverride[]} [perFileHeapOverrides=[]] - Per-file minimum heap overrides.
+ * @property {number} [fileTimeoutMs] - Longest one test file may run before its process group is killed and the file reported as failed. Defaults to `VITEST_FILE_TIMEOUT` (seconds) or 30 minutes; `0` = no limit.
+ * @property {number} [fileIdleTimeoutMs] - Longest one test file may go without printing anything before it is killed the same way. Defaults to `VITEST_FILE_IDLE_TIMEOUT` (seconds) or 10 minutes; `0` = no limit.
+ * @property {import('./core/watchdog.mjs').PerFileTimeoutOverride[]} [perFileTimeoutOverrides=[]] - Per-file limits for known slow files; the first matching `pattern` wins and replaces the limits it sets.
  * @property {string[]} [conditions=[]] - Additional `--conditions` Node flags forwarded to children.
  * @property {string} [nodeEnv='development'] - Value for `NODE_ENV` in child processes.
  * @property {string} [scratchDir='tmp/vitest-runner'] - Per-run scratch root, relative to `cwd` (or absolute). A subdirectory is created per file invocation and exposed to it via `VITEST_RUNNER_TMP`.
@@ -159,22 +163,26 @@ export async function run(opts) {
 	await sweepStaleScratchRoots(cwd, scratchDirOpt);
 	const { root: scratchRoot, release: releaseScratchRoot } = await createRunScratchRoot(cwd, scratchDirOpt);
 
+	// Each test file runs in its own process group, out of reach of the terminal's Ctrl-C,
+	// so the runner kills the live groups itself on a signal and on exit.
 	const onSignal = () => {
-		removeScratchRootSync(scratchRoot);
+		killChildProcessGroups();
+		if (!keepTmp) removeScratchRootSync(scratchRoot);
 		process.exitCode = 130;
 		process.exit();
 	};
+	const onExit = () => killChildProcessGroups();
 
-	if (!keepTmp) {
-		process.once("SIGINT", onSignal);
-		process.once("SIGTERM", onSignal);
-	}
+	process.once("SIGINT", onSignal);
+	process.once("SIGTERM", onSignal);
+	process.once("exit", onExit);
 
 	try {
 		return await runImpl(opts, scratchRoot);
 	} finally {
 		process.removeListener("SIGINT", onSignal);
 		process.removeListener("SIGTERM", onSignal);
+		process.removeListener("exit", onExit);
 		// With keepTmp the hold stays until exit, so the next run sees a dead socket and sweeps the root.
 		if (!keepTmp) {
 			await releaseScratchRoot();
@@ -210,6 +218,9 @@ async function runImpl(opts, scratchRoot) {
 		earlyRunPatterns = [],
 		exclude = [],
 		perFileHeapOverrides = [],
+		fileTimeoutMs,
+		fileIdleTimeoutMs,
+		perFileTimeoutOverrides = [],
 		conditions = [],
 		nodeEnv = "development",
 		fsModuleCachePath,
@@ -229,6 +240,7 @@ async function runImpl(opts, scratchRoot) {
 
 	/** Common spawn options shared across all child invocations. */
 	const spawnBase = { cwd, vitestBin, vitestConfig, conditions, nodeEnv };
+	const fileTimeouts = resolveFileTimeouts({ timeoutMs: fileTimeoutMs, idleTimeoutMs: fileIdleTimeoutMs });
 
 	const vitestArgs = [...rawVitestArgs];
 
@@ -363,6 +375,7 @@ async function runImpl(opts, scratchRoot) {
 			const result = await runSingleFile(filePath, {
 				...spawnBase,
 				maxOldSpaceMb: getHeapForFile(filePath, maxOldSpaceMb, perFileHeapOverrides),
+				...getTimeoutsForFile(filePath, fileTimeouts, perFileTimeoutOverrides),
 				vitestArgs: blobArgs,
 				streamOutput: !suppressPerFileCoverageOutput,
 				excludePaths: filterConflicts.get(filePath),
@@ -610,6 +623,7 @@ async function runImpl(opts, scratchRoot) {
 		const result = await runSingleFile(filePath, {
 			...spawnBase,
 			maxOldSpaceMb: getHeapForFile(filePath, maxOldSpaceMb, perFileHeapOverrides),
+			...getTimeoutsForFile(filePath, fileTimeouts, perFileTimeoutOverrides),
 			vitestArgs: [...vitestArgs, ...cacheArgs],
 			streamOutput: !suppressFileOutput && !json,
 			excludePaths: filterConflicts.get(filePath),
@@ -851,3 +865,10 @@ export { buildNodeOptions } from "./utils/env.mjs";
 export { makeRunTmpDir } from "./core/scratch.mjs";
 export { prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
 export { DEFAULT_MERGE_BATCH_SIZE, resolveMergeBatchSize } from "./core/merge-batches.mjs";
+export {
+	DEFAULT_FILE_IDLE_TIMEOUT_MS,
+	DEFAULT_FILE_TIMEOUT_MS,
+	killChildProcessGroups,
+	liveChildCount,
+	resolveFileTimeouts
+} from "./core/watchdog.mjs";

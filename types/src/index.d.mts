@@ -119,6 +119,18 @@ export type RunOptions = {
      */
     perFileHeapOverrides?: PerFileHeapOverride[];
     /**
+     * - Longest one test file may run before its process group is killed and the file reported as failed. Defaults to `VITEST_FILE_TIMEOUT` (seconds) or 30 minutes; `0` = no limit.
+     */
+    fileTimeoutMs?: number;
+    /**
+     * - Longest one test file may go without printing anything before it is killed the same way. Defaults to `VITEST_FILE_IDLE_TIMEOUT` (seconds) or 10 minutes; `0` = no limit.
+     */
+    fileIdleTimeoutMs?: number;
+    /**
+     * - Per-file limits for known slow files; the first matching `pattern` wins and replaces the limits it sets.
+     */
+    perFileTimeoutOverrides?: import("./core/watchdog.mjs").PerFileTimeoutOverride[];
+    /**
      * - Additional `--conditions` Node flags forwarded to children.
      */
     conditions?: string[];
@@ -156,3 +168,4 @@ export { printCoverageSummary, printMergeOutput, printQuietCoverageFailureDetail
 export { stripAnsi, colourPct } from "./utils/ansi.mjs";
 export { prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
 export { DEFAULT_MERGE_BATCH_SIZE, resolveMergeBatchSize } from "./core/merge-batches.mjs";
+export { DEFAULT_FILE_IDLE_TIMEOUT_MS, DEFAULT_FILE_TIMEOUT_MS, killChildProcessGroups, liveChildCount, resolveFileTimeouts } from "./core/watchdog.mjs";
