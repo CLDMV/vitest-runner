@@ -14,17 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.8.2 (November 2026)
+### Latest: v1.9.0 (November 2026)
 
-- **Dev-tooling update** — the repository's own tests now run on Vitest 5.1.1, with ESLint 10.15 and Prettier 3.10. No runtime code or `package.json` changes; a drop-in replacement for v1.8.1 ([#128](https://github.com/CLDMV/vitest-runner/pull/128)).
-- [View full v1.8.2 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.2.md)
+- **Per-file watchdog** — a test file that hangs no longer stalls the whole run. A file that runs longer than 30 minutes, or prints nothing for 10, is killed with its whole process group and reported as failed with its last output, and the run carries on. Set the limits with `fileTimeoutMs` / `--file-timeout` / `VITEST_FILE_TIMEOUT` and `fileIdleTimeoutMs` / `--file-idle-timeout` / `VITEST_FILE_IDLE_TIMEOUT`, or per file with `perFileTimeoutOverrides` (`0` turns a limit off) ([#144](https://github.com/CLDMV/vitest-runner/pull/144)).
+- [View full v1.9.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.9.0.md)
 
 ### Recent Releases
 
+- **v1.8.2** (November 2026) — Dev-tooling update to Vitest 5.1.1, ESLint 10.15 and Prettier 3.10, and CI coverage back to 100%; no runtime changes ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.2.md))
 - **v1.8.1** (November 2026) — Coverage blobs merged in bounded-memory batches above 50 test files (`mergeBatchSize`, `--merge-batch-size`, `VITEST_MERGE_BATCH_SIZE`), so a large suite no longer runs the final merge out of heap ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.1.md))
 - **v1.8.0** (November 2026) — Forced isolation: `isolate: "force"`, `--isolate=force` or `CLDMV_TEST_ISOLATE=force` re-run the suite in its own PID namespace even when already in one ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.0.md))
 - **v1.7.0** (November 2026) — Opt-in PID-namespace isolation (`isolate`, `--isolate`, `CLDMV_TEST_ISOLATE=1`), and scratch roots swept by a liveness socket instead of by pid ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.7.0.md))
-- **v1.6.1** (November 2026) — `engines.node` set to `>=22.0.0`, the runtime floor, with the 22.22.0 toolchain floor moved to `devEngines`; behavior unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.6.1.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
