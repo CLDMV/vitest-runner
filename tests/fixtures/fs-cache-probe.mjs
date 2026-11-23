@@ -14,10 +14,10 @@
  */
 
 /**
- * Preload (`--import`) for the fs module cache tests. Records every recursive
- * `rm` of `FS_CACHE_PROBE_DIR` — how vitest clears its fs module cache — as one
- * line in `FS_CACHE_PROBE_LOG` naming the clearing process's script, so a test can
- * count how many processes cleared it and which ones.
+ * Preload (`--import`) for the fs module cache tests. Records every clear of
+ * `FS_CACHE_PROBE_DIR` (an `rm` of it, or a successful `rename` away from it) as
+ * one line in `FS_CACHE_PROBE_LOG` naming the clearing process's script, so a
+ * test can count how many processes cleared it and which ones.
  */
 import fs from "node:fs";
 import fsPromises from "node:fs/promises";
@@ -28,11 +28,24 @@ const dir = process.env.FS_CACHE_PROBE_DIR;
 const log = process.env.FS_CACHE_PROBE_LOG;
 
 if (dir && log) {
+	const record = (target) => {
+		if (path.resolve(String(target)) === path.resolve(dir)) fs.appendFileSync(log, `${path.basename(process.argv[1] ?? "")}\n`);
+	};
+	// Vitest up to 5.0 removes the cache directory in place; 5.1 renames it
+	// aside first and removes the renamed copy. Either counts as one clear.
 	const originalRm = fsPromises.rm;
 	fsPromises.rm = function probedRm(target, options) {
-		if (path.resolve(String(target)) === path.resolve(dir)) fs.appendFileSync(log, `${path.basename(process.argv[1] ?? "")}\n`);
+		record(target);
 		return originalRm.call(this, target, options);
 	};
-	// Vitest imports `rm` as a named ESM binding; push the patch through to it.
+	const originalRename = fsPromises.rename;
+	fsPromises.rename = function probedRename(from, to) {
+		// Only a rename that worked is a clear; a failed one falls back to rm.
+		return originalRename.call(this, from, to).then((result) => {
+			record(from);
+			return result;
+		});
+	};
+	// Vitest imports `rm` and `rename` as named ESM bindings; push the patches through to them.
 	syncBuiltinESMExports();
 }
