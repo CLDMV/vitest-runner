@@ -58,6 +58,14 @@ export type ParsedArgs = {
      */
     mergeBatchSize: number | undefined;
     /**
+     * - Per-file time limit in seconds (`--file-timeout <s>`; `0` = no limit), or undefined.
+     */
+    fileTimeout: number | undefined;
+    /**
+     * - Per-file idle limit in seconds (`--file-idle-timeout <s>`; `0` = no limit), or undefined.
+     */
+    fileIdleTimeout: number | undefined;
+    /**
      * - Whether `--help` / `-h` was passed.
      */
     help: boolean;
