@@ -11,12 +11,18 @@
  * @property {number|null} heapMb
  * @property {string[]} errors
  * @property {string} rawOutput
+ * @property {string} [timedOut] - Why the watchdog killed the file, when it did.
  */
 /**
  * Run a single Vitest test file in a child process and return parsed results.
  *
  * @param {string} filePath - Test file path (relative to `cwd` or absolute).
- * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv }} opts
+ * The child runs in its own process group (POSIX). With `timeoutMs` or `idleTimeoutMs` set,
+ * a file that runs longer than `timeoutMs`, or prints nothing for `idleTimeoutMs`, has its
+ * whole group killed (SIGTERM, then SIGKILL after `killGraceMs`) and is reported as failed
+ * with the reason and its last output lines. `0` or unset means no limit.
+ *
+ * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv, timeoutMs?: number, idleTimeoutMs?: number, killGraceMs?: number }} opts
  * @returns {Promise<SingleFileResult>}
  * @example
  * const result = await runSingleFile('src/tests/foo.test.vitest.mjs', {
@@ -30,6 +36,9 @@ export function runSingleFile(filePath: string, opts: SpawnBaseOptions & {
     streamOutput?: boolean;
     excludePaths?: string[];
     extraEnv?: NodeJS.ProcessEnv;
+    timeoutMs?: number;
+    idleTimeoutMs?: number;
+    killGraceMs?: number;
 }): Promise<SingleFileResult>;
 /**
  * Run Vitest directly (all files in one process) with inherited stdio.
@@ -126,4 +135,8 @@ export type SingleFileResult = {
     heapMb: number | null;
     errors: string[];
     rawOutput: string;
+    /**
+     * - Why the watchdog killed the file, when it did.
+     */
+    timedOut?: string;
 };

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T16:59:12-08:00 (1795309152)
+ *	@Last modified time: 2026-11-22T21:43:34-08:00 (1795412614)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -51,6 +51,10 @@ ${chalk.bold("SPECIAL FLAGS:")}
   --no-merge-reports      Leave coverage blobs in --blobs-dir without merging (for an external merge)
   --merge-batch-size <n>  Merge coverage blobs in batches of n when there are more than n,
                          keeping the merge's memory bounded (default: 50; 0 = one merge)
+  --file-timeout <s>      Kill a test file's processes and fail it after s seconds
+                         (default: 1800 or VITEST_FILE_TIMEOUT; 0 = no limit)
+  --file-idle-timeout <s> Kill and fail a file that prints nothing for s seconds
+                         (default: 600 or VITEST_FILE_IDLE_TIMEOUT; 0 = no limit)
   --keep-tmp              Keep this run's scratch directory instead of removing it on completion
   --scratch-dir <path>    Per-run scratch root, relative to cwd (default: tmp/vitest-runner)
   --isolate               Run the suite in its own PID namespace (Linux; also CLDMV_TEST_ISOLATE=1)
@@ -79,6 +83,8 @@ ${chalk.bold("ENVIRONMENT VARIABLES:")}
   VITEST_HEAP_MB         Set max heap size per test (default: Node.js default)
   VITEST_WORKERS         Number of parallel workers (default: 4, overridden by --workers)
   VITEST_MERGE_BATCH_SIZE  Coverage merge batch size (default: 50, overridden by --merge-batch-size)
+  VITEST_FILE_TIMEOUT    Per-file time limit in seconds (default: 1800, overridden by --file-timeout)
+  VITEST_FILE_IDLE_TIMEOUT  Per-file idle limit in seconds (default: 600, overridden by --file-idle-timeout)
   VITEST_RUNNER_TMP      Set by the runner in each child — this run's per-file scratch
                          directory. Use makeRunTmpDir(label) from a test file instead
                          of reading it directly when you want a fresh subdirectory.

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T11:56:12-08:00 (1795290972)
+ *	@Last modified time: 2026-11-22T21:43:35-08:00 (1795412615)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -23,6 +23,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parseVitestOutput } from "./parse.mjs";
 import { buildEnv } from "../utils/env.mjs";
+import { formatLimit, KILL_GRACE_MS, killProcessGroup, tailLines, trackChild, usesProcessGroups } from "./watchdog.mjs";
 import {
 	findVitestPackage,
 	isSupportedVitestVersion,
@@ -65,13 +66,19 @@ function buildBaseArgs(vitestBin, vitestConfig) {
  * @property {number|null} heapMb
  * @property {string[]} errors
  * @property {string} rawOutput
+ * @property {string} [timedOut] - Why the watchdog killed the file, when it did.
  */
 
 /**
  * Run a single Vitest test file in a child process and return parsed results.
  *
  * @param {string} filePath - Test file path (relative to `cwd` or absolute).
- * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv }} opts
+ * The child runs in its own process group (POSIX). With `timeoutMs` or `idleTimeoutMs` set,
+ * a file that runs longer than `timeoutMs`, or prints nothing for `idleTimeoutMs`, has its
+ * whole group killed (SIGTERM, then SIGKILL after `killGraceMs`) and is reported as failed
+ * with the reason and its last output lines. `0` or unset means no limit.
+ *
+ * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv, timeoutMs?: number, idleTimeoutMs?: number, killGraceMs?: number }} opts
  * @returns {Promise<SingleFileResult>}
  * @example
  * const result = await runSingleFile('src/tests/foo.test.vitest.mjs', {
@@ -95,7 +102,11 @@ export function runSingleFile(filePath, opts) {
 		// Excluded explicitly so this invocation runs exactly `filePath`.
 		excludePaths = [],
 		// Extra env vars for the child (e.g. VITEST_RUNNER_TMP — see core/scratch.mjs).
-		extraEnv = {}
+		extraEnv = {},
+		// Watchdog limits (see core/watchdog.mjs); 0 or unset = no limit.
+		timeoutMs = 0,
+		idleTimeoutMs = 0,
+		killGraceMs = KILL_GRACE_MS
 	} = opts;
 
 	return new Promise((resolve) => {
@@ -104,27 +115,33 @@ export function runSingleFile(filePath, opts) {
 		const args = [...buildBaseArgs(vitestBin, vitestConfig), ...vitestArgs, ...excludeArgs, filePath];
 		const env = buildEnv({ maxOldSpaceMb, conditions, nodeEnv, extraEnv });
 
-		const child = spawn(process.execPath, args, { cwd, stdio: ["ignore", "pipe", "pipe"], env });
+		// Its own process group, so a kill reaches vitest's workers and anything a test started.
+		const child = spawn(process.execPath, args, { cwd, stdio: ["ignore", "pipe", "pipe"], env, detached: usesProcessGroups() });
+		const untrack = trackChild(child);
 
 		let stdout = "";
 		let stderr = "";
+		/** @type {string|undefined} */
+		let timedOut;
+		let settled = false;
+		/** @type {NodeJS.Timeout[]} */
+		const timers = [];
+		let idleTimer;
 
-		child.stdout?.on("data", (data) => {
-			stdout += data.toString();
-			if (streamOutput) process.stdout.write(data);
-		});
+		const settle = (result) => {
+			if (settled) return;
+			settled = true;
+			for (const timer of timers) clearTimeout(timer);
+			clearTimeout(idleTimer);
+			untrack();
+			resolve(result);
+		};
 
-		child.stderr?.on("data", (data) => {
-			stderr += data.toString();
-			if (streamOutput) process.stderr.write(data);
-		});
-
-		child.on("close", (code) => {
+		const buildResult = (code) => {
 			const spawnDuration = Date.now() - startTime;
 			const output = `${stdout}\n${stderr}`;
 			const parsed = parseVitestOutput(output);
-
-			resolve({
+			const result = {
 				file: filePath,
 				code: code ?? 1,
 				// c8 ignore next -- false branch verified manually; V8 ternary probe mismatch inside object literal
@@ -137,11 +154,67 @@ export function runSingleFile(filePath, opts) {
 				heapMb: parsed.heapMb,
 				errors: parsed.errors,
 				rawOutput: output
-			});
+			};
+			if (timedOut === undefined) return result;
+			const tail = tailLines(output);
+			return {
+				...result,
+				code: 1,
+				duration: spawnDuration,
+				testFilesPass: 0,
+				testFilesFail: 1,
+				errors: [`${timedOut}; killed its process group.${tail ? ` Last output:\n${tail}` : " It printed nothing."}`, ...parsed.errors],
+				timedOut
+			};
+		};
+
+		const fire = (reason) => {
+			if (timedOut !== undefined) return;
+			timedOut = reason;
+			if (streamOutput) process.stderr.write(`\n⏱️  ${filePath}: ${reason}; killing its process group\n`);
+			killProcessGroup(child, "SIGTERM");
+			timers.push(
+				setTimeout(() => {
+					killProcessGroup(child, "SIGKILL");
+					// A process that left the group can still hold the output pipes open, and then
+					// "close" never comes. Give it one more grace period, then report without it.
+					timers.push(
+						setTimeout(() => {
+							child.stdout?.destroy();
+							child.stderr?.destroy();
+							settle(buildResult(null));
+						}, killGraceMs).unref()
+					);
+				}, killGraceMs).unref()
+			);
+		};
+
+		if (timeoutMs > 0) {
+			timers.push(setTimeout(() => fire(`ran longer than ${formatLimit(timeoutMs)}`), timeoutMs).unref());
+		}
+		const resetIdle = () => {
+			if (idleTimeoutMs <= 0 || timedOut !== undefined) return;
+			clearTimeout(idleTimer);
+			idleTimer = setTimeout(() => fire(`printed nothing for ${formatLimit(idleTimeoutMs)}`), idleTimeoutMs).unref();
+		};
+		resetIdle();
+
+		child.stdout?.on("data", (data) => {
+			stdout += data.toString();
+			resetIdle();
+			if (streamOutput) process.stdout.write(data);
 		});
 
+		child.stderr?.on("data", (data) => {
+			stderr += data.toString();
+			resetIdle();
+			if (streamOutput) process.stderr.write(data);
+		});
+
+		child.on("close", (code) => settle(buildResult(code)));
+
 		child.on("error", (err) => {
-			resolve({
+			settle({
 				file: filePath,
 				code: 1,
 				duration: Date.now() - startTime,
