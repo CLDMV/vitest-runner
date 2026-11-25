@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T02:47:19-08:00 (1795603639)
+ *	@Last modified time: 2026-11-25T12:16:04-08:00 (1795637764)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -92,6 +92,7 @@ import { getTimeoutsForFile, killChildProcessGroups, resolveFileTimeouts } from 
  * @property {number} [mergeBatchSize] - Blob count above which coverage blobs are merged in batches before the final `vitest --mergeReports`, so the merge stays within bounded memory however many test files there are. Each batch of up to this many blobs is merged into one blob in its own process, in rounds, until the count fits. Defaults to `VITEST_MERGE_BATCH_SIZE` or 50; `0` always merges in one process. Values below 2 are raised to 2.
  * @property {boolean} [coverageIndex=true] - With `mergeReports`, write `<reportsDirectory>/coverage-index.json` after the merge: for each source file, its functions and the test files that executed each one (module top-level code left out). Lets a repo re-run only the tests that reach one source file. `false` skips it.
  * @property {number} [maxOldSpaceMb] - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
+ * @property {number} [mergeMaxOldSpaceMb] - `--max-old-space-size` for the coverage merge only (the final `vitest --mergeReports` and each batch helper). Defaults to `VITEST_MERGE_HEAP_MB`, else `maxOldSpaceMb`. Lets a large suite give the merge more heap than each test file gets.
  * @property {string[]} [earlyRunPatterns=[]] - Path substrings — matching files run solo before the worker pool.
  * @property {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution.
  * @property {PerFileHeapOverride[]} [perFileHeapOverrides=[]] - Per-file minimum heap overrides.
@@ -266,6 +267,8 @@ async function runImpl(opts, scratchRoot) {
 	let fileScratchIndex = 0;
 
 	const maxOldSpaceMb = opts.maxOldSpaceMb ?? (process.env.VITEST_HEAP_MB ? parseInt(process.env.VITEST_HEAP_MB, 10) : undefined);
+	const mergeMaxOldSpaceMb =
+		opts.mergeMaxOldSpaceMb ?? (process.env.VITEST_MERGE_HEAP_MB ? parseInt(process.env.VITEST_MERGE_HEAP_MB, 10) : maxOldSpaceMb);
 	const emitTextOutput = !json;
 
 	// Resolve vitest binary and config
@@ -370,6 +373,8 @@ async function runImpl(opts, scratchRoot) {
 			console.log(`\n🧪 Running ${allTestFiles.length} test files for coverage (blob + merge mode)`);
 			console.log(`⚙️  Workers: ${workers} (${soloFiles.length} solo first, then parallel)`);
 			if (maxOldSpaceMb) console.log(`🧠 Heap limit: ${maxOldSpaceMb} MB`);
+			if (mergeReports && mergeMaxOldSpaceMb && mergeMaxOldSpaceMb !== maxOldSpaceMb)
+				console.log(`🧠 Merge heap limit: ${mergeMaxOldSpaceMb} MB`);
 			console.log("");
 		}
 
@@ -522,7 +527,7 @@ async function runImpl(opts, scratchRoot) {
 
 			({ exitCode: mergeExitCode, output: mergeOutput } = await runMergeReports(blobsDir, {
 				...spawnBase,
-				maxOldSpaceMb,
+				maxOldSpaceMb: mergeMaxOldSpaceMb,
 				extraCoverageArgs,
 				extraArgs: cacheArgs,
 				quietOutput: coverageQuiet || json,
@@ -916,6 +921,7 @@ export { buildNodeOptions } from "./utils/env.mjs";
 export { makeRunTmpDir } from "./core/scratch.mjs";
 export { prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
 export { DEFAULT_MERGE_BATCH_SIZE, resolveMergeBatchSize } from "./core/merge-batches.mjs";
+export { COVERAGE_INDEX_FILENAME, writeCoverageIndexFromBlobs } from "./core/coverage-index.mjs";
 export {
 	DEFAULT_FILE_IDLE_TIMEOUT_MS,
 	DEFAULT_FILE_TIMEOUT_MS,

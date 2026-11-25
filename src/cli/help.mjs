@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T02:47:15-08:00 (1795603635)
+ *	@Last modified time: 2026-11-25T12:16:03-08:00 (1795637763)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -52,6 +52,8 @@ ${chalk.bold("SPECIAL FLAGS:")}
   --no-coverage-index     Don't write coverage-index.json (which tests reach which source functions)
   --merge-batch-size <n>  Merge coverage blobs in batches of n when there are more than n,
                          keeping the merge's memory bounded (default: 50; 0 = one merge)
+  --merge-heap-mb <mb>    Heap limit for the coverage merge only (default: VITEST_MERGE_HEAP_MB,
+                         else VITEST_HEAP_MB)
   --file-timeout <s>      Kill a test file's processes and fail it after s seconds
                          (default: 1800 or VITEST_FILE_TIMEOUT; 0 = no limit)
   --file-idle-timeout <s> Kill and fail a file that prints nothing for s seconds
@@ -83,6 +85,8 @@ ${chalk.bold("VITEST FLAGS:")}
 ${chalk.bold("ENVIRONMENT VARIABLES:")}
   VITEST_HEAP_MB         Set max heap size per test (default: Node.js default)
   VITEST_WORKERS         Number of parallel workers (default: 4, overridden by --workers)
+  VITEST_MERGE_HEAP_MB   Max heap size for the coverage merge (default: VITEST_HEAP_MB,
+                         overridden by --merge-heap-mb)
   VITEST_MERGE_BATCH_SIZE  Coverage merge batch size (default: 50, overridden by --merge-batch-size)
   VITEST_FILE_TIMEOUT    Per-file time limit in seconds (default: 1800, overridden by --file-timeout)
   VITEST_FILE_IDLE_TIMEOUT  Per-file idle limit in seconds (default: 600, overridden by --file-idle-timeout)

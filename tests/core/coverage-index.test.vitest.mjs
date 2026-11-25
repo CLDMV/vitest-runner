@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T02:47:22-08:00 (1795603642)
+ *	@Last modified time: 2026-11-25T12:16:05-08:00 (1795637765)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -26,16 +26,18 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { run, stripAnsi } from "../../src/index.mjs";
+import { run, runMergeReports, resolveBin, stripAnsi, writeCoverageIndexFromBlobs as exportedFromBlobs } from "../../src/index.mjs";
 import {
 	COVERAGE_INDEX_FILENAME,
 	COVERAGE_INDEX_VERSION,
 	CoverageIndexBuilder,
+	blobTestFiles,
 	fileCoverages,
 	functionKeys,
 	resolveCommit,
 	toProjectPath,
-	writeCoverageIndex
+	writeCoverageIndex,
+	writeCoverageIndexFromBlobs
 } from "../../src/core/coverage-index.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -145,6 +147,29 @@ describe("CoverageIndexBuilder", () => {
 	});
 });
 
+describe("blobTestFiles", () => {
+	it("reads each file task's filepath, falling back to its name, and skips the rest", () => {
+		expect(blobTestFiles([{ filepath: "/r/tests/a.test.mjs", name: "tests/a.test.mjs" }, { name: "tests/b.test.mjs" }, {}, null])).toEqual([
+			"/r/tests/a.test.mjs",
+			"tests/b.test.mjs"
+		]);
+		expect(blobTestFiles(undefined)).toEqual([]);
+	});
+});
+
+describe("CoverageIndexBuilder — several test files in one blob", () => {
+	it("credits every test file of the blob", () => {
+		const builder = new CoverageIndexBuilder("/r");
+		builder.add(["/r/tests/b.test.mjs", "/r/tests/a.test.mjs"], {
+			"/r/src/x.mjs": fileCov("/r/src/x.mjs", [
+				["hit", 1, 2],
+				["miss", 2, 0]
+			])
+		});
+		expect(builder.toJSON(null).files).toEqual({ "src/x.mjs": { hit: ["tests/a.test.mjs", "tests/b.test.mjs"], miss: [] } });
+	});
+});
+
 describe("resolveCommit", () => {
 	it("returns HEAD of a git checkout", async () => {
 		const dir = path.join(WORK, "git-repo");
@@ -188,6 +213,23 @@ describe("writeCoverageIndex", () => {
 		const dir = path.join(WORK, "write-commit");
 		const result = await writeCoverageIndex({ entries: [], cwd: PKG_ROOT, outputDir: dir, flatted: jsonFlatted });
 		expect((await readJson(result.path)).commit).toBe(await resolveCommit(PKG_ROOT));
+	});
+
+	it("reads the test files from the blob when an entry doesn't name one", async () => {
+		const dir = path.join(WORK, "write-from-blob");
+		await fs.mkdir(dir, { recursive: true });
+		const blob = path.join(dir, "a.blob");
+		const files = [{ filepath: "/r/tests/a.test.mjs" }, { filepath: "/r/tests/b.test.mjs" }];
+		await fs.writeFile(blob, JSON.stringify(["5", files, [], { "/r/src/a.mjs": fileCov("/r/src/a.mjs", [["one", 1, 1]]) }, 0, {}]));
+		const result = await writeCoverageIndex({
+			entries: [{ blob }, { blob }],
+			cwd: "/r",
+			outputDir: dir,
+			flatted: jsonFlatted,
+			commit: null
+		});
+		expect(result.testFiles).toBe(2);
+		expect((await readJson(result.path)).files).toEqual({ "src/a.mjs": { one: ["tests/a.test.mjs", "tests/b.test.mjs"] } });
 	});
 
 	it("rejects a blob that isn't a vitest blob array", async () => {
@@ -285,4 +327,67 @@ describe("run() — coverage index", () => {
 		await expect(fs.access(path.join(coverageDir, COVERAGE_INDEX_FILENAME))).rejects.toThrow();
 		await expect(fs.access(path.join(coverageDir, "coverage-summary.json"))).resolves.toBeUndefined();
 	}, 180_000);
+});
+
+describe("writeCoverageIndexFromBlobs — external merge", () => {
+	it("writes the same index after mergeReports: false and the caller's own merge", async () => {
+		const base = path.join(WORK, "external");
+		const blobsDir = path.join(base, "blobs");
+		const coverageDir = path.join(base, "coverage");
+		const coverageArgs = [`--coverage.reportsDirectory=${coverageDir}`];
+		const report = await run({
+			cwd: FIXTURE,
+			testDir: path.join(FIXTURE, "cases"),
+			testPatterns: ["add.test", "initials.test", "shout.test"],
+			vitestConfig: CONFIG,
+			vitestArgs: ["--coverage", ...coverageArgs],
+			blobsDir,
+			mergeReports: false,
+			scratchDir: path.join(base, "scratch"),
+			json: true,
+			workers: 1,
+			fsModuleCachePath: false
+		});
+		expect(report.exitCode).toBe(0);
+		expect(report.coverageIndex).toBeNull();
+
+		const vitestBin = resolveBin(FIXTURE, "vitest");
+		const merged = await runMergeReports(blobsDir, {
+			cwd: FIXTURE,
+			vitestBin,
+			vitestConfig: CONFIG,
+			extraCoverageArgs: coverageArgs,
+			quietOutput: true
+		});
+		expect(merged.exitCode).toBe(0);
+
+		expect(exportedFromBlobs).toBe(writeCoverageIndexFromBlobs);
+		const result = await writeCoverageIndexFromBlobs({ blobsDir: path.relative(FIXTURE, blobsDir), cwd: FIXTURE, outputDir: coverageDir });
+		expect(result).toEqual({ path: path.join(coverageDir, COVERAGE_INDEX_FILENAME), files: 2, testFiles: 3 });
+		const index = await readJson(result.path);
+		expect(index.commit).toBe(await resolveCommit(FIXTURE));
+		expect(index.files["src/calc.mjs"]).toEqual({
+			add: ["cases/add.test.vitest.mjs", "cases/initials.test.vitest.mjs"],
+			sign: [],
+			clamp: []
+		});
+		expect(index.files["src/text.mjs"].shout).toEqual(["cases/shout.test.vitest.mjs"]);
+
+		// Several directories (e.g. node and browser blob sets); the default output is <cwd>/coverage.
+		const other = path.join(base, "other-blobs");
+		await fs.mkdir(path.join(other, "nested"), { recursive: true });
+		const defaults = await writeCoverageIndexFromBlobs({ blobsDir: [blobsDir, other], cwd: base, vitestBin, commit: null });
+		expect(defaults.path).toBe(path.join(base, "coverage", COVERAGE_INDEX_FILENAME));
+		expect(defaults.testFiles).toBe(3);
+	}, 180_000);
+
+	it("throws when the vitest binary isn't inside a vitest package", async () => {
+		const dir = path.join(WORK, "no-vitest");
+		await fs.mkdir(path.join(dir, "blobs"), { recursive: true });
+		const bin = path.join(dir, "vitest.mjs");
+		await fs.writeFile(bin, "");
+		await expect(writeCoverageIndexFromBlobs({ blobsDir: "blobs", cwd: dir, vitestBin: bin })).rejects.toThrow(
+			"installed vitest package not found"
+		);
+	});
 });
