@@ -111,6 +111,10 @@ export type RunOptions = {
      */
     maxOldSpaceMb?: number;
     /**
+     * - `--max-old-space-size` for the coverage merge only (the final `vitest --mergeReports` and each batch helper). Defaults to `VITEST_MERGE_HEAP_MB`, else `maxOldSpaceMb`. Lets a large suite give the merge more heap than each test file gets.
+     */
+    mergeMaxOldSpaceMb?: number;
+    /**
      * - Path substrings — matching files run solo before the worker pool.
      */
     earlyRunPatterns?: string[];
@@ -172,4 +176,5 @@ export { printCoverageSummary, printMergeOutput, printQuietCoverageFailureDetail
 export { stripAnsi, colourPct } from "./utils/ansi.mjs";
 export { prepareFsModuleCache, DEFAULT_FS_MODULE_CACHE_DIR } from "./core/fs-cache.mjs";
 export { DEFAULT_MERGE_BATCH_SIZE, resolveMergeBatchSize } from "./core/merge-batches.mjs";
+export { COVERAGE_INDEX_FILENAME, writeCoverageIndexFromBlobs } from "./core/coverage-index.mjs";
 export { DEFAULT_FILE_IDLE_TIMEOUT_MS, DEFAULT_FILE_TIMEOUT_MS, killChildProcessGroups, liveChildCount, resolveFileTimeouts } from "./core/watchdog.mjs";

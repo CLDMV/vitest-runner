@@ -58,6 +58,10 @@ export type ParsedArgs = {
      */
     coverageIndex: boolean;
     /**
+     * - Heap ceiling in MB for the coverage merge only (`--merge-heap-mb <mb>`), or undefined.
+     */
+    mergeHeapMb: number | undefined;
+    /**
      * - Blob count above which coverage blobs are merged in batches (`--merge-batch-size <n>`; `0` = never batch), or undefined.
      */
     mergeBatchSize: number | undefined;

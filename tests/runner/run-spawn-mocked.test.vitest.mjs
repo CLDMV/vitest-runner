@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T02:47:33-08:00 (1795603653)
+ *	@Last modified time: 2026-11-25T12:16:07-08:00 (1795637767)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -447,6 +447,34 @@ describe("run() — output suppression and json mode", () => {
 		const report = await run({ ...BASE, json: true, vitestArgs: ["--coverage", "--coverage.provider=v8"] });
 		expect(report.exitCode).toBe(0);
 		expect(report.coverageIndex).toBeNull();
+	}, 60_000);
+
+	it("gives the merge its own heap: mergeMaxOldSpaceMb, then VITEST_MERGE_HEAP_MB, then maxOldSpaceMb", async () => {
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+		vi.mocked(runMergeReports).mockResolvedValue({ exitCode: 0, output: "merged" });
+		const lines = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((...args) => lines.push(args.join(" ")));
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const mergeHeap = () => vi.mocked(runMergeReports).mock.lastCall[1].maxOldSpaceMb;
+		const fileHeap = () => vi.mocked(runSingleFile).mock.lastCall[1].maxOldSpaceMb;
+		try {
+			vi.stubEnv("VITEST_MERGE_HEAP_MB", "");
+			await run({ ...BASE, maxOldSpaceMb: 2048, mergeMaxOldSpaceMb: 12288, coverageIndex: false, vitestArgs: ["--coverage"] });
+			expect(mergeHeap()).toBe(12288);
+			expect(fileHeap()).toBe(2048);
+			expect(lines.join("\n")).toContain("Merge heap limit: 12288 MB");
+
+			await run({ ...BASE, maxOldSpaceMb: 2048, coverageIndex: false, vitestArgs: ["--coverage"] });
+			expect(mergeHeap()).toBe(2048);
+
+			vi.stubEnv("VITEST_MERGE_HEAP_MB", "6144");
+			await run({ ...BASE, coverageIndex: false, vitestArgs: ["--coverage"] });
+			expect(mergeHeap()).toBe(6144);
+		} finally {
+			vi.unstubAllEnvs();
+			logSpy.mockRestore();
+			warnSpy.mockRestore();
+		}
 	}, 60_000);
 
 	it("warns when the installed vitest package can't be found, or loading its libraries throws a non-Error", async () => {
