@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T02:47:15-08:00 (1795603635)
+ *	@Last modified time: 2026-11-25T12:16:03-08:00 (1795637763)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -31,6 +31,7 @@
  * @property {string|undefined} blobsDir - Directory for per-file coverage blobs (`--blobs-dir`); defaults to `<cwd>/.vitest-coverage-blobs`.
  * @property {boolean} mergeReports - `false` when `--no-merge-reports` was passed; leaves blobs in `blobsDir` without merging.
  * @property {boolean} coverageIndex - `false` when `--no-coverage-index` was passed; skips writing `coverage-index.json`.
+ * @property {number|undefined} mergeHeapMb - Heap ceiling in MB for the coverage merge only (`--merge-heap-mb <mb>`), or undefined.
  * @property {number|undefined} mergeBatchSize - Blob count above which coverage blobs are merged in batches (`--merge-batch-size <n>`; `0` = never batch), or undefined.
  * @property {number|undefined} fileTimeout - Per-file time limit in seconds (`--file-timeout <s>`; `0` = no limit), or undefined.
  * @property {number|undefined} fileIdleTimeout - Per-file idle limit in seconds (`--file-idle-timeout <s>`; `0` = no limit), or undefined.
@@ -59,6 +60,7 @@ const RUNNER_FLAGS = new Set([
 	"--blobs-dir",
 	"--no-merge-reports",
 	"--merge-batch-size",
+	"--merge-heap-mb",
 	"--no-coverage-index",
 	"--file-timeout",
 	"--file-idle-timeout",
@@ -102,6 +104,7 @@ export function parseArguments(args) {
 	let blobsDir;
 	let mergeReports = true;
 	let mergeBatchSize;
+	let mergeHeapMb;
 	let coverageIndex = true;
 	let fileTimeout;
 	let fileIdleTimeout;
@@ -143,6 +146,10 @@ export function parseArguments(args) {
 			mergeReports = false;
 		} else if (arg === "--no-coverage-index") {
 			coverageIndex = false;
+		} else if (arg === "--merge-heap-mb") {
+			mergeHeapMb = parseInt(args[++i], 10);
+		} else if (arg.startsWith("--merge-heap-mb=")) {
+			mergeHeapMb = parseInt(arg.slice("--merge-heap-mb=".length), 10);
 		} else if (arg === "--merge-batch-size") {
 			mergeBatchSize = parseInt(args[++i], 10);
 		} else if (arg.startsWith("--merge-batch-size=")) {
@@ -207,6 +214,7 @@ export function parseArguments(args) {
 		blobsDir,
 		mergeReports,
 		mergeBatchSize,
+		mergeHeapMb,
 		coverageIndex,
 		fileTimeout,
 		fileIdleTimeout,

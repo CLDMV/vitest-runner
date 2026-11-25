@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T11:56:12-08:00 (1795290972)
+ *	@Last modified time: 2026-11-25T12:16:04-08:00 (1795637764)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -32,6 +32,16 @@ describe("parseArguments — --merge-batch-size", () => {
 	});
 	it("reads the = form, including 0", () => {
 		expect(parseArguments(["--merge-batch-size=0"]).mergeBatchSize).toBe(0);
+	});
+});
+
+describe("parseArguments — --merge-heap-mb", () => {
+	it("is undefined by default and reads both forms without passing them to vitest", () => {
+		expect(parseArguments([]).mergeHeapMb).toBeUndefined();
+		const result = parseArguments(["--merge-heap-mb", "12288", "--reporter=dot"]);
+		expect(result.mergeHeapMb).toBe(12288);
+		expect(result.vitestPassthroughArgs).toEqual(["--reporter=dot"]);
+		expect(parseArguments(["--merge-heap-mb=4096"]).mergeHeapMb).toBe(4096);
 	});
 });
 

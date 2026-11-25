@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T02:47:16-08:00 (1795603636)
+ *	@Last modified time: 2026-11-25T12:16:03-08:00 (1795637763)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -45,11 +45,16 @@
  *
  * With the index a repo can re-measure one source file by running only the test
  * files that reach it instead of the whole suite.
+ *
+ * A caller that merges the blobs itself (`mergeReports: false` plus its own
+ * `runMergeReports`) writes the index with {@link writeCoverageIndexFromBlobs}.
  */
 
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { resolveBin } from "../utils/resolve.mjs";
+import { findVitestPackage, loadBlobLibraries } from "./merge-batches.mjs";
 
 /** File name of the index inside the coverage reports directory. */
 export const COVERAGE_INDEX_FILENAME = "coverage-index.json";
@@ -112,6 +117,23 @@ export function functionKeys(fnMap) {
 }
 
 /**
+ * The test files a blob was produced by, from its `files` field (vitest's file
+ * tasks). The runner writes one test file per blob; a blob from a plain vitest
+ * run can hold several, and its coverage then counts for each of them.
+ * @param {unknown} files - The `files` field of a parsed blob.
+ * @returns {string[]}
+ */
+export function blobTestFiles(files) {
+	if (!Array.isArray(files)) return [];
+	const out = [];
+	for (const task of files) {
+		const file = typeof task?.filepath === "string" ? task.filepath : typeof task?.name === "string" ? task.name : null;
+		if (file) out.push(file);
+	}
+	return out;
+}
+
+/**
  * Builds the index from blobs added one at a time, so only one parsed blob is
  * held in memory at once.
  */
@@ -126,13 +148,13 @@ export class CoverageIndexBuilder {
 	}
 
 	/**
-	 * Add one test file's coverage.
-	 * @param {string} testFile - The test file the blob was produced by.
+	 * Add one blob's coverage.
+	 * @param {string|string[]} testFile - The test file(s) the blob was produced by.
 	 * @param {unknown} coverage - The coverage field of its blob.
 	 * @returns {void}
 	 */
 	add(testFile, coverage) {
-		const test = toProjectPath(this.#cwd, testFile);
+		const tests = (Array.isArray(testFile) ? testFile : [testFile]).map((file) => toProjectPath(this.#cwd, file));
 		for (const fc of fileCoverages(coverage)) {
 			const source = toProjectPath(this.#cwd, fc.path);
 			let functions = this.#files.get(source);
@@ -141,12 +163,12 @@ export class CoverageIndexBuilder {
 				this.#files.set(source, functions);
 			}
 			for (const [id, key] of functionKeys(fc.fnMap)) {
-				let tests = functions.get(key);
-				if (!tests) {
-					tests = new Set();
-					functions.set(key, tests);
+				let reached = functions.get(key);
+				if (!reached) {
+					reached = new Set();
+					functions.set(key, reached);
 				}
-				if (Number(fc.f[id]) > 0) tests.add(test);
+				if (Number(fc.f[id]) > 0) for (const test of tests) reached.add(test);
 			}
 		}
 	}
@@ -189,16 +211,16 @@ export function resolveCommit(cwd, env = process.env) {
  * Read the blobs and write the coverage index.
  *
  * @param {Object} opts
- * @param {Array<{ blob: string, testFile: string }>} opts.entries - Each blob with the test file that produced it. Missing blobs are skipped.
+ * @param {Array<{ blob: string, testFile?: string }>} opts.entries - Each blob, with the test file that produced it when known; without one, the test files are read from the blob. Missing blobs are skipped.
  * @param {string} opts.cwd - Project root.
  * @param {string} opts.outputDir - Coverage reports directory; created when missing.
  * @param {{ parse: Function }} opts.flatted - vitest's `flatted`, to read the blobs.
  * @param {string|null} [opts.commit] - Commit sha; resolved with {@link resolveCommit} when omitted.
- * @returns {Promise<{ path: string, files: number, testFiles: number }>}
+ * @returns {Promise<{ path: string, files: number, testFiles: number }>} `testFiles` counts distinct test files.
  */
 export async function writeCoverageIndex({ entries, cwd, outputDir, flatted, commit }) {
 	const builder = new CoverageIndexBuilder(cwd);
-	let testFiles = 0;
+	const seen = new Set();
 	for (const { blob, testFile } of entries) {
 		let text;
 		try {
@@ -208,12 +230,51 @@ export async function writeCoverageIndex({ entries, cwd, outputDir, flatted, com
 		}
 		const parsed = flatted.parse(text);
 		if (!Array.isArray(parsed)) throw new Error(`${path.basename(blob)} is not a vitest blob`);
-		builder.add(testFile, parsed[3]);
-		testFiles++;
+		const tests = testFile ? [testFile] : blobTestFiles(parsed[1]);
+		builder.add(tests, parsed[3]);
+		for (const test of tests) seen.add(toProjectPath(cwd, test));
 	}
 	const index = builder.toJSON(commit === undefined ? await resolveCommit(cwd) : commit);
 	await fs.mkdir(outputDir, { recursive: true });
 	const outPath = path.join(outputDir, COVERAGE_INDEX_FILENAME);
 	await fs.writeFile(outPath, `${JSON.stringify(index, null, "\t")}\n`, "utf-8");
-	return { path: outPath, files: Object.keys(index.files).length, testFiles };
+	return { path: outPath, files: Object.keys(index.files).length, testFiles: seen.size };
+}
+
+/**
+ * Write the coverage index from directories of vitest blobs, for a caller that
+ * runs the runner with `mergeReports: false` and merges the blobs itself.
+ * Call it after the merge (the merge clears the reports directory) and before
+ * the blobs are deleted. Each blob's test files are read from the blob; only
+ * the files directly inside each directory are read.
+ *
+ * @param {Object} opts
+ * @param {string|string[]} opts.blobsDir - The blobs directory, or several (relative paths resolve against `cwd`).
+ * @param {string} [opts.cwd=process.cwd()] - Project root.
+ * @param {string} [opts.outputDir] - Coverage reports directory; defaults to `<cwd>/coverage`.
+ * @param {string} [opts.vitestBin] - The vitest binary whose `flatted` reads the blobs; defaults to the one installed for `cwd`.
+ * @param {string|null} [opts.commit] - Commit sha; resolved with {@link resolveCommit} when omitted.
+ * @returns {Promise<{ path: string, files: number, testFiles: number }>}
+ * @example
+ * await runMergeReports(".coverage-blobs", { cwd, vitestBin, extraCoverageArgs });
+ * await writeCoverageIndexFromBlobs({ blobsDir: ".coverage-blobs", cwd });
+ */
+export async function writeCoverageIndexFromBlobs({ blobsDir, cwd = process.cwd(), outputDir, vitestBin, commit }) {
+	const blobs = [];
+	for (const each of Array.isArray(blobsDir) ? blobsDir : [blobsDir]) {
+		const dir = path.resolve(cwd, each);
+		const names = (await fs.readdir(dir, { withFileTypes: true })).filter((e) => e.isFile()).map((e) => e.name);
+		names.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+		for (const name of names) blobs.push(path.join(dir, name));
+	}
+	const vitestPkg = findVitestPackage(vitestBin ?? resolveBin(cwd, "vitest"));
+	if (!vitestPkg) throw new Error("installed vitest package not found");
+	const { flatted } = await loadBlobLibraries(vitestPkg.dir);
+	return writeCoverageIndex({
+		entries: blobs.map((blob) => ({ blob })),
+		cwd,
+		outputDir: outputDir ? path.resolve(cwd, outputDir) : path.join(cwd, "coverage"),
+		flatted,
+		commit
+	});
 }

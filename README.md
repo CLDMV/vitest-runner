@@ -14,17 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.10.0 (November 2026)
+### Latest: v1.11.0 (November 2026)
 
-- **Coverage index** — a coverage run now writes `coverage-index.json` next to its reports before the per-file blobs are deleted. It maps every function in each source file to the test files that executed it (module top-level code excluded), with project-relative paths and the commit sha, so a repo can re-measure one file by running only the tests that reach it. On by default; `coverageIndex: false` / `--no-coverage-index` turns it off ([#150](https://github.com/CLDMV/vitest-runner/pull/150)).
-- [View full v1.10.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.10.0.md)
+- **Coverage index for external merges** — a suite that merges the coverage blobs itself (`mergeReports: false`) can now write `coverage-index.json` with the exported `writeCoverageIndexFromBlobs()`, which reads each blob's test files from the blob. And `mergeMaxOldSpaceMb` / `--merge-heap-mb` / `VITEST_MERGE_HEAP_MB` gives the merge its own heap limit, so suites that merged externally only for a bigger heap can use the runner's merge, which writes the index itself ([#155](https://github.com/CLDMV/vitest-runner/pull/155)).
+- [View full v1.11.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.0.md)
 
 ### Recent Releases
 
+- **v1.10.0** (November 2026) — Coverage runs write `coverage-index.json`, mapping each source function to the test files that executed it (`coverageIndex`, `--no-coverage-index`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.10.0.md))
 - **v1.9.0** (November 2026) — Per-file watchdog: a file that runs past 30 minutes or prints nothing for 10 is killed with its process group and reported as failed, and the run carries on (`fileTimeoutMs`, `fileIdleTimeoutMs`, `perFileTimeoutOverrides`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.9.0.md))
 - **v1.8.2** (November 2026) — Dev-tooling update to Vitest 5.1.1, ESLint 10.15 and Prettier 3.10, and CI coverage back to 100%; no runtime changes ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.2.md))
 - **v1.8.1** (November 2026) — Coverage blobs merged in bounded-memory batches above 50 test files (`mergeBatchSize`, `--merge-batch-size`, `VITEST_MERGE_BATCH_SIZE`), so a large suite no longer runs the final merge out of heap ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.1.md))
-- **v1.8.0** (November 2026) — Forced isolation: `isolate: "force"`, `--isolate=force` or `CLDMV_TEST_ISOLATE=force` re-run the suite in its own PID namespace even when already in one ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.0.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
@@ -121,6 +121,7 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--no-merge-reports`       | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step                              |
 | `--no-coverage-index`      | Don't write `coverage-index.json` after a coverage run; see [Coverage index](#coverage-index)                                                    |
 | `--merge-batch-size <n>`   | Merge coverage blobs in batches of `n` when there are more than `n` (default: `50` or `VITEST_MERGE_BATCH_SIZE`; `0` = one merge)                |
+| `--merge-heap-mb <mb>`     | Heap ceiling for the coverage merge only (default: `VITEST_MERGE_HEAP_MB`, else `VITEST_HEAP_MB`)                                                |
 | `--file-timeout <s>`       | Kill a test file's processes and fail it after `s` seconds (default: `1800` or `VITEST_FILE_TIMEOUT`; `0` = no limit); see [Watchdog](#watchdog) |
 | `--file-idle-timeout <s>`  | Kill and fail a file that prints nothing for `s` seconds (default: `600` or `VITEST_FILE_IDLE_TIMEOUT`; `0` = no limit)                          |
 | `--keep-tmp`               | Keep this run's scratch directory instead of removing it on completion                                                                           |
@@ -168,6 +169,7 @@ vitest-runner --bail
 | -------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `VITEST_HEAP_MB`           | _(none)_ | `--max-old-space-size` ceiling passed to every child process                                                                                       |
 | `VITEST_WORKERS`           | `4`      | Maximum parallel worker slots in the non-solo phase (overridden by `--workers`)                                                                    |
+| `VITEST_MERGE_HEAP_MB`     | _(none)_ | `--max-old-space-size` for the coverage merge only (overridden by `--merge-heap-mb` / `mergeMaxOldSpaceMb`; falls back to `VITEST_HEAP_MB`)        |
 | `VITEST_MERGE_BATCH_SIZE`  | `50`     | Coverage merge batch size (overridden by `--merge-batch-size` / `mergeBatchSize`); see [Merging many blobs](#merging-many-blobs)                   |
 | `VITEST_FILE_TIMEOUT`      | `1800`   | Per-file time limit in seconds, `0` = no limit (overridden by `--file-timeout` / `fileTimeoutMs`); see [Watchdog](#watchdog)                       |
 | `VITEST_FILE_IDLE_TIMEOUT` | `600`    | Per-file idle limit in seconds, `0` = no limit (overridden by `--file-idle-timeout` / `fileIdleTimeoutMs`)                                         |
@@ -270,6 +272,7 @@ process.exit(code);
 | `coverageIndex`           | `boolean`                  | `true`                             | With `mergeReports`, write `<reportsDirectory>/coverage-index.json`: which test files executed which source functions. See [Coverage index](#coverage-index)                                                                                                                                                                                                  |
 | `mergeBatchSize`          | `number`                   | `50`                               | Blob count above which blobs are merged in batches before the final `vitest --mergeReports` (overrides `VITEST_MERGE_BATCH_SIZE`). `0` always merges in one process; values below `2` are raised to `2`. See [Merging many blobs](#merging-many-blobs)                                                                                                        |
 | `maxOldSpaceMb`           | `number`                   | `undefined`                        | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`)                                                                                                                                                                                                                                                                                      |
+| `mergeMaxOldSpaceMb`      | `number`                   | `undefined`                        | `--max-old-space-size` in MB for the coverage merge only: the final `vitest --mergeReports` and each batch process (overrides `VITEST_MERGE_HEAP_MB`; falls back to `maxOldSpaceMb`). Gives the merge more heap than each test file gets                                                                                                                      |
 | `earlyRunPatterns`        | `string[]`                 | `[]`                               | Path substrings — matching files run solo (one at a time) before the parallel worker pool starts                                                                                                                                                                                                                                                              |
 | `perFileHeapOverrides`    | `PerFileHeapOverride[]`    | `[]`                               | Per-file minimum heap ceilings; the maximum of this and `maxOldSpaceMb` wins                                                                                                                                                                                                                                                                                  |
 | `fileTimeoutMs`           | `number`                   | `1800000`                          | Longest one file may run before its process group is killed and the file reported as failed (overrides `VITEST_FILE_TIMEOUT`). `0` = no limit. See [Watchdog](#watchdog)                                                                                                                                                                                      |
@@ -412,7 +415,7 @@ This avoids the OOM crash that occurs when a single vitest process holds coverag
 
 `vitest --mergeReports` reads every blob into memory at once, and each blob carries a coverage map of the whole `include` set, so a suite with hundreds of test files can run the merge itself out of heap after every test has passed.
 
-When there are more blobs than `mergeBatchSize` (default `50`, CLI `--merge-batch-size`, env `VITEST_MERGE_BATCH_SIZE`), the runner reduces them in rounds first. Each round merges up to `mergeBatchSize` blobs into one blob, each batch in its own Node process (with `maxOldSpaceMb` / `VITEST_HEAP_MB` as its heap ceiling when set), and reads the batch one blob at a time. Rounds repeat until no more than `mergeBatchSize` blobs remain, then the usual `vitest --mergeReports` runs over the reduced set. Reporters, `coverage.thresholds`, test failures and the exit code therefore behave exactly as with a single merge; only Vitest's "Per blob" timing line lists the reduced blobs.
+When there are more blobs than `mergeBatchSize` (default `50`, CLI `--merge-batch-size`, env `VITEST_MERGE_BATCH_SIZE`), the runner reduces them in rounds first. Each round merges up to `mergeBatchSize` blobs into one blob, each batch in its own Node process (with `mergeMaxOldSpaceMb` / `VITEST_MERGE_HEAP_MB`, else `maxOldSpaceMb` / `VITEST_HEAP_MB`, as its heap ceiling when set), and reads the batch one blob at a time. Rounds repeat until no more than `mergeBatchSize` blobs remain, then the usual `vitest --mergeReports` runs over the reduced set. Reporters, `coverage.thresholds`, test failures and the exit code therefore behave exactly as with a single merge; only Vitest's "Per blob" timing line lists the reduced blobs.
 
 - At or below the batch size nothing changes: one `vitest --mergeReports` over `blobsDir`.
 - The reduced blobs are written under the run's scratch directory (see `scratchDir`) and removed on every exit path. `blobsDir` itself is never modified by the reduction.
@@ -441,7 +444,7 @@ After the merge, and before the blobs are deleted, the runner writes `coverage-i
 - Paths are relative to `cwd` with forward slashes, so the index is the same in CI and a local checkout. `commit` is `git rev-parse HEAD` in `cwd`, else `GITHUB_SHA`, else `null`.
 - With the index, a repo can re-measure one source file by running only the test files that reach it, instead of the whole suite.
 - The blobs are read one at a time. If the index can't be written, the runner prints a warning and the run's result is unchanged. The JSON report carries `coverageIndex: { path, files, testFiles }` (or `null`).
-- `coverageIndex: false` / `--no-coverage-index` turns it off. With `mergeReports: false` no index is written.
+- `coverageIndex: false` / `--no-coverage-index` turns it off. With `mergeReports: false` the run writes no index; a caller that merges the blobs itself writes it with `writeCoverageIndexFromBlobs()` (see [Producing blobs for an external merge](#producing-blobs-for-an-external-merge)).
 
 ### Coverage quiet mode
 
@@ -476,6 +479,17 @@ await run({
 ```
 
 The exit code still reflects test pass/fail; there is just no coverage-merge result to fold in.
+
+The run doesn't write the [coverage index](#coverage-index) in this mode. Write it after your own merge, before deleting the blobs. It takes one blobs directory or several, and reads each blob's test files from the blob itself:
+
+```js
+import { runMergeReports, writeCoverageIndexFromBlobs } from "@cldmv/vitest-runner";
+
+await runMergeReports(".coverage-blobs/node", { cwd, vitestBin, extraCoverageArgs });
+await writeCoverageIndexFromBlobs({ blobsDir: [".coverage-blobs/node", ".coverage-blobs/browser"], cwd, outputDir: "coverage" });
+```
+
+If the only reason for the external merge is to give it more heap, `mergeMaxOldSpaceMb` (CLI `--merge-heap-mb`, env `VITEST_MERGE_HEAP_MB`) sets the merge's heap on its own, and the runner's merge writes the index itself.
 
 ---
 
