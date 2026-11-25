@@ -119,6 +119,7 @@ vitest-runner [OPTIONS] [PATTERNS...]
 | `--json`                   | Print a JSON run report (no runner text output)                                                                                                  |
 | `--blobs-dir <path>`       | Directory for per-file coverage blobs (default: `.vitest-coverage-blobs`, relative to `cwd`)                                                     |
 | `--no-merge-reports`       | Produce the coverage blobs but skip the merge and summary, leaving them in `--blobs-dir` for an external merge step                              |
+| `--no-coverage-index`      | Don't write `coverage-index.json` after a coverage run; see [Coverage index](#coverage-index)                                                    |
 | `--merge-batch-size <n>`   | Merge coverage blobs in batches of `n` when there are more than `n` (default: `50` or `VITEST_MERGE_BATCH_SIZE`; `0` = one merge)                |
 | `--file-timeout <s>`       | Kill a test file's processes and fail it after `s` seconds (default: `1800` or `VITEST_FILE_TIMEOUT`; `0` = no limit); see [Watchdog](#watchdog) |
 | `--file-idle-timeout <s>`  | Kill and fail a file that prints nothing for `s` seconds (default: `600` or `VITEST_FILE_IDLE_TIMEOUT`; `0` = no limit)                          |
@@ -266,6 +267,7 @@ process.exit(code);
 | `worstCoverageCount`      | `number`                   | `10`                               | Rows in the worst-coverage table after a coverage run (`0` disables it)                                                                                                                                                                                                                                                                                       |
 | `blobsDir`                | `string`                   | `<cwd>/.vitest-coverage-blobs`     | Directory for per-file coverage blobs. Relative paths resolve against `cwd`. Always cleared at the start of a coverage run                                                                                                                                                                                                                                    |
 | `mergeReports`            | `boolean`                  | `true`                             | When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted. When `false`, the run stops after producing blobs — no merge, no summary — and `blobsDir` is left populated for an external merge                                                                                                      |
+| `coverageIndex`           | `boolean`                  | `true`                             | With `mergeReports`, write `<reportsDirectory>/coverage-index.json`: which test files executed which source functions. See [Coverage index](#coverage-index)                                                                                                                                                                                                  |
 | `mergeBatchSize`          | `number`                   | `50`                               | Blob count above which blobs are merged in batches before the final `vitest --mergeReports` (overrides `VITEST_MERGE_BATCH_SIZE`). `0` always merges in one process; values below `2` are raised to `2`. See [Merging many blobs](#merging-many-blobs)                                                                                                        |
 | `maxOldSpaceMb`           | `number`                   | `undefined`                        | Global `--max-old-space-size` ceiling in MB (overrides `VITEST_HEAP_MB`)                                                                                                                                                                                                                                                                                      |
 | `earlyRunPatterns`        | `string[]`                 | `[]`                               | Path substrings — matching files run solo (one at a time) before the parallel worker pool starts                                                                                                                                                                                                                                                              |
@@ -416,6 +418,30 @@ When there are more blobs than `mergeBatchSize` (default `50`, CLI `--merge-batc
 - The reduced blobs are written under the run's scratch directory (see `scratchDir`) and removed on every exit path. `blobsDir` itself is never modified by the reduction.
 - A reduced blob uses the installed Vitest's own `flatted` and `@vitest/istanbul-lib-coverage`, in the same layout the blob reporter writes. The layout is verified for Vitest 5.x. With any other Vitest major, or a blob that doesn't have that layout, the runner prints a warning and falls back to the single merge. It also falls back, with a warning, if a batch fails.
 - `runMergeReports(blobsDir, opts)` takes the same `batchSize` (and an optional `scratchDir`, defaulting to a directory next to `blobsDir`) when called directly.
+
+### Coverage index
+
+After the merge, and before the blobs are deleted, the runner writes `coverage-index.json` into the coverage reports directory (`coverage/` by default, or `--coverage.reportsDirectory=<dir>`), next to `coverage-summary.json`. For each source file it lists the file's functions and the test files that executed each one:
+
+```json
+{
+	"version": 1,
+	"commit": "4f9c1e0…",
+	"files": {
+		"src/calc.mjs": {
+			"add": ["tests/add.test.vitest.mjs", "tests/initials.test.vitest.mjs"],
+			"clamp": []
+		}
+	}
+}
+```
+
+- A function lists a test file when its call count in that file's blob is above zero. Only real functions are indexed, never module top-level code: loading a package runs every module's top level, which would list every test against every file.
+- Every function in the coverage map appears, with `[]` when no test reached it. A name used more than once in one file is keyed `name@<line>` for each occurrence.
+- Paths are relative to `cwd` with forward slashes, so the index is the same in CI and a local checkout. `commit` is `git rev-parse HEAD` in `cwd`, else `GITHUB_SHA`, else `null`.
+- With the index, a repo can re-measure one source file by running only the test files that reach it, instead of the whole suite.
+- The blobs are read one at a time. If the index can't be written, the runner prints a warning and the run's result is unchanged. The JSON report carries `coverageIndex: { path, files, testFiles }` (or `null`).
+- `coverageIndex: false` / `--no-coverage-index` turns it off. With `mergeReports: false` no index is written.
 
 ### Coverage quiet mode
 

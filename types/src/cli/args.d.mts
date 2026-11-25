@@ -54,6 +54,10 @@ export type ParsedArgs = {
      */
     mergeReports: boolean;
     /**
+     * - `false` when `--no-coverage-index` was passed; skips writing `coverage-index.json`.
+     */
+    coverageIndex: boolean;
+    /**
      * - Blob count above which coverage blobs are merged in batches (`--merge-batch-size <n>`; `0` = never batch), or undefined.
      */
     mergeBatchSize: number | undefined;

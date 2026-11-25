@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T16:59:13-08:00 (1795309153)
+ *	@Last modified time: 2026-11-25T02:47:22-08:00 (1795603642)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -233,6 +233,15 @@ describe("parseArguments", () => {
 		const result = parseArguments(["--blobs-dir", "out/blobs", "--no-merge-reports"]);
 		expect(result.vitestPassthroughArgs).toEqual([]);
 		expect(result.testPatterns).toEqual([]);
+	});
+
+	// ── --no-coverage-index ───────────────────────────────────────────────────
+
+	it("defaults coverageIndex to true and sets it to false for --no-coverage-index", () => {
+		expect(parseArguments([]).coverageIndex).toBe(true);
+		const result = parseArguments(["--no-coverage-index"]);
+		expect(result.coverageIndex).toBe(false);
+		expect(result.vitestPassthroughArgs).toEqual([]);
 	});
 
 	// ── --help / -h ───────────────────────────────────────────────────────────
