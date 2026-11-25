@@ -14,17 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.10.0 (November 2026)
+### Latest: v1.11.0 (November 2026)
 
-- **Coverage index** — a coverage run now writes `coverage-index.json` next to its reports before the per-file blobs are deleted. It maps every function in each source file to the test files that executed it (module top-level code excluded), with project-relative paths and the commit sha, so a repo can re-measure one file by running only the tests that reach it. On by default; `coverageIndex: false` / `--no-coverage-index` turns it off ([#150](https://github.com/CLDMV/vitest-runner/pull/150)).
-- [View full v1.10.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.10.0.md)
+- **Coverage index for external merges** — a suite that merges the coverage blobs itself (`mergeReports: false`) can now write `coverage-index.json` with the exported `writeCoverageIndexFromBlobs()`, which reads each blob's test files from the blob. And `mergeMaxOldSpaceMb` / `--merge-heap-mb` / `VITEST_MERGE_HEAP_MB` gives the merge its own heap limit, so suites that merged externally only for a bigger heap can use the runner's merge, which writes the index itself ([#155](https://github.com/CLDMV/vitest-runner/pull/155)).
+- [View full v1.11.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.0.md)
 
 ### Recent Releases
 
+- **v1.10.0** (November 2026) — Coverage runs write `coverage-index.json`, mapping each source function to the test files that executed it (`coverageIndex`, `--no-coverage-index`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.10.0.md))
 - **v1.9.0** (November 2026) — Per-file watchdog: a file that runs past 30 minutes or prints nothing for 10 is killed with its process group and reported as failed, and the run carries on (`fileTimeoutMs`, `fileIdleTimeoutMs`, `perFileTimeoutOverrides`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.9.0.md))
 - **v1.8.2** (November 2026) — Dev-tooling update to Vitest 5.1.1, ESLint 10.15 and Prettier 3.10, and CI coverage back to 100%; no runtime changes ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.2.md))
 - **v1.8.1** (November 2026) — Coverage blobs merged in bounded-memory batches above 50 test files (`mergeBatchSize`, `--merge-batch-size`, `VITEST_MERGE_BATCH_SIZE`), so a large suite no longer runs the final merge out of heap ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.1.md))
-- **v1.8.0** (November 2026) — Forced isolation: `isolate: "force"`, `--isolate=force` or `CLDMV_TEST_ISOLATE=force` re-run the suite in its own PID namespace even when already in one ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.0.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
