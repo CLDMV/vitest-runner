@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-22T21:43:34-08:00 (1795412614)
+ *	@Last modified time: 2026-11-25T02:47:15-08:00 (1795603635)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -49,6 +49,7 @@ ${chalk.bold("SPECIAL FLAGS:")}
   --json                  Emit JSON summary output instead of text logs
   --blobs-dir <path>      Directory for per-file coverage blobs (default: .vitest-coverage-blobs)
   --no-merge-reports      Leave coverage blobs in --blobs-dir without merging (for an external merge)
+  --no-coverage-index     Don't write coverage-index.json (which tests reach which source functions)
   --merge-batch-size <n>  Merge coverage blobs in batches of n when there are more than n,
                          keeping the merge's memory bounded (default: 50; 0 = one merge)
   --file-timeout <s>      Kill a test file's processes and fail it after s seconds

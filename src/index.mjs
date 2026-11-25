@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-22T21:43:35-08:00 (1795412615)
+ *	@Last modified time: 2026-11-25T02:47:19-08:00 (1795603639)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -50,7 +50,9 @@ import { runSingleFile, runMergeReports } from "./core/spawn.mjs";
 import { prepareFsModuleCache } from "./core/fs-cache.mjs";
 import { deduplicateErrors } from "./core/parse.mjs";
 import { createCoverageProgressTracker, noopProgressTracker } from "./core/progress.mjs";
-import { printQuietCoverageFailureDetails, printMergeOutput, printCoverageSummary } from "./core/report.mjs";
+import { printQuietCoverageFailureDetails, printMergeOutput, printCoverageSummary, resolveCoverageDir } from "./core/report.mjs";
+import { writeCoverageIndex } from "./core/coverage-index.mjs";
+import { findVitestPackage, loadBlobLibraries } from "./core/merge-batches.mjs";
 import {
 	DEFAULT_SCRATCH_DIR,
 	sweepStaleScratchRoots,
@@ -88,6 +90,7 @@ import { getTimeoutsForFile, killChildProcessGroups, resolveFileTimeouts } from 
  * @property {string} [blobsDir] - Directory for per-file coverage blobs (default `<cwd>/.vitest-coverage-blobs`). Relative paths resolve against `cwd`. Always cleared at the start of a coverage run.
  * @property {boolean} [mergeReports=true] - When `true`, blobs are merged via `vitest --mergeReports`, the coverage summary is printed, and `blobsDir` is deleted at the end. When `false`, the run stops after producing blobs: no merge, no summary, and `blobsDir` is left populated for an external merge step.
  * @property {number} [mergeBatchSize] - Blob count above which coverage blobs are merged in batches before the final `vitest --mergeReports`, so the merge stays within bounded memory however many test files there are. Each batch of up to this many blobs is merged into one blob in its own process, in rounds, until the count fits. Defaults to `VITEST_MERGE_BATCH_SIZE` or 50; `0` always merges in one process. Values below 2 are raised to 2.
+ * @property {boolean} [coverageIndex=true] - With `mergeReports`, write `<reportsDirectory>/coverage-index.json` after the merge: for each source file, its functions and the test files that executed each one (module top-level code left out). Lets a repo re-run only the tests that reach one source file. `false` skips it.
  * @property {number} [maxOldSpaceMb] - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
  * @property {string[]} [earlyRunPatterns=[]] - Path substrings — matching files run solo before the worker pool.
  * @property {string[]} [exclude=[]] - Directory / file globs, relative to `cwd`, that discovery never enters (e.g. `['tmp/**']`). Applies to both the default scan and partial-path pattern resolution.
@@ -192,6 +195,36 @@ export async function run(opts) {
 }
 
 /**
+ * Write the coverage index (see core/coverage-index.mjs). A failure only warns:
+ * the index is an extra, and the coverage run itself has already succeeded or failed.
+ *
+ * @param {Object} opts
+ * @param {Array<{ blob: string, testFile: string }>} opts.entries
+ * @param {string} opts.cwd
+ * @param {string} opts.outputDir
+ * @param {string} opts.vitestBin
+ * @param {boolean} opts.log - Print the path written.
+ * @param {boolean} opts.warn - Print a warning on failure.
+ * @returns {Promise<{ path: string, files: number, testFiles: number } | null>}
+ */
+async function buildCoverageIndex({ entries, cwd, outputDir, vitestBin, log, warn }) {
+	try {
+		const vitestPkg = findVitestPackage(vitestBin);
+		if (!vitestPkg) throw new Error("installed vitest package not found");
+		const { flatted } = await loadBlobLibraries(vitestPkg.dir);
+		const result = await writeCoverageIndex({ entries, cwd, outputDir, flatted });
+		if (log)
+			console.log(
+				chalk.dim(`🗂️  Coverage index: ${path.relative(cwd, result.path)} (${result.files} source files, ${result.testFiles} test files)`)
+			);
+		return result;
+	} catch (err) {
+		if (warn) console.warn(chalk.yellow(`⚠️  Coverage index not written: ${err?.message ?? err}`));
+		return null;
+	}
+}
+
+/**
  * @param {RunOptions} opts
  * @param {string} scratchRoot - This run's scratch root (see {@link run}).
  * @returns {Promise<number|object>}
@@ -215,6 +248,7 @@ async function runImpl(opts, scratchRoot) {
 		blobsDir: blobsDirOpt,
 		mergeReports = true,
 		mergeBatchSize,
+		coverageIndex = true,
 		earlyRunPatterns = [],
 		exclude = [],
 		perFileHeapOverrides = [],
@@ -342,6 +376,8 @@ async function runImpl(opts, scratchRoot) {
 		const progress = showCoverageProgress ? createCoverageProgressTracker(allTestFiles.length) : noopProgressTracker;
 		const coverageResults = [];
 		let blobIndex = 0;
+		/** Each blob with the test file that writes it, for the coverage index. */
+		const blobEntries = [];
 
 		/**
 		 * Run one file with the blob reporter and push its result.
@@ -351,6 +387,7 @@ async function runImpl(opts, scratchRoot) {
 		const runCoverageFile = async (filePath) => {
 			const blobPath = path.join(blobsDir, `run-${blobIndex}.blob`);
 			blobIndex++;
+			blobEntries.push({ blob: blobPath, testFile: filePath });
 
 			if (!suppressPerFileCoverageOutput && emitTextOutput) {
 				console.log(`\n${"=".repeat(80)}`);
@@ -474,6 +511,7 @@ async function runImpl(opts, scratchRoot) {
 		let mergeExitCode = 0;
 		let mergeOutput = "";
 		let coverageSummary = null;
+		let coverageIndexResult = null;
 
 		if (mergeReports) {
 			if (!coverageQuiet && !suppressFileOutput && emitTextOutput) {
@@ -498,6 +536,18 @@ async function runImpl(opts, scratchRoot) {
 			}
 
 			coverageSummary = await printCoverageSummary(cwd, extraCoverageArgs, worstCoverageCount, { silent: json });
+
+			// After the merge (which cleans the reports directory) and before the blobs are deleted.
+			if (coverageIndex) {
+				coverageIndexResult = await buildCoverageIndex({
+					entries: blobEntries,
+					cwd,
+					outputDir: coverageSummary?.coverageDir ?? resolveCoverageDir(cwd, extraCoverageArgs),
+					vitestBin,
+					log: emitTextOutput && !coverageQuiet && !suppressFileOutput,
+					warn: emitTextOutput
+				});
+			}
 		}
 
 		// Clean up temp dirs always; only delete blobsDir when we consumed it via merge.
@@ -545,6 +595,7 @@ async function runImpl(opts, scratchRoot) {
 					output: mergeOutput
 				},
 				coverageSummary,
+				coverageIndex: coverageIndexResult,
 				...(topSummary
 					? {
 							topMemoryUsers: [...coverageWithHeap].sort((a, b) => b.heapMb - a.heapMb).slice(0, 10),

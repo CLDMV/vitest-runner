@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T12:51:14-08:00 (1795294274)
+ *	@Last modified time: 2026-11-25T02:47:33-08:00 (1795603653)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -41,9 +41,16 @@ vi.mock("../../src/core/spawn.mjs", async (importOriginal) => {
 	};
 });
 
+// findVitestPackage / loadBlobLibraries stay real unless a test overrides them (coverage index failures).
+vi.mock("../../src/core/merge-batches.mjs", async (importOriginal) => {
+	const orig = await importOriginal();
+	return { ...orig, findVitestPackage: vi.fn(orig.findVitestPackage), loadBlobLibraries: vi.fn(orig.loadBlobLibraries) };
+});
+
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { run as runnerRun } from "../../src/index.mjs";
+import { findVitestPackage, loadBlobLibraries } from "../../src/core/merge-batches.mjs";
 import { runSingleFile, runMergeReports } from "../../src/core/spawn.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -419,6 +426,45 @@ describe("run() — output suppression and json mode", () => {
 			expect(runMergeReports).toHaveBeenCalledWith(blobsDir, expect.any(Object));
 		} finally {
 			await fs.rm(blobsDir, { recursive: true, force: true });
+		}
+	}, 60_000);
+
+	it("warns and still returns the merge result when the coverage index can't be built", async () => {
+		// writeBlobMock writes "blob", which isn't a parseable vitest blob.
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+		vi.mocked(runMergeReports).mockResolvedValue({ exitCode: 0, output: "merged" });
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			const code = await run({ ...BASE, vitestArgs: ["--coverage", "--coverage.provider=v8"] });
+			expect(code).toBe(0);
+			expect(warnSpy.mock.calls.map((c) => String(c[0])).join("\n")).toContain("Coverage index not written");
+		} finally {
+			warnSpy.mockRestore();
+			logSpy.mockRestore();
+		}
+
+		const report = await run({ ...BASE, json: true, vitestArgs: ["--coverage", "--coverage.provider=v8"] });
+		expect(report.exitCode).toBe(0);
+		expect(report.coverageIndex).toBeNull();
+	}, 60_000);
+
+	it("warns when the installed vitest package can't be found, or loading its libraries throws a non-Error", async () => {
+		vi.mocked(runSingleFile).mockImplementation(writeBlobMock);
+		vi.mocked(runMergeReports).mockResolvedValue({ exitCode: 0, output: "merged" });
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		try {
+			vi.mocked(findVitestPackage).mockReturnValueOnce(null);
+			expect(await run({ ...BASE, vitestArgs: ["--coverage"] })).toBe(0);
+			vi.mocked(loadBlobLibraries).mockRejectedValueOnce("no flatted");
+			expect(await run({ ...BASE, vitestArgs: ["--coverage"] })).toBe(0);
+			const warnings = warnSpy.mock.calls.map((c) => String(c[0])).join("\n");
+			expect(warnings).toContain("Coverage index not written: installed vitest package not found");
+			expect(warnings).toContain("Coverage index not written: no flatted");
+		} finally {
+			warnSpy.mockRestore();
+			logSpy.mockRestore();
 		}
 	}, 60_000);
 

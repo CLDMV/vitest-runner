@@ -103,6 +103,10 @@ export type RunOptions = {
      */
     mergeBatchSize?: number;
     /**
+     * - With `mergeReports`, write `<reportsDirectory>/coverage-index.json` after the merge: for each source file, its functions and the test files that executed each one (module top-level code left out). Lets a repo re-run only the tests that reach one source file. `false` skips it.
+     */
+    coverageIndex?: boolean;
+    /**
      * - Global `--max-old-space-size` ceiling; per-file overrides may raise it.
      */
     maxOldSpaceMb?: number;
