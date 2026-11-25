@@ -37,6 +37,15 @@ export function computeSummaryFromFinal(finalData: Record<string, object>): {
     [filePath: string]: object;
 };
 /**
+ * The coverage reports directory: `--coverage.reportsDirectory=<dir>` from the
+ * passthrough args (relative to `cwd`), else `<cwd>/coverage`.
+ *
+ * @param {string} cwd
+ * @param {string[]} extraCoverageArgs - Passthrough `--coverage.*` args.
+ * @returns {string}
+ */
+export function resolveCoverageDir(cwd: string, extraCoverageArgs: string[]): string;
+/**
  * Read the coverage JSON produced after a `mergeReports` run and print a
  * worst-offenders table plus overall-coverage totals.
  *

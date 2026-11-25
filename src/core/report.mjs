@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:21-07:00 (1790980521)
+ *	@Last modified time: 2026-11-25T02:47:18-08:00 (1795603638)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -205,6 +205,21 @@ function printTotalsLine({ lines, stmts, fns, branches }) {
 }
 
 /**
+ * The coverage reports directory: `--coverage.reportsDirectory=<dir>` from the
+ * passthrough args (relative to `cwd`), else `<cwd>/coverage`.
+ *
+ * @param {string} cwd
+ * @param {string[]} extraCoverageArgs - Passthrough `--coverage.*` args.
+ * @returns {string}
+ */
+export function resolveCoverageDir(cwd, extraCoverageArgs) {
+	const repoDirArg = extraCoverageArgs.find((a) => a.startsWith("--coverage.reportsDirectory="));
+	if (!repoDirArg) return path.resolve(cwd, "coverage");
+	const raw = repoDirArg.split("=").slice(1).join("=");
+	return path.isAbsolute(raw) ? raw : path.resolve(cwd, raw);
+}
+
+/**
  * Read the coverage JSON produced after a `mergeReports` run and print a
  * worst-offenders table plus overall-coverage totals.
  *
@@ -232,12 +247,7 @@ function printTotalsLine({ lines, stmts, fns, branches }) {
  */
 export async function printCoverageSummary(cwd, extraCoverageArgs, worstCount = 10, options = {}) {
 	const { silent = false } = options;
-	let coverageDir = path.resolve(cwd, "coverage");
-	const repoDirArg = extraCoverageArgs.find((a) => a.startsWith("--coverage.reportsDirectory="));
-	if (repoDirArg) {
-		const raw = repoDirArg.split("=").slice(1).join("=");
-		coverageDir = path.isAbsolute(raw) ? raw : path.resolve(cwd, raw);
-	}
+	const coverageDir = resolveCoverageDir(cwd, extraCoverageArgs);
 
 	let summary;
 

@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-22T21:43:34-08:00 (1795412614)
+ *	@Last modified time: 2026-11-25T02:47:15-08:00 (1795603635)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -30,6 +30,7 @@
  * @property {boolean} json - Emit a JSON run report instead of text output (`--json`).
  * @property {string|undefined} blobsDir - Directory for per-file coverage blobs (`--blobs-dir`); defaults to `<cwd>/.vitest-coverage-blobs`.
  * @property {boolean} mergeReports - `false` when `--no-merge-reports` was passed; leaves blobs in `blobsDir` without merging.
+ * @property {boolean} coverageIndex - `false` when `--no-coverage-index` was passed; skips writing `coverage-index.json`.
  * @property {number|undefined} mergeBatchSize - Blob count above which coverage blobs are merged in batches (`--merge-batch-size <n>`; `0` = never batch), or undefined.
  * @property {number|undefined} fileTimeout - Per-file time limit in seconds (`--file-timeout <s>`; `0` = no limit), or undefined.
  * @property {number|undefined} fileIdleTimeout - Per-file idle limit in seconds (`--file-idle-timeout <s>`; `0` = no limit), or undefined.
@@ -58,6 +59,7 @@ const RUNNER_FLAGS = new Set([
 	"--blobs-dir",
 	"--no-merge-reports",
 	"--merge-batch-size",
+	"--no-coverage-index",
 	"--file-timeout",
 	"--file-idle-timeout",
 	"--workers",
@@ -100,6 +102,7 @@ export function parseArguments(args) {
 	let blobsDir;
 	let mergeReports = true;
 	let mergeBatchSize;
+	let coverageIndex = true;
 	let fileTimeout;
 	let fileIdleTimeout;
 	let workers;
@@ -138,6 +141,8 @@ export function parseArguments(args) {
 			blobsDir = arg.slice("--blobs-dir=".length);
 		} else if (arg === "--no-merge-reports") {
 			mergeReports = false;
+		} else if (arg === "--no-coverage-index") {
+			coverageIndex = false;
 		} else if (arg === "--merge-batch-size") {
 			mergeBatchSize = parseInt(args[++i], 10);
 		} else if (arg.startsWith("--merge-batch-size=")) {
@@ -202,6 +207,7 @@ export function parseArguments(args) {
 		blobsDir,
 		mergeReports,
 		mergeBatchSize,
+		coverageIndex,
 		fileTimeout,
 		fileIdleTimeout,
 		help,
