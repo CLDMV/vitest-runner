@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-22T21:43:40-08:00 (1795412620)
+ *	@Last modified time: 2026-11-25T18:53:23-08:00 (1795661603)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -17,6 +17,6 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	test: {
-		include: ["**/*.watchdog.mjs"]
+		include: ["**/*.watchdog.mjs", "**/*.heartbeat.mjs"]
 	}
 });

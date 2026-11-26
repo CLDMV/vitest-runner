@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T12:16:04-08:00 (1795637764)
+ *	@Last modified time: 2026-11-25T18:53:20-08:00 (1795661600)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -420,6 +420,8 @@ async function runImpl(opts, scratchRoot) {
 				...getTimeoutsForFile(filePath, fileTimeouts, perFileTimeoutOverrides),
 				vitestArgs: blobArgs,
 				streamOutput: !suppressPerFileCoverageOutput,
+				// The default reporter prints nothing until the file ends, so report progress separately.
+				heartbeat: true,
 				excludePaths: filterConflicts.get(filePath),
 				extraEnv: { VITEST_RUNNER_TMP: scratchDir }
 			});

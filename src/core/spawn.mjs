@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-22T21:43:35-08:00 (1795412615)
+ *	@Last modified time: 2026-11-25T19:39:18-08:00 (1795664358)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -21,6 +21,8 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { HEARTBEAT_FD_ENV } from "./heartbeat-reporter.mjs";
 import { parseVitestOutput } from "./parse.mjs";
 import { buildEnv } from "../utils/env.mjs";
 import { formatLimit, KILL_GRACE_MS, killProcessGroup, tailLines, trackChild, usesProcessGroups } from "./watchdog.mjs";
@@ -69,6 +71,9 @@ function buildBaseArgs(vitestBin, vitestConfig) {
  * @property {string} [timedOut] - Why the watchdog killed the file, when it did.
  */
 
+/** The heartbeat reporter, next to this module in src/core/ and dist/core/. */
+export const HEARTBEAT_REPORTER_PATH = fileURLToPath(new URL("./heartbeat-reporter.mjs", import.meta.url));
+
 /**
  * Run a single Vitest test file in a child process and return parsed results.
  *
@@ -78,7 +83,11 @@ function buildBaseArgs(vitestBin, vitestConfig) {
  * whole group killed (SIGTERM, then SIGKILL after `killGraceMs`) and is reported as failed
  * with the reason and its last output lines. `0` or unset means no limit.
  *
- * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv, timeoutMs?: number, idleTimeoutMs?: number, killGraceMs?: number }} opts
+ * With `heartbeat`, the child also loads core/heartbeat-reporter.mjs, which writes to an
+ * extra pipe while tests make progress. That counts as output for the idle limit, so a
+ * file whose reporters print nothing until the end (coverage runs) isn't taken for idle.
+ *
+ * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv, timeoutMs?: number, idleTimeoutMs?: number, killGraceMs?: number, heartbeat?: boolean }} opts
  * @returns {Promise<SingleFileResult>}
  * @example
  * const result = await runSingleFile('src/tests/foo.test.vitest.mjs', {
@@ -106,17 +115,21 @@ export function runSingleFile(filePath, opts) {
 		// Watchdog limits (see core/watchdog.mjs); 0 or unset = no limit.
 		timeoutMs = 0,
 		idleTimeoutMs = 0,
-		killGraceMs = KILL_GRACE_MS
+		killGraceMs = KILL_GRACE_MS,
+		heartbeat = false
 	} = opts;
 
 	return new Promise((resolve) => {
 		const startTime = Date.now();
 		const excludeArgs = excludePaths.flatMap((p) => ["--exclude", p]);
-		const args = [...buildBaseArgs(vitestBin, vitestConfig), ...vitestArgs, ...excludeArgs, filePath];
-		const env = buildEnv({ maxOldSpaceMb, conditions, nodeEnv, extraEnv });
+		const heartbeatArgs = heartbeat ? [`--reporter=${HEARTBEAT_REPORTER_PATH}`] : [];
+		const args = [...buildBaseArgs(vitestBin, vitestConfig), ...vitestArgs, ...heartbeatArgs, ...excludeArgs, filePath];
+		const env = buildEnv({ maxOldSpaceMb, conditions, nodeEnv, extraEnv: heartbeat ? { ...extraEnv, [HEARTBEAT_FD_ENV]: "3" } : extraEnv });
+		/** @type {import("node:child_process").StdioOptions} */
+		const stdio = heartbeat ? ["ignore", "pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"];
 
 		// Its own process group, so a kill reaches vitest's workers and anything a test started.
-		const child = spawn(process.execPath, args, { cwd, stdio: ["ignore", "pipe", "pipe"], env, detached: usesProcessGroups() });
+		const child = spawn(process.execPath, args, { cwd, stdio, env, detached: usesProcessGroups() });
 		const untrack = trackChild(child);
 
 		let stdout = "";
@@ -182,6 +195,7 @@ export function runSingleFile(filePath, opts) {
 						setTimeout(() => {
 							child.stdout?.destroy();
 							child.stderr?.destroy();
+							child.stdio[3]?.destroy();
 							settle(buildResult(null));
 						}, killGraceMs).unref()
 					);
@@ -210,6 +224,9 @@ export function runSingleFile(filePath, opts) {
 			resetIdle();
 			if (streamOutput) process.stderr.write(data);
 		});
+
+		// The heartbeat pipe carries no output, only progress.
+		child.stdio[3]?.on("data", resetIdle);
 
 		child.on("close", (code) => settle(buildResult(code)));
 

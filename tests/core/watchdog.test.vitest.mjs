@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-22T21:43:38-08:00 (1795412618)
+ *	@Last modified time: 2026-11-25T18:53:22-08:00 (1795661602)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -204,6 +204,17 @@ describe.runIf(usesProcessGroups())("runSingleFile — watchdog", () => {
 		}
 	});
 
+	it("counts heartbeat writes as output for the idle limit", async () => {
+		const { result } = await runStandIn("heartbeat", { idleTimeoutMs: 500, heartbeat: true });
+		expect(result.timedOut).toBeUndefined();
+		expect(result.code).toBe(0);
+	});
+
+	it("without the heartbeat pipe, the same silent file is killed as idle", async () => {
+		const { result } = await runStandIn("heartbeat", { idleTimeoutMs: 500 });
+		expect(result.timedOut).toBe("printed nothing for 500 ms");
+	});
+
 	it("killChildProcessGroups ends every live file without a timeout", async () => {
 		const pending = runStandIn("hang");
 		await vi.waitFor(() => expect(killChildProcessGroups("SIGKILL")).toBeGreaterThan(0));
@@ -235,6 +246,26 @@ describe.runIf(usesProcessGroups())("run() — watchdog", () => {
 		const [result] = report.results.all;
 		expect(result.timedOut).toBe("ran longer than 4 s");
 		expect(result.errors[0]).toMatch(/^ran longer than 4 s; killed its process group\./);
+	}, 60_000);
+
+	it("doesn't take a coverage file for idle while its tests make progress", async () => {
+		const report = await run({
+			cwd: PKG_ROOT,
+			testDir: FIXTURE_DIR,
+			testFilePattern: /\.heartbeat\.mjs$/,
+			vitestConfig: path.join(FIXTURE_DIR, "vitest.config.mjs"),
+			vitestArgs: ["--coverage", `--coverage.reportsDirectory=${path.join(WORK, "hb-coverage")}`],
+			blobsDir: path.join(WORK, "hb-blobs"),
+			fileIdleTimeoutMs: 1500,
+			fsModuleCachePath: false,
+			scratchDir: path.join(WORK, "hb-scratch"),
+			workers: 1,
+			json: true
+		});
+		const [result] = report.results.all;
+		expect(result.timedOut).toBeUndefined();
+		expect(result.testsPass).toBe(8);
+		expect(report.exitCode).toBe(0);
 	}, 60_000);
 
 	const HANG_RUN = {

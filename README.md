@@ -14,17 +14,18 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.11.0 (November 2026)
+### Latest: v1.11.1 (November 2026)
 
-- **Coverage index for external merges** — a suite that merges the coverage blobs itself (`mergeReports: false`) can now write `coverage-index.json` with the exported `writeCoverageIndexFromBlobs()`, which reads each blob's test files from the blob. And `mergeMaxOldSpaceMb` / `--merge-heap-mb` / `VITEST_MERGE_HEAP_MB` gives the merge its own heap limit, so suites that merged externally only for a bigger heap can use the runner's merge, which writes the index itself ([#155](https://github.com/CLDMV/vitest-runner/pull/155)).
-- [View full v1.11.0 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.0.md)
+- **Coverage files no longer killed as idle** — coverage runs print nothing until a file ends, so a file that ran past the 10-minute idle limit was failed while its tests passed. Coverage children now report test progress on a side pipe, and that progress resets the idle timer; a file that's really stuck still trips it ([#159](https://github.com/CLDMV/vitest-runner/pull/159)).
+- **One file per module, no bundles** — `dist/` now mirrors `src/`, minified file by file, so every module ships once. The CLI moves to `dist/bin/vitest-runner.mjs`; the `vitest-runner` command is unchanged ([#162](https://github.com/CLDMV/vitest-runner/pull/162)).
+- [View full v1.11.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.1.md)
 
 ### Recent Releases
 
+- **v1.11.0** (November 2026) — Coverage index after an external merge (`writeCoverageIndexFromBlobs()`), and a merge-only heap limit (`mergeMaxOldSpaceMb`, `--merge-heap-mb`, `VITEST_MERGE_HEAP_MB`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.0.md))
 - **v1.10.0** (November 2026) — Coverage runs write `coverage-index.json`, mapping each source function to the test files that executed it (`coverageIndex`, `--no-coverage-index`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.10.0.md))
 - **v1.9.0** (November 2026) — Per-file watchdog: a file that runs past 30 minutes or prints nothing for 10 is killed with its process group and reported as failed, and the run carries on (`fileTimeoutMs`, `fileIdleTimeoutMs`, `perFileTimeoutOverrides`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.9.0.md))
 - **v1.8.2** (November 2026) — Dev-tooling update to Vitest 5.1.1, ESLint 10.15 and Prettier 3.10, and CI coverage back to 100%; no runtime changes ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.2.md))
-- **v1.8.1** (November 2026) — Coverage blobs merged in bounded-memory batches above 50 test files (`mergeBatchSize`, `--merge-batch-size`, `VITEST_MERGE_BATCH_SIZE`), so a large suite no longer runs the final merge out of heap ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.1.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
@@ -52,7 +53,7 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 - `require("@cldmv/vitest-runner")` loads the ES module build synchronously, which needs Node.js >=22.13.0; on older Node.js, use `import()` instead.
 - Developing this package needs Node.js 22.22.0 or later (`devEngines`).
 - `vitest` ≥ 1.0 (peer dependency, installed in your project)
-- `chalk` (bundled dependency — no action needed)
+- `chalk` (a dependency, installed with the package)
 
 ### Install
 
@@ -367,7 +368,7 @@ await run({
 ```
 
 - `0` turns a limit off. The CLI takes seconds: `--file-timeout 900 --file-idle-timeout 0`, or `VITEST_FILE_TIMEOUT` / `VITEST_FILE_IDLE_TIMEOUT`.
-- Vitest's default reporter can print little while a long test runs. A file with one test that legitimately runs silent for more than 10 minutes needs a higher idle limit or an override.
+- Vitest's default reporter can print little while a long test runs. In coverage runs, where it prints nothing until the file ends, the runner adds a small reporter that reports test progress on a side pipe, and that progress counts as output. A single test that legitimately runs for more than 10 minutes still needs a higher idle limit or an override.
 - Each file runs in its own process group so the kill also reaches vitest's workers and anything a test started, such as a browser. A process that moves itself out of the group (a new session) isn't reached. The runner reports the file anyway once its output pipes stay open past the grace period.
 - Because the files no longer share the terminal's process group, the runner kills their groups itself on SIGINT, SIGTERM and exit, with or without `keepTmp`. `killChildProcessGroups()` does the same from your own code.
 - On Windows there are no process groups, so a timeout kills the file's own process only.
@@ -533,11 +534,11 @@ await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 ## 📁 Source layout
 
 ```text
-dist/                  ← built library entry (npm run build / tsup) — generated, not committed
-  index.mjs            ← bundled ESM entry
+dist/                  ← npm run build (scripts/build.mjs): src/ minified file by file, same layout,
+                         nothing bundled — generated, not committed
+  index.mjs            ← ESM entry
   index.cjs            ← thin CJS entry, copied verbatim from src/index.cjs; require()s index.mjs
-bin/                   ← built CLI binary (npm run build / tsup) — generated, not committed
-  vitest-runner.mjs    ← bundled CLI, from src/bin/vitest-runner.mjs (shebang preserved)
+  bin/vitest-runner.mjs ← the CLI (package.json "bin"); imports ../index.mjs
 src/
   index.mjs            ← main run() API + re-exports
   index.cjs            ← CommonJS entry source (copied to dist/index.cjs by the build)
@@ -556,6 +557,7 @@ src/
     progress.mjs       ← createCoverageProgressTracker
     scratch.mjs        ← makeRunTmpDir + the scratch-directory lifecycle
     watchdog.mjs       ← per-file time and idle limits, process-group kills
+    heartbeat-reporter.mjs ← reports coverage-run test progress to the idle watchdog
     fs-cache.mjs       ← prepareFsModuleCache: Vitest module cache path + one-time lockfile check
     fs-cache-helper.mjs ← helper process started by fs-cache.mjs (built to dist/ and bin/)
     merge-batches.mjs  ← batched coverage-blob merge used by runMergeReports

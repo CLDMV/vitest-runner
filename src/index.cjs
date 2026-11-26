@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-01T16:33:27-08:00 (1793579607)
+ *	@Last modified time: 2026-11-25T19:39:18-08:00 (1795664358)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -20,8 +20,8 @@
  * exports directly (no Promise, no top-level await involved on this module's
  * side) as long as the target module doesn't itself use top-level await —
  * `src/index.mjs` doesn't. This mirrors @cldmv/uuid's index.cjs pattern
- * instead of tsup bundling a second, independent copy of the whole module
- * for the CJS format. In a .cjs file `require` already exists, so a plain
+ * instead of the build compiling a second, independent copy of the whole
+ * module for the CJS format. In a .cjs file `require` already exists, so a plain
  * `require("./index.mjs")` is used — `createRequire` is unnecessary here and
  * breaks bundling by tools (esbuild/webpack) that need a static `require()`
  * call to detect the dependency.
