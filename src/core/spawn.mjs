@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T18:53:20-08:00 (1795661600)
+ *	@Last modified time: 2026-11-25T19:39:18-08:00 (1795664358)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -71,7 +71,7 @@ function buildBaseArgs(vitestBin, vitestConfig) {
  * @property {string} [timedOut] - Why the watchdog killed the file, when it did.
  */
 
-/** The heartbeat reporter, next to this module in src/ and next to the bundle in dist/ and bin/. */
+/** The heartbeat reporter, next to this module in src/core/ and dist/core/. */
 export const HEARTBEAT_REPORTER_PATH = fileURLToPath(new URL("./heartbeat-reporter.mjs", import.meta.url));
 
 /**

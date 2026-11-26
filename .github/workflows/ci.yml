@@ -6,7 +6,7 @@
 #	@Email: <Shinrai@users.noreply.github.com>
 #	-----
 #	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
-#	@Last modified time: 2026-11-01T16:33:25-08:00 (1793579605)
+#	@Last modified time: 2026-11-25T19:39:16-08:00 (1795664356)
 #	-----
 #	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
 #
@@ -277,7 +277,7 @@ jobs:
             # Requires: the coverage_command produces coverage/coverage-summary.json
             enable_coverage_badge: ${{ github.event.inputs.enable_coverage_badge != 'false' }}
             default_branch: ${{ github.event.inputs.default_branch || 'master' }} # Badge only pushed when a push lands on this branch
-            # build:ci (lint + format:check + types:build + the tsup build into dist/)
+            # build:ci (lint + format:check + types:build + the per-file build into dist/)
             # leaves src/ in place, so coverage still measures src/** after the build runs.
             coverage_build_command: "npm run build:ci"
             coverage_command: ${{ github.event.inputs.coverage_command || 'npm run ci:coverage' }}

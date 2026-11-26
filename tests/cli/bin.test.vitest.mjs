@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:26-07:00 (1790980526)
+ *	@Last modified time: 2026-11-25T19:39:19-08:00 (1795664359)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -23,9 +23,9 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-// Source, not the built bin/vitest-runner.mjs — bin/ is a build artifact (not tracked,
-// not guaranteed to exist without an `npm run build`); tests run against source directly.
-const BIN = path.join(ROOT, "src", "bin", "vitest-runner.mjs");
+// The source, except under `npm run test:dist` (--mode=dist), which builds first and runs
+// these against the published CLI, dist/bin/vitest-runner.mjs.
+const BIN = path.join(ROOT, import.meta.env.MODE === "dist" ? "dist" : "src", "bin", "vitest-runner.mjs");
 
 describe("vitest-runner CLI", () => {
 	it("does not force coverage when --log-file is set", () => {
