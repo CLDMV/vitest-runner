@@ -17,6 +17,7 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 ### Latest: v1.11.1 (November 2026)
 
 - **Coverage files no longer killed as idle** — coverage runs print nothing until a file ends, so a file that ran past the 10-minute idle limit was failed while its tests passed. Coverage children now report test progress on a side pipe, and that progress resets the idle timer; a file that's really stuck still trips it ([#159](https://github.com/CLDMV/vitest-runner/pull/159)).
+- **One file per module, no bundles** — `dist/` now mirrors `src/`, minified file by file, so every module ships once. The CLI moves to `dist/bin/vitest-runner.mjs`; the `vitest-runner` command is unchanged ([#162](https://github.com/CLDMV/vitest-runner/pull/162)).
 - [View full v1.11.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.1.md)
 
 ### Recent Releases
