@@ -367,7 +367,7 @@ await run({
 ```
 
 - `0` turns a limit off. The CLI takes seconds: `--file-timeout 900 --file-idle-timeout 0`, or `VITEST_FILE_TIMEOUT` / `VITEST_FILE_IDLE_TIMEOUT`.
-- Vitest's default reporter can print little while a long test runs. A file with one test that legitimately runs silent for more than 10 minutes needs a higher idle limit or an override.
+- Vitest's default reporter can print little while a long test runs. In coverage runs, where it prints nothing until the file ends, the runner adds a small reporter that reports test progress on a side pipe, and that progress counts as output. A single test that legitimately runs for more than 10 minutes still needs a higher idle limit or an override.
 - Each file runs in its own process group so the kill also reaches vitest's workers and anything a test started, such as a browser. A process that moves itself out of the group (a new session) isn't reached. The runner reports the file anyway once its output pipes stay open past the grace period.
 - Because the files no longer share the terminal's process group, the runner kills their groups itself on SIGINT, SIGTERM and exit, with or without `keepTmp`. `killChildProcessGroups()` does the same from your own code.
 - On Windows there are no process groups, so a timeout kills the file's own process only.
@@ -556,6 +556,7 @@ src/
     progress.mjs       ← createCoverageProgressTracker
     scratch.mjs        ← makeRunTmpDir + the scratch-directory lifecycle
     watchdog.mjs       ← per-file time and idle limits, process-group kills
+    heartbeat-reporter.mjs ← reports coverage-run test progress to the idle watchdog
     fs-cache.mjs       ← prepareFsModuleCache: Vitest module cache path + one-time lockfile check
     fs-cache-helper.mjs ← helper process started by fs-cache.mjs (built to dist/ and bin/)
     merge-batches.mjs  ← batched coverage-blob merge used by runMergeReports

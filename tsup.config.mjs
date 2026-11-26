@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-21T11:56:15-08:00 (1795290975)
+ *	@Last modified time: 2026-11-25T18:53:24-08:00 (1795661604)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -55,12 +55,14 @@ export default defineConfig([
 	{
 		...shared,
 		// fs-cache-helper and merge-batches-helper are started as their own processes
-		// (by core/fs-cache.mjs and core/merge-batches.mjs), which find them next to
+		// (by core/fs-cache.mjs and core/merge-batches.mjs), and heartbeat-reporter is
+		// loaded by each coverage vitest child (core/spawn.mjs). All are found next to
 		// the bundle that imports them (see the cli entry too).
 		entry: {
 			index: "src/index.mjs",
 			"fs-cache-helper": "src/core/fs-cache-helper.mjs",
-			"merge-batches-helper": "src/core/merge-batches-helper.mjs"
+			"merge-batches-helper": "src/core/merge-batches-helper.mjs",
+			"heartbeat-reporter": "src/core/heartbeat-reporter.mjs"
 		},
 		format: ["esm"],
 		clean: true,
@@ -76,7 +78,8 @@ export default defineConfig([
 		entry: {
 			"vitest-runner": "src/bin/vitest-runner.mjs",
 			"fs-cache-helper": "src/core/fs-cache-helper.mjs",
-			"merge-batches-helper": "src/core/merge-batches-helper.mjs"
+			"merge-batches-helper": "src/core/merge-batches-helper.mjs",
+			"heartbeat-reporter": "src/core/heartbeat-reporter.mjs"
 		},
 		format: ["esm"],
 		outDir: "bin",

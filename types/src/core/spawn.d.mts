@@ -1,19 +1,4 @@
 /**
- * @typedef {Object} SingleFileResult
- * @property {string} file - Test file path.
- * @property {number} code - Process exit code.
- * @property {number} duration - Run duration in milliseconds.
- * @property {number} testFilesPass
- * @property {number} testFilesFail
- * @property {number} testsPass
- * @property {number} testsFail
- * @property {number} testsSkip
- * @property {number|null} heapMb
- * @property {string[]} errors
- * @property {string} rawOutput
- * @property {string} [timedOut] - Why the watchdog killed the file, when it did.
- */
-/**
  * Run a single Vitest test file in a child process and return parsed results.
  *
  * @param {string} filePath - Test file path (relative to `cwd` or absolute).
@@ -22,7 +7,11 @@
  * whole group killed (SIGTERM, then SIGKILL after `killGraceMs`) and is reported as failed
  * with the reason and its last output lines. `0` or unset means no limit.
  *
- * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv, timeoutMs?: number, idleTimeoutMs?: number, killGraceMs?: number }} opts
+ * With `heartbeat`, the child also loads core/heartbeat-reporter.mjs, which writes to an
+ * extra pipe while tests make progress. That counts as output for the idle limit, so a
+ * file whose reporters print nothing until the end (coverage runs) isn't taken for idle.
+ *
+ * @param {SpawnBaseOptions & { vitestArgs?: string[], streamOutput?: boolean, excludePaths?: string[], extraEnv?: NodeJS.ProcessEnv, timeoutMs?: number, idleTimeoutMs?: number, killGraceMs?: number, heartbeat?: boolean }} opts
  * @returns {Promise<SingleFileResult>}
  * @example
  * const result = await runSingleFile('src/tests/foo.test.vitest.mjs', {
@@ -39,6 +28,7 @@ export function runSingleFile(filePath: string, opts: SpawnBaseOptions & {
     timeoutMs?: number;
     idleTimeoutMs?: number;
     killGraceMs?: number;
+    heartbeat?: boolean;
 }): Promise<SingleFileResult>;
 /**
  * Run Vitest directly (all files in one process) with inherited stdio.
@@ -88,6 +78,23 @@ export function runMergeReports(blobsDir: string, opts: SpawnBaseOptions & {
     exitCode: number;
     output: string;
 }>;
+/**
+ * @typedef {Object} SingleFileResult
+ * @property {string} file - Test file path.
+ * @property {number} code - Process exit code.
+ * @property {number} duration - Run duration in milliseconds.
+ * @property {number} testFilesPass
+ * @property {number} testFilesFail
+ * @property {number} testsPass
+ * @property {number} testsFail
+ * @property {number} testsSkip
+ * @property {number|null} heapMb
+ * @property {string[]} errors
+ * @property {string} rawOutput
+ * @property {string} [timedOut] - Why the watchdog killed the file, when it did.
+ */
+/** The heartbeat reporter, next to this module in src/ and next to the bundle in dist/ and bin/. */
+export const HEARTBEAT_REPORTER_PATH: string;
 export type SpawnBaseOptions = {
     /**
      * - Working directory for the child process.
