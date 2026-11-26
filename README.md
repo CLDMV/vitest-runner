@@ -52,7 +52,7 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 - `require("@cldmv/vitest-runner")` loads the ES module build synchronously, which needs Node.js >=22.13.0; on older Node.js, use `import()` instead.
 - Developing this package needs Node.js 22.22.0 or later (`devEngines`).
 - `vitest` ≥ 1.0 (peer dependency, installed in your project)
-- `chalk` (bundled dependency — no action needed)
+- `chalk` (a dependency, installed with the package)
 
 ### Install
 
@@ -533,11 +533,11 @@ await run({ cwd, testDir: "src", testFilePattern: /\.spec\.ts$/i });
 ## 📁 Source layout
 
 ```text
-dist/                  ← built library entry (npm run build / tsup) — generated, not committed
-  index.mjs            ← bundled ESM entry
+dist/                  ← npm run build (scripts/build.mjs): src/ minified file by file, same layout,
+                         nothing bundled — generated, not committed
+  index.mjs            ← ESM entry
   index.cjs            ← thin CJS entry, copied verbatim from src/index.cjs; require()s index.mjs
-bin/                   ← built CLI binary (npm run build / tsup) — generated, not committed
-  vitest-runner.mjs    ← bundled CLI, from src/bin/vitest-runner.mjs (shebang preserved)
+  bin/vitest-runner.mjs ← the CLI (package.json "bin"); imports ../index.mjs
 src/
   index.mjs            ← main run() API + re-exports
   index.cjs            ← CommonJS entry source (copied to dist/index.cjs by the build)

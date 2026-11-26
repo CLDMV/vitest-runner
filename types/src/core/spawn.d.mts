@@ -93,7 +93,7 @@ export function runMergeReports(blobsDir: string, opts: SpawnBaseOptions & {
  * @property {string} rawOutput
  * @property {string} [timedOut] - Why the watchdog killed the file, when it did.
  */
-/** The heartbeat reporter, next to this module in src/ and next to the bundle in dist/ and bin/. */
+/** The heartbeat reporter, next to this module in src/core/ and dist/core/. */
 export const HEARTBEAT_REPORTER_PATH: string;
 export type SpawnBaseOptions = {
     /**

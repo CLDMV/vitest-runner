@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-10-02T15:35:06-07:00 (1790980506)
+ *	@Last modified time: 2026-11-25T19:39:16-08:00 (1795664356)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -38,7 +38,6 @@ export default defineConfig([
 			"trash/**",
 			"node_modules/**",
 			"dist/**",
-			"bin/**",
 			"build/**",
 			".git/**",
 			".configs/**",

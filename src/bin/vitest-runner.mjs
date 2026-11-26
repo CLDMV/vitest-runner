@@ -8,7 +8,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T12:16:02-08:00 (1795637762)
+ *	@Last modified time: 2026-11-25T19:39:17-08:00 (1795664357)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -21,9 +21,9 @@
  * Mirrors its own output to a log file when --coverage-quiet or --log-file is set, then
  * delegates all logic to `index.mjs` via the programmatic `run()` API.
  *
- * This is the SOURCE — `npm run build` bundles it (with its src/cli/* dependencies
- * inlined) into the published bin/vitest-runner.mjs. bin/ is a build artifact, not
- * tracked in git; run this file directly (as tests do) for source-level dev/testing.
+ * `npm run build` minifies it to dist/bin/vitest-runner.mjs (package.json "bin"), which
+ * imports the library from dist/ like this file imports it from src/. Run this file
+ * directly (as tests do) for source-level dev/testing.
  */
 
 import { createWriteStream, mkdirSync } from "node:fs";

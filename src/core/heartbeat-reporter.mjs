@@ -7,7 +7,7 @@
  *	@Email: <Shinrai@users.noreply.github.com>
  *	-----
  *	@Last modified by: Nate Corcoran <CLDMV> (Shinrai@users.noreply.github.com)
- *	@Last modified time: 2026-11-25T18:53:20-08:00 (1795661600)
+ *	@Last modified time: 2026-11-25T19:39:18-08:00 (1795664358)
  *	-----
  *	@Copyright: Copyright (c) 2013-2026 Catalyzed Motivation Inc. All rights reserved.
  *
@@ -23,7 +23,7 @@
  * writes one newline to it, at most once per `HEARTBEAT_INTERVAL_MS`, and the runner
  * resets the idle timer on each one. Without the env var it does nothing.
  *
- * Bundled as its own file next to the bundle that loads it (see tsup.config.mjs).
+ * Built to dist/core/ next to core/spawn.mjs, which finds it by a relative URL.
  * @module vitest-runner/src/core/heartbeat-reporter
  */
 
