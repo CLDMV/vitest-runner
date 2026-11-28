@@ -14,17 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.11.2 (November 2026)
+### Latest: v1.11.3 (November 2026)
 
-- **CI cancels superseded runs** — `ci.yml` adopts the CLDMV/.github v4.46.0 concurrency block, so a newer push to `next` or `hotfixes` cancels the older run instead of every run holding a runner. Only release pushes always finish. No runtime changes ([#166](https://github.com/CLDMV/vitest-runner/pull/166)).
-- [View full v1.11.2 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.2.md)
+- **Generic CommonJS shim** — `dist/index.cjs` is now the shim every CLDMV library ships. `require("@cldmv/vitest-runner")` returns the same module object as before, and the Node.js requirement for `require()` is unchanged ([#169](https://github.com/CLDMV/vitest-runner/pull/169)).
+- [View full v1.11.3 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.3.md)
 
 ### Recent Releases
 
+- **v1.11.2** (November 2026) — `ci.yml` cancels superseded runs on `next` and `hotfixes` (the CLDMV/.github v4.46.0 concurrency block); no runtime changes ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.2.md))
 - **v1.11.1** (November 2026) — Coverage runs report test progress to the idle watchdog, so long coverage files aren't killed as idle; `dist/` ships one file per module and the CLI moves to `dist/bin/` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.1.md))
 - **v1.11.0** (November 2026) — Coverage index after an external merge (`writeCoverageIndexFromBlobs()`), and a merge-only heap limit (`mergeMaxOldSpaceMb`, `--merge-heap-mb`, `VITEST_MERGE_HEAP_MB`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.0.md))
 - **v1.10.0** (November 2026) — Coverage runs write `coverage-index.json`, mapping each source function to the test files that executed it (`coverageIndex`, `--no-coverage-index`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.10.0.md))
-- **v1.9.0** (November 2026) — Per-file watchdog: a file that runs past 30 minutes or prints nothing for 10 is killed with its process group and reported as failed, and the run carries on (`fileTimeoutMs`, `fileIdleTimeoutMs`, `perFileTimeoutOverrides`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.9.0.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
