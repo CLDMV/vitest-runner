@@ -68,3 +68,34 @@ test("the vitest-runner-dev condition resolves require() and import to src/, and
 		/\/src\/index\.mjs/
 	);
 });
+
+// The generic shim returns the module object when the package exports several distinct values, so require() has the same
+// keys as the ESM namespace (plus the `__esModule` marker) and every named value is the same one import gives. Checked in a
+// plain Node.js child, where require(esm) and import() share one module instance, so `===` means something.
+for (const dir of ["src", "dist"]) {
+	test(`${dir}/index.cjs: require() has the ESM namespace's keys and values`, () => {
+		const code = `
+			const path = require("node:path");
+			const dir = process.argv[1];
+			import(path.resolve(dir, "index.mjs")).then((esm) => {
+				const cjs = require(path.resolve(dir, "index.cjs"));
+				const keys = (obj) => Object.keys(obj).filter((key) => key !== "__esModule").sort();
+				console.log(JSON.stringify({
+					type: typeof cjs,
+					keys: JSON.stringify(keys(cjs)) === JSON.stringify(keys(esm)),
+					count: keys(esm).length,
+					values: keys(esm).every((key) => cjs[key] === esm[key]),
+					noDefaultUnwrap: cjs.default === esm.default
+				}));
+			});`;
+		const res = spawnSync(process.execPath, ["-e", code, path.join(repoRoot, dir)], { cwd: repoRoot, encoding: "utf8" });
+
+		assert.equal(res.status, 0, res.stderr);
+		const out = JSON.parse(res.stdout);
+		assert.equal(out.type, "object");
+		assert.ok(out.count > 1);
+		assert.equal(out.keys, true);
+		assert.equal(out.values, true);
+		assert.equal(out.noDefaultUnwrap, true);
+	});
+}
