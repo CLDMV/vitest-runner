@@ -14,17 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.11.3 (November 2026)
+### Latest: v1.11.4 (November 2026)
 
-- **Generic CommonJS shim** — `dist/index.cjs` is now the shim every CLDMV library ships. `require("@cldmv/vitest-runner")` returns the same module object as before, and the Node.js requirement for `require()` is unchanged ([#169](https://github.com/CLDMV/vitest-runner/pull/169)).
-- [View full v1.11.3 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.3.md)
+- **lib-process 0.1.1** — the runtime dependency `@cldmv/lib-process` moves to 0.1.1, which frees a lock the moment `release()` returns, so a release followed by blocking work no longer holds up the next process. The dev tools move to `@cldmv/configs` 1.5.0 and `@cldmv/fix-headers` 2.6.1; vitest-runner's behaviour is unchanged ([#172](https://github.com/CLDMV/vitest-runner/pull/172)).
+- [View full v1.11.4 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.4.md)
 
 ### Recent Releases
 
+- **v1.11.3** (November 2026) — `dist/index.cjs` is the generic CLDMV CommonJS shim; `require()` unchanged ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.3.md))
 - **v1.11.2** (November 2026) — `ci.yml` cancels superseded runs on `next` and `hotfixes` (the CLDMV/.github v4.46.0 concurrency block); no runtime changes ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.2.md))
 - **v1.11.1** (November 2026) — Coverage runs report test progress to the idle watchdog, so long coverage files aren't killed as idle; `dist/` ships one file per module and the CLI moves to `dist/bin/` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.1.md))
 - **v1.11.0** (November 2026) — Coverage index after an external merge (`writeCoverageIndexFromBlobs()`), and a merge-only heap limit (`mergeMaxOldSpaceMb`, `--merge-heap-mb`, `VITEST_MERGE_HEAP_MB`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.0.md))
-- **v1.10.0** (November 2026) — Coverage runs write `coverage-index.json`, mapping each source function to the test files that executed it (`coverageIndex`, `--no-coverage-index`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.10.0.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
