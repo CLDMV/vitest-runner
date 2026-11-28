@@ -14,18 +14,17 @@ Coverage stays out-of-memory-safe too: each file writes a coverage blob, and a s
 
 ## ✨ What's New
 
-### Latest: v1.11.1 (November 2026)
+### Latest: v1.11.2 (November 2026)
 
-- **Coverage files no longer killed as idle** — coverage runs print nothing until a file ends, so a file that ran past the 10-minute idle limit was failed while its tests passed. Coverage children now report test progress on a side pipe, and that progress resets the idle timer; a file that's really stuck still trips it ([#159](https://github.com/CLDMV/vitest-runner/pull/159)).
-- **One file per module, no bundles** — `dist/` now mirrors `src/`, minified file by file, so every module ships once. The CLI moves to `dist/bin/vitest-runner.mjs`; the `vitest-runner` command is unchanged ([#162](https://github.com/CLDMV/vitest-runner/pull/162)).
-- [View full v1.11.1 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.1.md)
+- **CI cancels superseded runs** — `ci.yml` adopts the CLDMV/.github v4.46.0 concurrency block, so a newer push to `next` or `hotfixes` cancels the older run instead of every run holding a runner. Only release pushes always finish. No runtime changes ([#166](https://github.com/CLDMV/vitest-runner/pull/166)).
+- [View full v1.11.2 Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.2.md)
 
 ### Recent Releases
 
+- **v1.11.1** (November 2026) — Coverage runs report test progress to the idle watchdog, so long coverage files aren't killed as idle; `dist/` ships one file per module and the CLI moves to `dist/bin/` ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.1.md))
 - **v1.11.0** (November 2026) — Coverage index after an external merge (`writeCoverageIndexFromBlobs()`), and a merge-only heap limit (`mergeMaxOldSpaceMb`, `--merge-heap-mb`, `VITEST_MERGE_HEAP_MB`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.11.0.md))
 - **v1.10.0** (November 2026) — Coverage runs write `coverage-index.json`, mapping each source function to the test files that executed it (`coverageIndex`, `--no-coverage-index`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.10.0.md))
 - **v1.9.0** (November 2026) — Per-file watchdog: a file that runs past 30 minutes or prints nothing for 10 is killed with its process group and reported as failed, and the run carries on (`fileTimeoutMs`, `fileIdleTimeoutMs`, `perFileTimeoutOverrides`) ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.9.0.md))
-- **v1.8.2** (November 2026) — Dev-tooling update to Vitest 5.1.1, ESLint 10.15 and Prettier 3.10, and CI coverage back to 100%; no runtime changes ([Changelog](https://github.com/CLDMV/vitest-runner/blob/master/docs/changelog/v1/v1.8.2.md))
 
 📚 For complete release notes, see the [docs/changelog/](https://github.com/CLDMV/vitest-runner/tree/master/docs/changelog/) folder.
 
