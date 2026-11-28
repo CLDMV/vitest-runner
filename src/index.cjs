@@ -14,28 +14,8 @@
  */
 
 /**
- * CommonJS entry point — a thin, synchronous re-export of the real ESM build.
- *
- * Node's `require()` can load an ES module synchronously and get back its
- * exports directly (no Promise, no top-level await involved on this module's
- * side) as long as the target module doesn't itself use top-level await —
- * `src/index.mjs` doesn't. This mirrors @cldmv/uuid's index.cjs pattern
- * instead of the build compiling a second, independent copy of the whole
- * module for the CJS format. In a .cjs file `require` already exists, so a plain
- * `require("./index.mjs")` is used — `createRequire` is unnecessary here and
- * breaks bundling by tools (esbuild/webpack) that need a static `require()`
- * call to detect the dependency.
- *
- * Node.js versions without require(esm) (22.x before 22.12) would fail with a bare
- * ERR_REQUIRE_ESM, and 22.12.x prints an ExperimentalWarning, so require() is
- * supported from 22.13. The check below fails early with a message that says what
- * to do instead.
- *
- * This file is copied verbatim into dist/index.cjs by tsup's onSuccess hook
- * (see tsup.config.mjs) — it never passes through esbuild itself, so it
- * stays exactly this small regardless of how much src/index.mjs grows.
- *
- * @module @cldmv/vitest-runner
+ * @fileoverview CommonJS entry for @cldmv/vitest-runner. `require()` returns the ESM entry's module object ({ default, ...named }),
+ * the same exports as `import`.
  */
 "use strict";
 
@@ -47,4 +27,12 @@ if (!process.features?.require_module) {
 	throw error;
 }
 
-module.exports = require("./index.mjs");
+// Same exports as `import`. One distinct exported value (aliases of it count once) comes back as that value,
+// so require(x)(...) works; anything else comes back as the module object ({ default, ...named }).
+const esm = require("./index.mjs");
+const values = new Set(
+	Object.keys(esm)
+		.filter((key) => key !== "__esModule")
+		.map((key) => esm[key])
+);
+module.exports = values.size === 1 ? values.values().next().value : esm;
